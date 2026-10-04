@@ -3,41 +3,23 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+  "inline-flex items-center border-2 border-black px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-tight text-black transition-colors rounded-none",
   {
     variants: {
       variant: {
-        default:
-          "border-transparent bg-[#133826] text-white shadow-2xs hover:bg-[#1B4332]",
-        secondary:
-          "border-stone-200/60 bg-stone-100 text-stone-600",
-        outline:
-          "border-stone-300 text-stone-700 bg-white",
-        success:
-          "border-emerald-200/60 bg-emerald-50 text-emerald-800",
-        sage:
-          "border-emerald-200/60 bg-emerald-50 text-emerald-800",
-        amber:
-          "border-amber-200/60 bg-amber-50 text-amber-800",
-        warning:
-          "border-amber-200/60 bg-amber-50 text-amber-800",
-        stone:
-          "border-stone-200/60 bg-stone-100 text-stone-600",
-        paused:
-          "border-stone-200/60 bg-stone-100 text-stone-600",
-        error:
-          "border-rose-200/60 bg-rose-50 text-rose-800",
-        rose:
-          "border-rose-200/60 bg-rose-50 text-rose-800",
-        // Backward-compatible aliases:
-        mint:
-          "border-emerald-200/60 bg-emerald-50 text-emerald-800",
-        gold:
-          "border-amber-200/60 bg-amber-50 text-amber-800",
-        terracotta:
-          "border-rose-200/60 bg-rose-50 text-rose-800",
-        pine:
-          "border-stone-200/60 bg-stone-100 text-[#133826]",
+        default: "bg-[#FFDF58] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        secondary: "bg-white text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        outline: "bg-transparent text-black",
+        butter: "bg-[#FFDF58] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        mint: "bg-[#B8E8B8] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        sage: "bg-[#B8E8B8] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        terracotta: "bg-[#FF8E72] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        rose: "bg-[#FF8E72] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        error: "bg-[#FF8E72] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        lavender: "bg-[#D8CEF6] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        girBrown: "bg-[#4A1513] text-white shadow-[1.5px_1.5px_0px_0px_#000000]",
+        stone: "bg-[#EFEAE1] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
+        amber: "bg-[#FFDF58] text-black shadow-[1.5px_1.5px_0px_0px_#000000]",
       },
     },
     defaultVariants: {

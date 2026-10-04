@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from "react";
 import { OrderItem, RaipurZone } from "@/types";
 import { MOCK_ORDERS, RAIPUR_AREAS } from "@/lib/mock-data";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +20,7 @@ import {
   Search,
   CheckCircle,
   XCircle,
-  ShoppingBag,
+  Package,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -101,31 +100,32 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-stone-900">
-            Orders
+          <h1 className="text-xl font-black uppercase tracking-tight text-black">
+            Orders & Dispatches
           </h1>
-          <p className="text-sm text-stone-500 mt-0.5">
-            Manage daily recurring subscription drops and manual one-time orders across Raipur.
+          <p className="text-xs font-medium text-stone-600">
+            Subscription auto-orders vs one-time artisanal ghee & dairy orders in Raipur.
           </p>
         </div>
 
         <Button
           size="sm"
+          variant="primary"
           onClick={() => setIsModalOpen(true)}
-          className="bg-[#133826] hover:bg-[#1B4332] text-white text-xs h-9 gap-1.5 shadow-2xs font-medium"
+          className="gap-1.5"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4 stroke-[3]" />
           Create Manual Order
         </Button>
       </div>
 
       {/* Filter Bar */}
-      <Card className="p-4">
+      <div className="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000000]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Status Filters */}
-          <div className="flex items-center rounded-xl bg-stone-100/80 p-1 border border-stone-200/50">
+          <div className="flex flex-wrap items-center gap-1.5">
             {[
               { id: "All", label: "All Orders" },
               { id: "Pending", label: "Pending" },
@@ -135,10 +135,10 @@ export default function OrdersPage() {
               <button
                 key={f.id}
                 onClick={() => setStatusFilter(f.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-tight transition-all ${
                   statusFilter === f.id
-                    ? "bg-white text-stone-900 shadow-2xs font-semibold"
-                    : "text-stone-600 hover:text-stone-900"
+                    ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                    : "bg-white hover:bg-stone-100 hover:shadow-[1px_1px_0px_0px_#000000]"
                 }`}
               >
                 {f.label}
@@ -148,126 +148,123 @@ export default function OrdersPage() {
 
           {/* Search Input */}
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-black stroke-[2.5]" />
             <Input
-              placeholder="Search by customer, ID, address..."
+              placeholder="Search customer, ID, address..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 text-xs h-9 bg-stone-50/50 border-stone-200"
+              className="pl-9"
             />
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Orders Table */}
-      <Card className="overflow-hidden">
+      <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-stone-50/70 text-stone-500 uppercase text-[10px] font-semibold tracking-wider border-b border-stone-100">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-[#4A1513] text-[#FFDF58] uppercase text-[10px] font-black tracking-wider border-b-2 border-black">
               <tr>
-                <th className="py-3.5 px-6">Order ID</th>
-                <th className="py-3.5 px-6">Customer</th>
-                <th className="py-3.5 px-6">Delivery Address</th>
-                <th className="py-3.5 px-6">Product</th>
-                <th className="py-3.5 px-6 text-center">Status</th>
-                <th className="py-3.5 px-6 text-right">Total</th>
-                <th className="py-3.5 px-6 text-right">Actions</th>
+                <th className="py-3 px-5 border-r-2 border-black">Order ID</th>
+                <th className="py-3 px-5 border-r-2 border-black">Customer</th>
+                <th className="py-3 px-5 border-r-2 border-black">Address & Area</th>
+                <th className="py-3 px-5 border-r-2 border-black">Product & Qty</th>
+                <th className="py-3 px-5 border-r-2 border-black text-center">Status</th>
+                <th className="py-3 px-5 border-r-2 border-black text-right">Total</th>
+                <th className="py-3 px-5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100 bg-white">
+            <tbody className="divide-y-2 divide-black bg-white">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-stone-400 text-xs">
+                  <td colSpan={7} className="py-10 text-center font-bold text-xs uppercase text-stone-500">
                     No orders match your filter criteria.
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-stone-50/50 transition-colors">
+                  <tr key={order.id} className="hover:bg-[#FFF9D2] transition-colors">
                     {/* Order ID */}
-                    <td className="py-4 px-6 font-mono text-xs font-semibold text-stone-900">
+                    <td className="py-3.5 px-5 border-r-2 border-black font-mono text-xs font-black text-black">
                       {order.id}
                     </td>
 
                     {/* Customer */}
-                    <td className="py-4 px-6">
-                      <div className="font-medium text-stone-900">
+                    <td className="py-3.5 px-5 border-r-2 border-black">
+                      <div className="font-extrabold text-black">
                         {order.customerName}
                       </div>
-                      <div className="text-xs text-stone-400 font-mono mt-0.5">
+                      <div className="text-[11px] font-mono font-bold text-stone-600">
                         {order.phone}
                       </div>
                     </td>
 
                     {/* Address */}
-                    <td className="py-4 px-6 text-xs text-stone-700 max-w-[220px]">
-                      <div className="font-medium text-stone-800">{order.area}</div>
-                      <div className="text-stone-500 truncate mt-0.5">{order.address}</div>
+                    <td className="py-3.5 px-5 border-r-2 border-black text-xs">
+                      <div className="font-black text-black">{order.area}</div>
+                      <div className="text-stone-600 truncate max-w-[200px]">{order.address}</div>
                     </td>
 
                     {/* Product */}
-                    <td className="py-4 px-6 text-xs">
-                      <span className="font-medium text-stone-900 block">
+                    <td className="py-3.5 px-5 border-r-2 border-black text-xs">
+                      <span className="font-bold text-black block">
                         {order.product}
                       </span>
-                      <span className="text-stone-500 text-[11px] block mt-0.5 font-mono">
+                      <span className="text-stone-600 text-[11px] font-mono block">
                         {order.quantity}
                       </span>
                     </td>
 
                     {/* Status */}
-                    <td className="py-4 px-6 text-center">
+                    <td className="py-3.5 px-5 border-r-2 border-black text-center">
                       {order.status === "Delivered" ? (
-                        <Badge variant="sage" className="text-[11px]">
+                        <span className="inline-block border-2 border-black bg-[#B8E8B8] px-2 py-0.5 text-[10px] font-black uppercase text-black shadow-[1.5px_1.5px_0px_0px_#000000]">
                           Delivered
-                        </Badge>
+                        </span>
                       ) : order.status === "Skipped" ? (
-                        <Badge variant="rose" className="text-[11px]">
+                        <span className="inline-block border-2 border-black bg-[#FF8E72] px-2 py-0.5 text-[10px] font-black uppercase text-black shadow-[1.5px_1.5px_0px_0px_#000000]">
                           Skipped (Low Balance)
-                        </Badge>
+                        </span>
                       ) : (
-                        <Badge variant="amber" className="text-[11px]">
+                        <span className="inline-block border-2 border-black bg-[#FFDF58] px-2 py-0.5 text-[10px] font-black uppercase text-black shadow-[1.5px_1.5px_0px_0px_#000000]">
                           Pending
-                        </Badge>
+                        </span>
                       )}
                     </td>
 
                     {/* Total */}
-                    <td className="py-4 px-6 text-right font-mono tabular-nums font-semibold text-stone-900 text-xs">
+                    <td className="py-3.5 px-5 border-r-2 border-black text-right font-mono tabular-nums font-black text-black text-sm">
                       {formatCurrency(order.amount)}
                     </td>
 
                     {/* Actions */}
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-3.5 px-5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {order.status === "Pending" && (
                           <>
-                            <Button
-                              size="xs"
-                              variant="outline"
+                            <button
+                              type="button"
                               onClick={() => handleMarkDelivered(order.id)}
-                              className="h-7 text-xs bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                              className="border-2 border-black bg-[#B8E8B8] px-2 py-1 text-[11px] font-black uppercase text-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                             >
-                              Mark Delivered
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="ghost"
+                              Deliver
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => handleCancelOrder(order.id)}
-                              className="h-7 text-xs text-stone-500 hover:text-rose-600 hover:bg-rose-50"
+                              className="border-2 border-black bg-[#FF8E72] px-2 py-1 text-[11px] font-black uppercase text-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                             >
                               Cancel
-                            </Button>
+                            </button>
                           </>
                         )}
                         {order.status === "Delivered" && (
-                          <span className="text-xs text-stone-400 font-medium flex items-center justify-end gap-1">
-                            <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                            Completed
+                          <span className="font-mono text-xs font-black text-emerald-800 flex items-center justify-end gap-1">
+                            <CheckCircle className="h-4 w-4 stroke-[3]" /> Done
                           </span>
                         )}
                         {order.status === "Skipped" && (
-                          <span className="text-xs text-stone-400 font-medium">
+                          <span className="font-mono text-xs font-black text-[#FF8E72]">
                             Skipped
                           </span>
                         )}
@@ -280,31 +277,31 @@ export default function OrdersPage() {
           </table>
         </div>
 
-        <div className="p-4 bg-stone-50/50 border-t border-stone-100 text-xs text-stone-500 flex items-center justify-between px-6">
+        <div className="p-4 bg-[#FBF8EE] border-t-2 border-black text-xs font-black text-black flex items-center justify-between px-5">
           <span>
-            Showing <strong className="text-stone-800">{filteredOrders.length}</strong> orders
+            Total: <strong className="font-mono">{filteredOrders.length}</strong> orders
           </span>
-          <span className="text-stone-400">
-            Cutoff engine generates morning orders at 10:00 PM daily
+          <span className="font-mono text-stone-600">
+            Morning dispatch before 09:00 AM
           </span>
         </div>
-      </Card>
+      </div>
 
       {/* Manual Order Creation Modal */}
       <Dialog open={isModalOpen} onOpenChange={(open) => !open && setIsModalOpen(false)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold text-stone-900">
+            <DialogTitle className="text-base font-black uppercase tracking-tight text-black">
               Create Manual Order
             </DialogTitle>
-            <DialogDescription className="text-xs text-stone-500">
-              Place an immediate delivery order for customer phone or walk-in requests.
+            <DialogDescription className="text-xs font-bold text-stone-600">
+              Emergency phone or walk-in request.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateOrder} className="space-y-4 pt-2">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-stone-700">
+              <label className="text-xs font-black uppercase text-black">
                 Customer Name
               </label>
               <Input
@@ -312,30 +309,28 @@ export default function OrdersPage() {
                 value={newCustomer}
                 onChange={(e) => setNewCustomer(e.target.value)}
                 required
-                className="text-xs bg-white"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-stone-700">
+                <label className="text-xs font-black uppercase text-black">
                   Phone Number
                 </label>
                 <Input
                   value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)}
-                  className="font-mono text-xs bg-white"
+                  className="font-mono"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-stone-700">
+                <label className="text-xs font-black uppercase text-black">
                   Raipur Area
                 </label>
                 <Select
                   value={newArea}
                   onChange={(e) => setNewArea(e.target.value as RaipurZone)}
-                  className="text-xs bg-white"
                 >
                   {RAIPUR_AREAS.map((a) => (
                     <option key={a} value={a}>
@@ -347,20 +342,19 @@ export default function OrdersPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-stone-700">
+              <label className="text-xs font-black uppercase text-black">
                 Delivery Address
               </label>
               <Input
                 placeholder="House, Street, Locality"
                 value={newAddress}
                 onChange={(e) => setNewAddress(e.target.value)}
-                className="text-xs bg-white"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-stone-700">
+                <label className="text-xs font-black uppercase text-black">
                   Product
                 </label>
                 <Select
@@ -371,7 +365,6 @@ export default function OrdersPage() {
                     else if (e.target.value.includes("Ghee")) setNewAmount(1850);
                     else if (e.target.value.includes("Paneer")) setNewAmount(240);
                   }}
-                  className="text-xs bg-white"
                 >
                   <option value="2L A2 Desi Gir Cow Milk">2L A2 Gir Cow Milk</option>
                   <option value="1L A2 Vedic Bilona Ghee">1L A2 Bilona Ghee</option>
@@ -380,14 +373,14 @@ export default function OrdersPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-stone-700">
-                  Order Total (₹)
+                <label className="text-xs font-black uppercase text-black">
+                  Total (₹)
                 </label>
                 <Input
                   type="number"
                   value={newAmount}
                   onChange={(e) => setNewAmount(Number(e.target.value))}
-                  className="font-mono tabular-nums text-xs bg-white"
+                  className="font-mono"
                 />
               </div>
             </div>
@@ -397,14 +390,10 @@ export default function OrdersPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setIsModalOpen(false)}
-                className="text-xs"
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                className="bg-[#133826] hover:bg-[#1B4332] text-white text-xs font-medium"
-              >
+              <Button type="submit" variant="primary">
                 Confirm Order
               </Button>
             </DialogFooter>

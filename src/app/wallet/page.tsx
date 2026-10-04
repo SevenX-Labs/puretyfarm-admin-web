@@ -6,7 +6,6 @@ import {
   MOCK_WALLET_TRANSACTIONS,
   MOCK_CUSTOMERS,
 } from "@/lib/mock-data";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,9 +22,7 @@ import {
   Wallet,
   Plus,
   Search,
-  ArrowDownLeft,
-  ArrowUpRight,
-  AlertCircle,
+  AlertTriangle,
   CheckCircle2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -108,142 +105,144 @@ export default function WalletPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-stone-900">
+          <h1 className="text-xl font-black uppercase tracking-tight text-black">
             Wallets & Payments
           </h1>
-          <p className="text-sm text-stone-500 mt-0.5">
+          <p className="text-xs font-medium text-stone-600">
             Prepaid customer balances, daily cutoff auto-debits, and manual balance adjustments.
           </p>
         </div>
 
         <Button
           size="sm"
+          variant="primary"
           onClick={() => setIsModalOpen(true)}
-          className="bg-[#133826] hover:bg-[#1B4332] text-white text-xs h-9 gap-1.5 shadow-2xs font-medium"
+          className="gap-1.5"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4 stroke-[3]" />
           Manual Balance Adjustment
         </Button>
       </div>
 
       {notice && (
-        <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 p-4 text-xs text-emerald-800 border border-emerald-200/60 shadow-2xs">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <div className="flex items-center gap-2 border-2 border-black bg-[#B8E8B8] p-3 text-xs font-black text-black shadow-[3px_3px_0px_0px_#000000]">
+          <CheckCircle2 className="h-4 w-4 stroke-[3]" />
           <span>{notice}</span>
         </div>
       )}
 
-      {/* Top Stat Cards Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card className="p-5">
-          <div className="flex items-center justify-between text-stone-500">
-            <span className="text-xs font-medium uppercase tracking-wider">
+      {/* Top Stat Cards */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <span className="text-xs font-black uppercase tracking-tight text-black">
               Total Customer Funds Held
             </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100 text-[#133826]">
-              <Wallet className="h-4 w-4" />
-            </div>
+            <span className="border-2 border-black bg-[#B8E8B8] px-2 py-0.5 text-[10px] font-black uppercase text-black shadow-[1.5px_1.5px_0px_0px_#000000]">
+              Float
+            </span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-bold font-mono tabular-nums text-stone-900">
+            <div className="text-3xl font-black font-mono tabular-nums text-black">
               {formatCurrency(totalFundsHeld)}
             </div>
-            <p className="text-xs text-stone-500 mt-1">
+            <p className="text-xs font-bold text-stone-600 mt-1">
               Active prepaid float across Raipur customer accounts
             </p>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-5">
-          <div className="flex items-center justify-between text-stone-500">
-            <span className="text-xs font-medium uppercase tracking-wider">
+        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <span className="text-xs font-black uppercase tracking-tight text-black">
               Low Balance Accounts
             </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-700">
-              <AlertCircle className="h-4 w-4" />
-            </div>
+            <span className="border-2 border-black bg-[#FF8E72] px-2 py-0.5 text-[10px] font-black uppercase text-black shadow-[1.5px_1.5px_0px_0px_#000000]">
+              Alert
+            </span>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-bold font-mono tabular-nums text-rose-700">
+            <div className="text-3xl font-black font-mono tabular-nums text-black">
               {lowBalanceCount} Accounts
             </div>
-            <p className="text-xs text-stone-500 mt-1">
+            <p className="text-xs font-bold text-stone-600 mt-1">
               Balance below ₹100 threshold (SMS reminder dispatched)
             </p>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Transactions Ledger Card */}
-      <Card className="overflow-hidden">
-        <div className="p-6 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
+        <div className="p-5 border-b-2 border-black flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#FBF8EE]">
           <div>
-            <h2 className="text-base font-semibold text-stone-900">
+            <h2 className="text-base font-black uppercase tracking-tight text-black">
               Transaction History
             </h2>
-            <p className="text-xs text-stone-500 mt-0.5">
+            <p className="text-xs font-medium text-stone-600">
               Chronological log of wallet top-ups, daily debits, and adjustments.
             </p>
           </div>
 
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-black stroke-[2.5]" />
             <Input
               placeholder="Search by customer, reason, ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 text-xs h-9 bg-stone-50/50 border-stone-200"
+              className="pl-9"
             />
           </div>
         </div>
 
         {/* Chronological Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-stone-50/70 text-stone-500 uppercase text-[10px] font-semibold tracking-wider border-b border-stone-100">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-[#4A1513] text-[#FFDF58] uppercase text-[10px] font-black tracking-wider border-b-2 border-black">
               <tr>
-                <th className="py-3.5 px-6">Date & Time</th>
-                <th className="py-3.5 px-6">Customer</th>
-                <th className="py-3.5 px-6">Type</th>
-                <th className="py-3.5 px-6">Reason / Notes</th>
-                <th className="py-3.5 px-6 text-right">Amount</th>
+                <th className="py-3 px-5 border-r-2 border-black">Date & Time</th>
+                <th className="py-3 px-5 border-r-2 border-black">Customer</th>
+                <th className="py-3 px-5 border-r-2 border-black">Type</th>
+                <th className="py-3 px-5 border-r-2 border-black">Reason / Notes</th>
+                <th className="py-3 px-5 text-right">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100 bg-white">
+            <tbody className="divide-y-2 divide-black bg-white">
               {filteredTransactions.map((tx) => {
                 const isCredit = tx.type === "Credit";
                 return (
-                  <tr key={tx.id} className="hover:bg-stone-50/50 transition-colors">
+                  <tr key={tx.id} className="hover:bg-[#FFF9D2] transition-colors">
                     {/* Date */}
-                    <td className="py-4 px-6 font-mono text-xs text-stone-600">
+                    <td className="py-3.5 px-5 border-r-2 border-black font-mono font-bold text-xs text-black">
                       {tx.date}
                     </td>
 
                     {/* Customer */}
-                    <td className="py-4 px-6 font-medium text-stone-900 text-xs">
+                    <td className="py-3.5 px-5 border-r-2 border-black font-extrabold text-black text-xs">
                       {tx.customerName}
                     </td>
 
                     {/* Type */}
-                    <td className="py-4 px-6">
-                      <Badge
-                        variant={isCredit ? "sage" : "stone"}
-                        className="text-[11px]"
+                    <td className="py-3.5 px-5 border-r-2 border-black">
+                      <span
+                        className={`inline-block border-2 border-black px-2 py-0.5 text-[10px] font-black uppercase text-black shadow-[1.5px_1.5px_0px_0px_#000000] ${
+                          isCredit ? "bg-[#B8E8B8]" : "bg-[#FFDF58]"
+                        }`}
                       >
                         {isCredit ? "Credit (+)" : "Debit (-)"}
-                      </Badge>
+                      </span>
                     </td>
 
                     {/* Reason */}
-                    <td className="py-4 px-6 text-xs text-stone-700 max-w-sm">
+                    <td className="py-3.5 px-5 border-r-2 border-black text-xs font-medium text-stone-800 max-w-sm">
                       {tx.reason}
                     </td>
 
                     {/* Amount */}
-                    <td className="py-4 px-6 text-right font-mono tabular-nums font-semibold text-xs">
-                      <span className={isCredit ? "text-emerald-700" : "text-stone-800"}>
+                    <td className="py-3.5 px-5 text-right font-mono tabular-nums font-black text-xs text-black">
+                      <span className={isCredit ? "text-emerald-800" : "text-stone-900"}>
                         {isCredit ? "+" : "-"}
                         {formatCurrency(tx.amount)}
                       </span>
@@ -255,45 +254,44 @@ export default function WalletPage() {
           </table>
         </div>
 
-        <div className="p-4 bg-stone-50/50 border-t border-stone-100 text-xs text-stone-500 flex items-center justify-between px-6">
+        <div className="p-4 bg-[#FBF8EE] border-t-2 border-black text-xs font-black text-black flex items-center justify-between px-5">
           <span>
-            Total: <strong className="text-stone-800">{filteredTransactions.length}</strong> transactions
+            Total: <strong className="font-mono">{filteredTransactions.length}</strong> transactions
           </span>
-          <span className="text-stone-400">
-            Automated debits run nightly at 10:00 PM for active daily milk plans
+          <span className="font-mono text-stone-600">
+            Cutoff debits run nightly at 10:00 PM
           </span>
         </div>
-      </Card>
+      </div>
 
       {/* Manual Balance Adjustment Modal */}
       <Dialog open={isModalOpen} onOpenChange={(open) => !open && setIsModalOpen(false)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold text-stone-900">
+            <DialogTitle className="text-base font-black uppercase tracking-tight text-black">
               Manual Balance Adjustment
             </DialogTitle>
-            <DialogDescription className="text-xs text-stone-500">
-              Credit or debit a customer&apos;s prepaid wallet balance with an audit reason.
+            <DialogDescription className="text-xs font-bold text-stone-600">
+              Credit or debit a customer&apos;s prepaid wallet balance.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmitAdjustment} className="space-y-4 pt-2">
             {error && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700 border border-rose-200">
-                <AlertCircle className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-1.5 border-2 border-black bg-[#FF8E72] p-2.5 text-xs font-black text-black shadow-[2px_2px_0px_0px_#000000]">
+                <AlertTriangle className="h-4 w-4 stroke-[3]" />
                 <span>{error}</span>
               </div>
             )}
 
             {/* Customer Select */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-stone-700">
+              <label className="text-xs font-black uppercase text-black">
                 Customer
               </label>
               <Select
                 value={selectedCustId}
                 onChange={(e) => setSelectedCustId(e.target.value)}
-                className="text-xs bg-white"
               >
                 <option value="">-- Choose customer --</option>
                 {customers.map((c) => (
@@ -306,28 +304,28 @@ export default function WalletPage() {
 
             {/* Type */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-stone-700">
+              <label className="text-xs font-black uppercase text-black">
                 Adjustment Type
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setAdjType("Credit")}
-                  className={`rounded-lg py-2 text-xs font-medium border transition-colors ${
+                  className={`border-2 border-black py-2 text-xs font-black uppercase transition-all ${
                     adjType === "Credit"
-                      ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold"
-                      : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"
+                      ? "bg-[#B8E8B8] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                      : "bg-white hover:bg-stone-50"
                   }`}
                 >
-                  Credit (+ Add Money)
+                  Credit (+ Add)
                 </button>
                 <button
                   type="button"
                   onClick={() => setAdjType("Debit")}
-                  className={`rounded-lg py-2 text-xs font-medium border transition-colors ${
+                  className={`border-2 border-black py-2 text-xs font-black uppercase transition-all ${
                     adjType === "Debit"
-                      ? "bg-stone-100 text-stone-800 border-stone-300 font-semibold"
-                      : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"
+                      ? "bg-[#FF8E72] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                      : "bg-white hover:bg-stone-50"
                   }`}
                 >
                   Debit (- Deduct)
@@ -337,7 +335,7 @@ export default function WalletPage() {
 
             {/* Amount */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-stone-700">
+              <label className="text-xs font-black uppercase text-black">
                 Amount (₹)
               </label>
               <Input
@@ -345,21 +343,20 @@ export default function WalletPage() {
                 placeholder="500"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="font-mono tabular-nums text-xs bg-white"
+                className="font-mono"
                 min="1"
               />
             </div>
 
             {/* Reason */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-stone-700">
+              <label className="text-xs font-black uppercase text-black">
                 Reason / Note
               </label>
               <Input
-                placeholder="e.g. Cash collected at farm, UPI adjustment, Bottle return"
+                placeholder="e.g. Cash collected at farm, UPI adjustment"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="text-xs bg-white"
               />
             </div>
 
@@ -368,14 +365,10 @@ export default function WalletPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setIsModalOpen(false)}
-                className="text-xs"
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                className="bg-[#133826] hover:bg-[#1B4332] text-white text-xs font-medium"
-              >
+              <Button type="submit" variant="primary">
                 Confirm Adjustment
               </Button>
             </DialogFooter>

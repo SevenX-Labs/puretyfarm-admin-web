@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from "react";
 import { SubscriptionPlanItem } from "@/types";
 import { MOCK_PLANS } from "@/lib/mock-data";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,7 +74,7 @@ export default function PlansPage() {
     );
 
     setActionNotice(
-      `Paused deliveries for ${selectedPlanForPause.customerName} until ${resumeDate}.`
+      `Deliveries paused for ${selectedPlanForPause.customerName} until ${resumeDate}.`
     );
     setIsPauseModalOpen(false);
     setTimeout(() => setActionNotice(null), 3500);
@@ -87,7 +86,7 @@ export default function PlansPage() {
     );
     const plan = plans.find((p) => p.id === planId);
     if (plan) {
-      setActionNotice(`Resumed daily deliveries for ${plan.customerName}.`);
+      setActionNotice(`Resumed deliveries for ${plan.customerName}.`);
       setTimeout(() => setActionNotice(null), 3000);
     }
   };
@@ -95,37 +94,37 @@ export default function PlansPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-stone-900">
+          <h1 className="text-xl font-black uppercase tracking-tight text-black">
             Plans & Subscriptions
           </h1>
-          <p className="text-sm text-stone-500 mt-0.5">
-            Active recurring milk schedules, tasting trials, and pause/resume requests.
+          <p className="text-xs font-medium text-stone-600">
+            Active recurring milk schedules, tasting trials, and pause/resume controls.
           </p>
         </div>
       </div>
 
       {actionNotice && (
-        <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 p-4 text-xs text-emerald-800 border border-emerald-200/60 shadow-2xs">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <div className="flex items-center gap-2 border-2 border-black bg-[#B8E8B8] p-3 text-xs font-black text-black shadow-[3px_3px_0px_0px_#000000]">
+          <CheckCircle2 className="h-4 w-4 stroke-[3]" />
           <span>{actionNotice}</span>
         </div>
       )}
 
       {/* Filter and Search Bar */}
-      <Card className="p-4">
+      <div className="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000000]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Segmented plan type tabs */}
-          <div className="flex items-center rounded-xl bg-stone-100/80 p-1 border border-stone-200/50">
+          <div className="flex flex-wrap items-center gap-1.5">
             {planTypes.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setPlanTypeFilter(tab.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-tight transition-all ${
                   planTypeFilter === tab.id
-                    ? "bg-white text-stone-900 shadow-2xs font-semibold"
-                    : "text-stone-600 hover:text-stone-900"
+                    ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                    : "bg-white hover:bg-stone-100 hover:shadow-[1px_1px_0px_0px_#000000]"
                 }`}
               >
                 {tab.label}
@@ -135,111 +134,105 @@ export default function PlansPage() {
 
           {/* Search */}
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-black stroke-[2.5]" />
             <Input
               placeholder="Search subscriber, phone, area..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 text-xs h-9 bg-stone-50/50 border-stone-200"
+              className="pl-9"
             />
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Plans Table */}
-      <Card className="overflow-hidden">
+      <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-stone-50/70 text-stone-500 uppercase text-[10px] font-semibold tracking-wider border-b border-stone-100">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-[#4A1513] text-[#FFDF58] uppercase text-[10px] font-black tracking-wider border-b-2 border-black">
               <tr>
-                <th className="py-3.5 px-6">Customer</th>
-                <th className="py-3.5 px-6">Area</th>
-                <th className="py-3.5 px-6">Product & Volume</th>
-                <th className="py-3.5 px-6">Cadence</th>
-                <th className="py-3.5 px-6">Start Date</th>
-                <th className="py-3.5 px-6 text-center">Status</th>
-                <th className="py-3.5 px-6 text-right">Controls</th>
+                <th className="py-3 px-5 border-r-2 border-black">Subscriber</th>
+                <th className="py-3 px-5 border-r-2 border-black">Raipur Locality</th>
+                <th className="py-3 px-5 border-r-2 border-black">Product & Volume</th>
+                <th className="py-3 px-5 border-r-2 border-black">Cadence</th>
+                <th className="py-3 px-5 border-r-2 border-black">Start Date</th>
+                <th className="py-3 px-5 border-r-2 border-black text-center">Status</th>
+                <th className="py-3 px-5 text-right">Controls</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100 bg-white">
+            <tbody className="divide-y-2 divide-black bg-white">
               {filteredPlans.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-stone-400 text-xs">
+                  <td colSpan={7} className="py-10 text-center font-bold text-xs uppercase text-stone-500">
                     No active subscriptions match your filter.
                   </td>
                 </tr>
               ) : (
                 filteredPlans.map((plan) => (
-                  <tr key={plan.id} className="hover:bg-stone-50/50 transition-colors">
+                  <tr key={plan.id} className="hover:bg-[#FFF9D2] transition-colors">
                     {/* Customer */}
-                    <td className="py-4 px-6">
-                      <div className="font-medium text-stone-900">
+                    <td className="py-3.5 px-5 border-r-2 border-black">
+                      <div className="font-extrabold text-black">
                         {plan.customerName}
                       </div>
-                      <div className="text-xs text-stone-400 font-mono mt-0.5">
+                      <div className="text-[11px] font-mono font-bold text-stone-600">
                         {plan.phone}
                       </div>
                     </td>
 
                     {/* Area */}
-                    <td className="py-4 px-6 text-stone-700 text-xs">
+                    <td className="py-3.5 px-5 border-r-2 border-black font-bold text-xs text-black">
                       {plan.area}
                     </td>
 
                     {/* Product & Qty */}
-                    <td className="py-4 px-6 text-xs">
-                      <span className="font-medium text-stone-900 block">
-                        {plan.product}
-                      </span>
-                      <span className="text-stone-500 text-[11px] block mt-0.5 font-mono">
-                        {plan.quantity}
-                      </span>
+                    <td className="py-3.5 px-5 border-r-2 border-black text-xs">
+                      <div className="font-bold text-black">{plan.product}</div>
+                      <div className="text-[11px] font-mono text-stone-600">{plan.quantity}</div>
                     </td>
 
-                    {/* Frequency */}
-                    <td className="py-4 px-6">
-                      <Badge variant="stone" className="text-[11px]">
+                    {/* Cadence */}
+                    <td className="py-3.5 px-5 border-r-2 border-black">
+                      <span className="inline-block border-2 border-black bg-white px-2 py-0.5 text-[10px] font-black uppercase text-black shadow-[1.5px_1.5px_0px_0px_#000000]">
                         {plan.frequency}
-                      </Badge>
+                      </span>
                     </td>
 
                     {/* Start Date */}
-                    <td className="py-4 px-6 font-mono text-xs text-stone-600">
+                    <td className="py-3.5 px-5 border-r-2 border-black font-mono font-bold text-xs text-black">
                       {plan.startDate}
                     </td>
 
                     {/* Status */}
-                    <td className="py-4 px-6 text-center">
+                    <td className="py-3.5 px-5 border-r-2 border-black text-center">
                       <Badge
-                        variant={plan.status === "Active" ? "sage" : "stone"}
-                        className="text-[11px]"
+                        variant={plan.status === "Active" ? "mint" : "stone"}
+                        className="text-[10px]"
                       >
                         {plan.status}
                       </Badge>
                     </td>
 
                     {/* Inline Action Controls */}
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-3.5 px-5 text-right">
                       {plan.status === "Active" ? (
-                        <Button
-                          size="xs"
-                          variant="outline"
+                        <button
+                          type="button"
                           onClick={() => handleOpenPauseModal(plan)}
-                          className="h-7 text-xs text-stone-600 hover:text-stone-900 gap-1"
+                          className="border-2 border-black bg-white px-2.5 py-1 text-xs font-black uppercase tracking-tight text-black shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FF8E72] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all inline-flex items-center gap-1"
                         >
-                          <Pause className="h-3 w-3" />
+                          <Pause className="h-3 w-3 stroke-[3]" />
                           Pause
-                        </Button>
+                        </button>
                       ) : (
-                        <Button
-                          size="xs"
-                          variant="outline"
+                        <button
+                          type="button"
                           onClick={() => handleResume(plan.id)}
-                          className="h-7 text-xs bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 gap-1 font-medium"
+                          className="border-2 border-black bg-[#B8E8B8] px-2.5 py-1 text-xs font-black uppercase tracking-tight text-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all inline-flex items-center gap-1"
                         >
-                          <Play className="h-3 w-3" />
+                          <Play className="h-3 w-3 stroke-[3]" />
                           Resume
-                        </Button>
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -249,61 +242,54 @@ export default function PlansPage() {
           </table>
         </div>
 
-        <div className="p-4 bg-stone-50/50 border-t border-stone-100 text-xs text-stone-500 flex items-center justify-between px-6">
+        <div className="p-4 bg-[#FBF8EE] border-t-2 border-black text-xs font-black text-black flex items-center justify-between px-5">
           <span>
-            Total: <strong className="text-stone-800">{filteredPlans.length}</strong> active subscription profiles
+            Total: <strong className="font-mono">{filteredPlans.length}</strong> active profiles
           </span>
-          <span className="text-stone-400">
-            Pause updates take effect immediately on next morning&apos;s 10:00 PM batch
+          <span className="font-mono text-stone-600">
+            Pause requests take effect on next 10:00 PM batch
           </span>
         </div>
-      </Card>
+      </div>
 
-      {/* Pause Subscription Modal with Date Picker */}
+      {/* Pause Subscription Modal */}
       <Dialog
         open={isPauseModalOpen}
         onOpenChange={(open) => !open && setIsPauseModalOpen(false)}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold text-stone-900">
+            <DialogTitle className="text-base font-black uppercase tracking-tight text-black">
               Pause Milk Subscription
             </DialogTitle>
-            <DialogDescription className="text-xs text-stone-500">
+            <DialogDescription className="text-xs font-bold text-stone-600">
               Temporarily suspend early morning deliveries for {selectedPlanForPause?.customerName}.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            <div className="rounded-xl bg-stone-50 p-3.5 border border-stone-200/60 text-xs space-y-1">
+            <div className="border-2 border-black bg-[#FBF8EE] p-3 text-xs font-bold space-y-1 shadow-[2px_2px_0px_0px_#000000]">
               <div className="flex justify-between">
-                <span className="text-stone-500">Customer:</span>
-                <span className="font-semibold text-stone-900">
-                  {selectedPlanForPause?.customerName}
-                </span>
+                <span>Customer:</span>
+                <span className="font-black text-black">{selectedPlanForPause?.customerName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-stone-500">Product:</span>
-                <span className="font-medium text-stone-800">
-                  {selectedPlanForPause?.product}
-                </span>
+                <span>Product:</span>
+                <span className="font-black text-black">{selectedPlanForPause?.product}</span>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-[#133826]" />
+              <label className="text-xs font-black uppercase text-black flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 stroke-[2.5]" />
                 Auto-Resume Deliveries On
               </label>
               <Input
                 type="date"
                 value={resumeDate}
                 onChange={(e) => setResumeDate(e.target.value)}
-                className="font-mono text-xs bg-white"
+                className="font-mono"
               />
-              <p className="text-[11px] text-stone-400">
-                Deliveries will automatically resume for morning dispatch on this date.
-              </p>
             </div>
           </div>
 
@@ -312,14 +298,13 @@ export default function PlansPage() {
               type="button"
               variant="outline"
               onClick={() => setIsPauseModalOpen(false)}
-              className="text-xs"
             >
               Cancel
             </Button>
             <Button
               type="button"
+              variant="terracotta"
               onClick={handleConfirmPause}
-              className="bg-[#133826] hover:bg-[#1B4332] text-white text-xs font-medium"
             >
               Confirm Pause
             </Button>
