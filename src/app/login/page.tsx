@@ -18,7 +18,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("expired") === "1") {
+        setSessionNotice("Your session has expired. Please sign in again to continue.");
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -94,6 +104,17 @@ export default function LoginPage() {
               Enter your administrator credentials to access the Raipur delivery, customer dispatch, and wallet management console.
             </p>
           </div>
+
+          {/* Session Expired Notice */}
+          {sessionNotice && !errorMessage && (
+            <div
+              role="status"
+              className="bg-[#FFDF58] border-2 border-black p-3.5 font-mono text-xs font-black text-black shadow-[3px_3px_0px_0px_#000000] rounded-none mb-5 flex items-start gap-2.5 animate-in fade-in-0 duration-150"
+            >
+              <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5] mt-0.5 text-black" />
+              <div className="leading-snug flex-1 break-words">{sessionNotice}</div>
+            </div>
+          )}
 
           {/* Dynamic Error Alert */}
           {errorMessage && (

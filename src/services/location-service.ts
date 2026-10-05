@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api-client";
 import { StateItem, CityItem, AreaItem } from "@/types/location";
-import { swrFetch, SwrOptions, setCachedData, invalidateCache } from "@/lib/cache";
+import { swrFetch, SwrOptions, getCachedData, setCachedData, invalidateCache } from "@/lib/cache";
 
 function normalizeArray<T>(res: unknown): T[] {
   if (Array.isArray(res)) return res as T[];
@@ -30,21 +30,34 @@ export const getStates = async (options?: SwrOptions<StateItem[]>): Promise<Stat
     const { cachedData, promise } = swrFetch(
       cacheKey,
       async () => {
-        const res = await apiClient<unknown>("/admin/locations/states");
-        return normalizeArray<StateItem>(res);
+        try {
+          const res = await apiClient<unknown>("/admin/locations/states", { skipAuthRedirect: true });
+          return normalizeArray<StateItem>(res);
+        } catch {
+          const cached = getCachedData<StateItem[]>(cacheKey);
+          if (cached && cached.length > 0) return cached;
+          return [];
+        }
       },
       options
     );
     if (cachedData && !options.forceRefresh) {
       return cachedData;
     }
-    return promise;
+    const res = await promise;
+    return (Array.isArray(res) ? res : getCachedData<StateItem[]>(cacheKey)) || [];
   }
 
-  const res = await apiClient<unknown>("/admin/locations/states");
-  const data = normalizeArray<StateItem>(res);
-  setCachedData(cacheKey, data);
-  return data;
+  try {
+    const res = await apiClient<unknown>("/admin/locations/states", { skipAuthRedirect: true });
+    const data = normalizeArray<StateItem>(res);
+    setCachedData(cacheKey, data);
+    return data;
+  } catch {
+    const cached = getCachedData<StateItem[]>(cacheKey);
+    if (cached && cached.length > 0) return cached;
+    return [];
+  }
 };
 
 export const createState = async (name: string): Promise<StateItem> => {
@@ -91,21 +104,38 @@ export const getCitiesByState = async (
     const { cachedData, promise } = swrFetch(
       cacheKey,
       async () => {
-        const res = await apiClient<unknown>(`/admin/locations/states/${stateId}/cities`);
-        return normalizeArray<CityItem>(res);
+        try {
+          const res = await apiClient<unknown>(`/admin/locations/states/${stateId}/cities`, {
+            skipAuthRedirect: true,
+          });
+          return normalizeArray<CityItem>(res);
+        } catch {
+          const cached = getCachedData<CityItem[]>(cacheKey);
+          if (cached && cached.length > 0) return cached;
+          return [];
+        }
       },
       options
     );
     if (cachedData && !options.forceRefresh) {
       return cachedData;
     }
-    return promise;
+    const res = await promise;
+    return (Array.isArray(res) ? res : getCachedData<CityItem[]>(cacheKey)) || [];
   }
 
-  const res = await apiClient<unknown>(`/admin/locations/states/${stateId}/cities`);
-  const data = normalizeArray<CityItem>(res);
-  setCachedData(cacheKey, data);
-  return data;
+  try {
+    const res = await apiClient<unknown>(`/admin/locations/states/${stateId}/cities`, {
+      skipAuthRedirect: true,
+    });
+    const data = normalizeArray<CityItem>(res);
+    setCachedData(cacheKey, data);
+    return data;
+  } catch {
+    const cached = getCachedData<CityItem[]>(cacheKey);
+    if (cached && cached.length > 0) return cached;
+    return [];
+  }
 };
 
 export const createCity = async (
@@ -159,21 +189,38 @@ export const getAreasByCity = async (
     const { cachedData, promise } = swrFetch(
       cacheKey,
       async () => {
-        const res = await apiClient<unknown>(`/admin/locations/cities/${cityId}/areas`);
-        return normalizeArray<AreaItem>(res);
+        try {
+          const res = await apiClient<unknown>(`/admin/locations/cities/${cityId}/areas`, {
+            skipAuthRedirect: true,
+          });
+          return normalizeArray<AreaItem>(res);
+        } catch {
+          const cached = getCachedData<AreaItem[]>(cacheKey);
+          if (cached && cached.length > 0) return cached;
+          return [];
+        }
       },
       options
     );
     if (cachedData && !options.forceRefresh) {
       return cachedData;
     }
-    return promise;
+    const res = await promise;
+    return (Array.isArray(res) ? res : getCachedData<AreaItem[]>(cacheKey)) || [];
   }
 
-  const res = await apiClient<unknown>(`/admin/locations/cities/${cityId}/areas`);
-  const data = normalizeArray<AreaItem>(res);
-  setCachedData(cacheKey, data);
-  return data;
+  try {
+    const res = await apiClient<unknown>(`/admin/locations/cities/${cityId}/areas`, {
+      skipAuthRedirect: true,
+    });
+    const data = normalizeArray<AreaItem>(res);
+    setCachedData(cacheKey, data);
+    return data;
+  } catch {
+    const cached = getCachedData<AreaItem[]>(cacheKey);
+    if (cached && cached.length > 0) return cached;
+    return [];
+  }
 };
 
 export const createArea = async (

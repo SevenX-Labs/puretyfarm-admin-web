@@ -1,4 +1,4 @@
-import { getCookie, deleteCookie } from "@/lib/cookies";
+import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
 
 export class ApiError extends Error {
   statusCode: number;
@@ -75,8 +75,17 @@ export async function apiClient<T = unknown>(
         // Fallback to default message
       }
 
-      // DO NOT delete cookies or forcibly redirect to /login in background API calls.
-      // Explicit logout handles session termination.
+      // In browser, clean up dead token if unauthorized
+      if (typeof window !== "undefined" && !skipAuthRedirect) {
+        deleteCookie("admin_access_token");
+        deleteCookie("admin_refresh_token");
+        localStorage.removeItem("admin_access_token");
+        localStorage.removeItem("admin_refresh_token");
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login?expired=1";
+        }
+      }
+
       throw new ApiError(errorMsg, 401);
     }
 

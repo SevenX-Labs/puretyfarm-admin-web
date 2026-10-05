@@ -118,6 +118,7 @@ export interface SwrOptions<T> {
   ttlMs?: number;
   forceRefresh?: boolean;
   onFreshData?: (fresh: T) => void;
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -134,7 +135,7 @@ export function swrFetch<T>(
   cachedData: T | null;
   promise: Promise<T>;
 } {
-  const { ttlMs = DEFAULT_TTL_MS, forceRefresh = false, onFreshData } = options;
+  const { ttlMs = DEFAULT_TTL_MS, forceRefresh = false, onFreshData, onError } = options;
 
   // 1. Get cached data immediately (unless forceRefresh requested)
   const cachedData = forceRefresh ? null : getCachedData<T>(key);
@@ -157,10 +158,24 @@ export function swrFetch<T>(
         onFreshData(freshData);
       }
       return freshData;
+    } catch (err) {
+      if (onError) {
+        onError(err);
+      }
+      // If cached data is present, resolve to cached data to prevent crashing background SWR
+      const fallback = cachedData || getCachedData<T>(key);
+      if (fallback) {
+        return fallback;
+      }
+      // Do not throw unhandled rejection in background SWR to prevent Turbopack error overlay
+      return null as unknown as T;
     } finally {
       PENDING_PROMISES.delete(key);
     }
   })();
+
+  // Catch unhandled rejection for background promise
+  fetchPromise.catch(() => {});
 
   PENDING_PROMISES.set(key, fetchPromise);
 

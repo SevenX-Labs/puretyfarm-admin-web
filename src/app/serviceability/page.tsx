@@ -65,7 +65,7 @@ interface DeleteTarget {
 }
 
 export default function ServiceabilityPage() {
-  // Data States (initialized consistently for SSR hydration)
+  // Data States
   const [states, setStates] = useState<StateItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
   const [areas, setAreas] = useState<AreaItem[]>([]);
@@ -80,8 +80,9 @@ export default function ServiceabilityPage() {
   const [isLoadingAreas, setIsLoadingAreas] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Search Filter for Areas
+  // Filters & Search for Areas
   const [areaSearchQuery, setAreaSearchQuery] = useState("");
+  const [areaFilterStatus, setAreaFilterStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
 
   // Mobile Active Tab (for screen widths < lg)
   const [mobileTab, setMobileTab] = useState<"states" | "cities" | "areas">("states");
@@ -151,32 +152,38 @@ export default function ServiceabilityPage() {
         },
       });
 
-      setStates(data);
-      if (data.length > 0) {
+      if (data && data.length > 0) {
+        setStates(data);
         setSelectedStateId((prev) => {
           if (prev && data.some((s) => s.id === prev)) return prev;
           return data[0].id;
         });
       } else {
-        setSelectedStateId(null);
-        setCities([]);
-        setAreas([]);
+        const cached = getCachedData<StateItem[]>("locations:states");
+        if (cached && cached.length > 0) {
+          setStates(cached);
+          setSelectedStateId((prev) => (prev && cached.some((s) => s.id === prev) ? prev : cached[0].id));
+        } else {
+          setSelectedStateId(null);
+          setCities([]);
+          setAreas([]);
+        }
       }
-    } catch (err) {
-      if (states.length === 0) {
-        const msg = err instanceof Error ? err.message : "Failed to load states";
-        notify(msg, "error");
+    } catch {
+      // Graceful fallback to cached states
+      const cached = getCachedData<StateItem[]>("locations:states");
+      if (cached && cached.length > 0) {
+        setStates(cached);
       }
     } finally {
       setIsLoadingStates(false);
     }
-  }, [states.length, notify]);
+  }, []);
 
   // -------------------------------------------------------------
   // Client-Side Mount & Instant SWR Cache Hydration (0ms)
   // -------------------------------------------------------------
   useEffect(() => {
-    // 1. Immediately hydrate from localStorage cache on client mount
     const cachedStates = getCachedData<StateItem[]>("locations:states");
     if (cachedStates && cachedStates.length > 0) {
       setStates(cachedStates);
@@ -197,7 +204,6 @@ export default function ServiceabilityPage() {
       }
     }
 
-    // 2. Silently fetch fresh data in background
     fetchAllStates();
   }, [fetchAllStates]);
 
@@ -241,21 +247,26 @@ export default function ServiceabilityPage() {
         });
 
         if (!isMounted) return;
-        setCities(data);
-        if (data.length > 0) {
+        if (data && data.length > 0) {
+          setCities(data);
           setSelectedCityId((prev) => {
             if (prev && data.some((c) => c.id === prev)) return prev;
             return data[0].id;
+          });
+        } else if (cachedForState && cachedForState.length > 0) {
+          setCities(cachedForState);
+          setSelectedCityId((prev) => {
+            if (prev && cachedForState.some((c) => c.id === prev)) return prev;
+            return cachedForState[0].id;
           });
         } else {
           setSelectedCityId(null);
           setAreas([]);
         }
-      } catch (err) {
+      } catch {
         if (!isMounted) return;
-        if (!cachedForState || cachedForState.length === 0) {
-          const msg = err instanceof Error ? err.message : "Failed to load cities";
-          notify(msg, "error");
+        if (cachedForState && cachedForState.length > 0) {
+          setCities(cachedForState);
         }
       } finally {
         if (isMounted) setIsLoadingCities(false);
@@ -266,7 +277,7 @@ export default function ServiceabilityPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedStateId, selectedCityId, notify]);
+  }, [selectedStateId, selectedCityId]);
 
   // -------------------------------------------------------------
   // Fetch Areas when selectedCityId changes (with SWR)
@@ -297,12 +308,17 @@ export default function ServiceabilityPage() {
         });
 
         if (!isMounted) return;
-        setAreas(data);
-      } catch (err) {
+        if (data && data.length > 0) {
+          setAreas(data);
+        } else if (cachedForCity && cachedForCity.length > 0) {
+          setAreas(cachedForCity);
+        } else {
+          setAreas([]);
+        }
+      } catch {
         if (!isMounted) return;
-        if (!cachedForCity || cachedForCity.length === 0) {
-          const msg = err instanceof Error ? err.message : "Failed to load areas";
-          notify(msg, "error");
+        if (cachedForCity && cachedForCity.length > 0) {
+          setAreas(cachedForCity);
         }
       } finally {
         if (isMounted) setIsLoadingAreas(false);
@@ -313,18 +329,26 @@ export default function ServiceabilityPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedCityId, notify]);
+  }, [selectedCityId]);
 
-  // Filtered Areas by Search Query
+  // Filtered Areas by Search Query and Status Tab
   const filteredAreas = useMemo(() => {
+    let result = areas;
+
+    if (areaFilterStatus === "ACTIVE") {
+      result = result.filter((a) => a.isActive);
+    } else if (areaFilterStatus === "INACTIVE") {
+      result = result.filter((a) => !a.isActive);
+    }
+
     const q = areaSearchQuery.trim().toLowerCase();
-    if (!q) return areas;
-    return areas.filter(
+    if (!q) return result;
+    return result.filter(
       (a) =>
         a.name.toLowerCase().includes(q) ||
         a.pincode.toLowerCase().includes(q)
     );
-  }, [areas, areaSearchQuery]);
+  }, [areas, areaSearchQuery, areaFilterStatus]);
 
   // -------------------------------------------------------------
   // Toggle Active Direct Actions
@@ -615,7 +639,6 @@ export default function ServiceabilityPage() {
     } catch (err) {
       setDeleteTarget(null);
 
-      // Check if 409 Conflict or dependent records error
       const isConflict =
         (err instanceof ApiError && err.statusCode === 409) ||
         (err instanceof Error &&
@@ -688,7 +711,7 @@ export default function ServiceabilityPage() {
     if (!area.isActive) {
       return {
         label: "AREA INACTIVE",
-        className: "bg-[#FF8E72] border border-black text-black font-mono font-bold text-xs px-2 py-0.5",
+        className: "bg-[#FF8E72] border border-black text-black font-mono font-black text-[11px] px-2.5 py-0.5 shadow-[1px_1px_0px_0px_#000000]",
         status: "inactive",
       };
     }
@@ -696,37 +719,51 @@ export default function ServiceabilityPage() {
     if (!isStateActive || !isCityActive) {
       return {
         label: "PARENT PAUSED",
-        className: "bg-stone-200 border border-black text-stone-700 font-mono font-bold text-xs px-2 py-0.5",
+        className: "bg-stone-200 border border-black text-stone-700 font-mono font-black text-[11px] px-2.5 py-0.5 shadow-[1px_1px_0px_0px_#000000]",
         status: "parent_paused",
       };
     }
 
     return {
       label: "SERVICEABLE",
-      className: "bg-[#B8E8B8] border border-black text-black font-mono font-bold text-xs px-2 py-0.5",
+      className: "bg-[#B8E8B8] border border-black text-black font-mono font-black text-[11px] px-2.5 py-0.5 shadow-[1.5px_1.5px_0px_0px_#000000]",
       status: "serviceable",
     };
   };
 
+  // Operational metrics
+  const activeStatesCount = states.filter((s) => s.isActive).length;
+  const activeCitiesCount = cities.filter((c) => c.isActive).length;
+  const activeAreasCount = areas.filter((a) => a.isActive && selectedState?.isActive && selectedCity?.isActive).length;
+
   return (
-    <div className="space-y-6 pb-12">
-      {/* ------------------------------------------------------------- */}
-      {/* Top Header */}
-      {/* ------------------------------------------------------------- */}
+    <div className="space-y-5 pb-12">
+      {/* ============================================================= */}
+      {/* 1. TOP HEADER & OPERATIONAL ACTIONS                           */}
+      {/* ============================================================= */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b-2 border-black pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <Layers className="h-6 w-6 stroke-[2.5]" />
-            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-black">
-              Serviceability & Location Zones
-            </h1>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 border-2 border-black bg-[#FFDF58] flex items-center justify-center shadow-[3px_3px_0px_0px_#000000] shrink-0">
+              <Layers className="h-5 w-5 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-black">
+                  Serviceability & Zones
+                </h1>
+                <span className="bg-[#B8E8B8] border-2 border-black text-black px-2 py-0.5 text-[10px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_#000000]">
+                  Live Network
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-stone-600 mt-0.5">
+                Hierarchical delivery dispatch rules across States, Cities, and Postal Hubs.
+              </p>
+            </div>
           </div>
-          <p className="text-xs font-semibold text-stone-600 mt-1">
-            Manage active delivery coverage across States, Cities, and Postal Pincodes.
-          </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <Button
             variant="secondary"
             size="sm"
@@ -737,7 +774,7 @@ export default function ServiceabilityPage() {
             <RefreshCw
               className={`h-3.5 w-3.5 stroke-[2.5] ${isLoadingStates ? "animate-spin" : ""}`}
             />
-            <span className="hidden sm:inline">Refresh</span>
+            <span className="hidden sm:inline">Revalidate</span>
           </Button>
 
           <Button
@@ -751,38 +788,69 @@ export default function ServiceabilityPage() {
         </div>
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* Hierarchy Rule Indicator Banner */}
-      {/* ------------------------------------------------------------- */}
-      <div className="border-2 border-black bg-white p-3 shadow-[3px_3px_0px_0px_#000000] flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 text-stone-800">
-          <ShieldCheck className="h-4 w-4 stroke-[2.5] text-black shrink-0" />
-          <span className="font-bold">
-            Hierarchy Rule: An area is live for customers if and only if{" "}
-            <span className="bg-[#B8E8B8] px-1.5 py-0.5 border border-black font-mono">State Active</span> +{" "}
-            <span className="bg-[#B8E8B8] px-1.5 py-0.5 border border-black font-mono">City Active</span> +{" "}
-            <span className="bg-[#B8E8B8] px-1.5 py-0.5 border border-black font-mono">Area Active</span>.
-          </span>
+      {/* ============================================================= */}
+      {/* 2. THREE OPERATIONAL METRIC STATS CARDS                       */}
+      {/* ============================================================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Card 1: States */}
+        <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-extrabold uppercase text-stone-600 tracking-wider">
+              States Configured
+            </div>
+            <div className="text-2xl font-black font-mono text-black mt-1">
+              {states.length}{" "}
+              <span className="text-xs font-bold text-stone-500 font-sans">
+                ({activeStatesCount} Active)
+              </span>
+            </div>
+          </div>
+          <div className="h-10 w-10 border-2 border-black bg-[#FFDF58] flex items-center justify-center shadow-[2px_2px_0px_0px_#000000]">
+            <MapPin className="h-5 w-5 stroke-[2.5]" />
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 font-mono text-[11px] font-bold">
-          <span className="border border-black px-2 py-0.5 bg-[#FBF8EE]">
-            {states.length} States
-          </span>
-          <span className="border border-black px-2 py-0.5 bg-[#FBF8EE]">
-            {cities.length} Cities
-          </span>
-          <span className="border border-black px-2 py-0.5 bg-[#FBF8EE]">
-            {areas.length} Hubs
-          </span>
+
+        {/* Card 2: Cities */}
+        <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-extrabold uppercase text-stone-600 tracking-wider">
+              Cities in {selectedState ? selectedState.name : "Network"}
+            </div>
+            <div className="text-2xl font-black font-mono text-black mt-1">
+              {cities.length}{" "}
+              <span className="text-xs font-bold text-stone-500 font-sans">
+                ({activeCitiesCount} Live)
+              </span>
+            </div>
+          </div>
+          <div className="h-10 w-10 border-2 border-black bg-[#D8CEF6] flex items-center justify-center shadow-[2px_2px_0px_0px_#000000]">
+            <Building2 className="h-5 w-5 stroke-[2.5]" />
+          </div>
+        </div>
+
+        {/* Card 3: Areas */}
+        <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-extrabold uppercase text-stone-600 tracking-wider">
+              Serviceable Hubs
+            </div>
+            <div className="text-2xl font-black font-mono text-black mt-1">
+              {activeAreasCount}{" "}
+              <span className="text-xs font-bold text-stone-500 font-sans">
+                / {areas.length} Hubs Active
+              </span>
+            </div>
+          </div>
+          <div className="h-10 w-10 border-2 border-black bg-[#B8E8B8] flex items-center justify-center shadow-[2px_2px_0px_0px_#000000]">
+            <Navigation className="h-5 w-5 stroke-[2.5]" />
+          </div>
         </div>
       </div>
 
-      {/* ------------------------------------------------------------- */}
       {/* Global Toast Alert */}
-      {/* ------------------------------------------------------------- */}
       {toastMessage && (
         <div
-          className={`flex items-center justify-between gap-3 border-2 border-black p-3.5 text-xs font-black shadow-[3px_3px_0px_0px_#000000] transition-all ${
+          className={`flex items-center justify-between gap-3 border-2 border-black p-3 text-xs font-black shadow-[3px_3px_0px_0px_#000000] transition-all ${
             toastMessage.type === "error"
               ? "bg-[#FF8E72] text-black"
               : "bg-[#B8E8B8] text-black"
@@ -806,532 +874,562 @@ export default function ServiceabilityPage() {
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* Mobile Tab Switcher (< lg screens) */}
-      {/* ------------------------------------------------------------- */}
-      <div className="lg:hidden grid grid-cols-3 gap-2 border-2 border-black bg-white p-1.5 shadow-[3px_3px_0px_0px_#000000]">
-        <button
-          type="button"
-          onClick={() => setMobileTab("states")}
-          className={`py-2 px-1 text-center font-black text-xs uppercase border-2 border-black transition-all ${
-            mobileTab === "states"
-              ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000]"
-              : "bg-stone-100 hover:bg-stone-200"
-          }`}
-        >
-          1. States ({states.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab("cities")}
-          disabled={!selectedState}
-          className={`py-2 px-1 text-center font-black text-xs uppercase border-2 border-black transition-all ${
-            mobileTab === "cities"
-              ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000]"
-              : "bg-stone-100 hover:bg-stone-200 disabled:opacity-40"
-          }`}
-        >
-          2. Cities ({cities.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab("areas")}
-          disabled={!selectedCity}
-          className={`py-2 px-1 text-center font-black text-xs uppercase border-2 border-black transition-all ${
-            mobileTab === "areas"
-              ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000]"
-              : "bg-stone-100 hover:bg-stone-200 disabled:opacity-40"
-          }`}
-        >
-          3. Areas ({filteredAreas.length})
-        </button>
-      </div>
-
-      {/* ------------------------------------------------------------- */}
-      {/* 3-Tier Column Master-Detail Drilldown */}
-      {/* ------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* ========================================================= */}
-        {/* COLUMN 1: STATES (w-full md:w-1/4 / lg:col-span-3) */}
-        {/* ========================================================= */}
-        <div
-          className={`lg:col-span-3 flex flex-col border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] ${
-            mobileTab !== "states" ? "hidden lg:flex" : "flex"
-          }`}
-        >
-          {/* Column Header */}
-          <div className="flex items-center justify-between border-b-2 border-black bg-[#FBF8EE] p-3.5">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 stroke-[2.5]" />
-              <h2 className="text-xs font-black uppercase tracking-tight text-black">
-                1. States ({states.length})
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={handleOpenAddState}
-              className="border-2 border-black bg-[#FFDF58] px-2 py-0.5 text-[11px] font-black uppercase shadow-[1.5px_1.5px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
-            >
-              + Add
-            </button>
+      {/* ============================================================= */}
+      {/* 3. UNIFIED LOCATION COMMAND CENTER CONSOLE                    */}
+      {/* One single, seamless container without disjointed boxes       */}
+      {/* ============================================================= */}
+      <div className="border-2 border-black bg-white shadow-[6px_6px_0px_0px_#000000] overflow-hidden flex flex-col">
+        {/* Console Top Breadcrumb Bar */}
+        <div className="bg-[#4A1513] text-[#FFDF58] border-b-2 border-black px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs font-black uppercase tracking-wider">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-white/60">Hierarchy Path:</span>
+            <span className="bg-[#FFDF58] text-black px-2 py-0.5 border border-black font-mono">
+              {selectedState ? selectedState.name : "Select State"}
+            </span>
+            {selectedCity && (
+              <>
+                <ChevronRight className="h-3.5 w-3.5 text-[#FFDF58]" />
+                <span className="bg-[#B8E8B8] text-black px-2 py-0.5 border border-black font-mono">
+                  {selectedCity.name}
+                </span>
+              </>
+            )}
+            {selectedCity && (
+              <>
+                <ChevronRight className="h-3.5 w-3.5 text-[#FFDF58]" />
+                <span className="bg-white text-black px-2 py-0.5 border border-black font-mono text-[11px]">
+                  {filteredAreas.length} Hubs
+                </span>
+              </>
+            )}
           </div>
 
-          {/* State List Body */}
-          <div className="p-3 space-y-2.5 max-h-[620px] overflow-y-auto">
-            {isLoadingStates && states.length === 0 ? (
-              // Vibrant Neo-Brutalist Skeletons for States
-              Array.from({ length: 4 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="animate-pulse border-2 border-black bg-[#FFFDF7]/70 p-3 shadow-[2px_2px_0px_0px_#000000] space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div
-                      className="h-4 bg-stone-300 border border-black/50"
-                      style={{ width: `${60 + (idx % 3) * 15}%` }}
-                    />
-                    <div className="h-5 w-9 bg-[#B8E8B8]/30 border-2 border-black" />
-                  </div>
-                  <div className="pt-2 border-t border-black/15 flex items-center justify-between">
-                    <div className="h-3.5 w-14 bg-stone-200 border border-black/30" />
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-5 w-5 bg-stone-200 border border-black/30" />
-                      <div className="h-5 w-5 bg-[#FF8E72]/30 border border-black/30" />
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : states.length === 0 ? (
-              <div className="border-2 border-dashed border-black p-5 text-center bg-[#FFFDF7]">
-                <p className="text-xs font-bold text-stone-600 mb-3">
-                  No states configured yet.
-                </p>
-                <Button
-                  onClick={handleOpenAddState}
-                  size="xs"
-                  className="bg-[#FFDF58] font-black border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
-                >
-                  + Add First State
-                </Button>
-              </div>
-            ) : (
-              states.map((st) => {
-                const isSelected = st.id === selectedStateId;
-                return (
-                  <div
-                    key={st.id}
-                    onClick={() => {
-                      setSelectedStateId(st.id);
-                      setMobileTab("cities");
-                    }}
-                    className={`cursor-pointer border-2 border-black p-3 transition-all ${
-                      isSelected
-                        ? "bg-[#FFDF58] shadow-[3px_3px_0px_0px_#000000] translate-x-1"
-                        : "bg-[#FFFDF7] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFF8D6]"
-                    }`}
-                  >
-                    {/* Top Row: Name & Active Switch */}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-black uppercase tracking-tight text-black truncate">
-                        {st.name}
-                      </span>
-
-                      {/* Neo-brutalist Direct Toggle Switch */}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={st.isActive}
-                        onClick={(e) => handleToggleStateActive(st, e)}
-                        title={st.isActive ? "Click to Disable State" : "Click to Enable State"}
-                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer border-2 border-black transition-colors ${
-                          st.isActive ? "bg-[#B8E8B8]" : "bg-stone-300"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-3.5 w-3.5 transform border border-black bg-white transition duration-150 ease-in-out ${
-                            st.isActive ? "translate-x-4 bg-black" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Bottom Row: Status Pill & Action Buttons */}
-                    <div className="mt-2.5 pt-2 border-t border-black/20 flex items-center justify-between">
-                      <span
-                        className={`border border-black px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase shadow-[1px_1px_0px_0px_#000000] ${
-                          st.isActive
-                            ? "bg-[#B8E8B8] text-black"
-                            : "bg-stone-200 text-stone-700"
-                        }`}
-                      >
-                        {st.isActive ? "ACTIVE" : "DISABLED"}
-                      </span>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={(e) => handleOpenEditState(st, e)}
-                          title="Edit State"
-                          className="border border-black bg-white p-1 hover:bg-stone-100 transition-colors shadow-[1px_1px_0px_0px_#000000]"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => handlePromptDelete("state", st.id, st.name, e)}
-                          title="Delete State"
-                          className="border border-black bg-[#FF8E72] p-1 hover:bg-[#FF7250] transition-colors shadow-[1px_1px_0px_0px_#000000]"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                        <ChevronRight className="h-3.5 w-3.5 ml-0.5 text-stone-500" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+          <div className="flex items-center gap-2 text-[11px] font-mono text-white/80">
+            <ShieldCheck className="h-3.5 w-3.5 text-[#B8E8B8]" />
+            <span>Rule: State [ON] + City [ON] + Hub [ON] = Active Doorstep Delivery</span>
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* COLUMN 2: CITIES UNDER STATE (w-full md:w-1/3 / lg:col-span-4) */}
-        {/* ========================================================= */}
-        <div
-          className={`lg:col-span-4 flex flex-col border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] ${
-            mobileTab !== "cities" ? "hidden lg:flex" : "flex"
-          }`}
-        >
-          {/* Column Header */}
-          <div className="flex items-center justify-between border-b-2 border-black bg-[#FBF8EE] p-3.5">
-            <div className="flex items-center gap-2 truncate">
-              <Building2 className="h-4 w-4 stroke-[2.5] shrink-0" />
-              <h2 className="text-xs font-black uppercase tracking-tight text-black truncate">
-                2. Cities in {selectedState ? selectedState.name : "..."}
-              </h2>
-            </div>
-            {selectedState && (
+        {/* Mobile Tab Switcher (< lg screens) */}
+        <div className="lg:hidden grid grid-cols-3 border-b-2 border-black bg-stone-100 p-1.5 gap-1.5">
+          <button
+            type="button"
+            onClick={() => setMobileTab("states")}
+            className={`py-2 px-2 text-center font-black text-xs uppercase border-2 border-black transition-all ${
+              mobileTab === "states"
+                ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000]"
+                : "bg-white hover:bg-stone-50"
+            }`}
+          >
+            1. States ({states.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("cities")}
+            disabled={!selectedState}
+            className={`py-2 px-2 text-center font-black text-xs uppercase border-2 border-black transition-all ${
+              mobileTab === "cities"
+                ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000]"
+                : "bg-white hover:bg-stone-50 disabled:opacity-40"
+            }`}
+          >
+            2. Cities ({cities.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("areas")}
+            disabled={!selectedCity}
+            className={`py-2 px-2 text-center font-black text-xs uppercase border-2 border-black transition-all ${
+              mobileTab === "areas"
+                ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000]"
+                : "bg-white hover:bg-stone-50 disabled:opacity-40"
+            }`}
+          >
+            3. Hubs ({filteredAreas.length})
+          </button>
+        </div>
+
+        {/* 3-Column Cascading Split View */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[580px]">
+          {/* ========================================================= */}
+          {/* PANE 1: STATES (lg:col-span-3, border-r-2 border-black)   */}
+          {/* ========================================================= */}
+          <div
+            className={`lg:col-span-3 flex flex-col border-b-2 lg:border-b-0 lg:border-r-2 border-black bg-[#FBF8EE] ${
+              mobileTab !== "states" ? "hidden lg:flex" : "flex"
+            }`}
+          >
+            {/* Pane Header */}
+            <div className="flex items-center justify-between border-b-2 border-black bg-white p-3.5">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 stroke-[2.5]" />
+                <span className="text-xs font-black uppercase tracking-tight text-black">
+                  States ({states.length})
+                </span>
+              </div>
               <button
                 type="button"
-                onClick={handleOpenAddCity}
-                className="border-2 border-black bg-[#FFDF58] px-2 py-0.5 text-[11px] font-black uppercase shadow-[1.5px_1.5px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all shrink-0"
+                onClick={handleOpenAddState}
+                className="border-2 border-black bg-[#FFDF58] px-2 py-0.5 text-[11px] font-black uppercase shadow-[1.5px_1.5px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
               >
-                + Add City
+                + Add
               </button>
-            )}
-          </div>
+            </div>
 
-          {/* City List Body */}
-          <div className="p-3 space-y-2.5 max-h-[620px] overflow-y-auto">
-            {!selectedState ? (
-              <div className="py-12 text-center text-xs font-bold text-stone-500 flex flex-col items-center gap-2">
-                <Navigation className="h-6 w-6 stroke-[2] text-stone-400" />
-                <span>Select a state to view cities</span>
-              </div>
-            ) : isLoadingCities && cities.length === 0 ? (
-              // Vibrant Neo-Brutalist Skeletons for Cities
-              Array.from({ length: 4 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="animate-pulse border-2 border-black bg-[#FFFDF7]/70 p-3 shadow-[2px_2px_0px_0px_#000000] space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div
-                      className="h-4 bg-stone-300 border border-black/50"
-                      style={{ width: `${65 + (idx % 3) * 15}%` }}
-                    />
-                    <div className="h-5 w-9 bg-[#B8E8B8]/30 border-2 border-black" />
-                  </div>
-                  <div className="pt-2 border-t border-black/15 flex items-center justify-between">
-                    <div className="h-3.5 w-16 bg-[#B8E8B8]/30 border border-black/30" />
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-5 w-5 bg-stone-200 border border-black/30" />
-                      <div className="h-5 w-5 bg-[#FF8E72]/30 border border-black/30" />
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : cities.length === 0 ? (
-              <div className="border-2 border-dashed border-black p-5 text-center bg-[#FFFDF7]">
-                <p className="text-xs font-bold text-stone-600 mb-3">
-                  No cities found in {selectedState.name}.
-                </p>
-                <Button
-                  onClick={handleOpenAddCity}
-                  size="xs"
-                  className="bg-[#FFDF58] font-black border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
-                >
-                  + Add First City
-                </Button>
-              </div>
-            ) : (
-              cities.map((city) => {
-                const isSelected = city.id === selectedCityId;
-                const isParentDisabled = !selectedState.isActive;
-                return (
+            {/* Pane List */}
+            <div className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[640px]">
+              {isLoadingStates && states.length === 0 ? (
+                Array.from({ length: 3 }).map((_, idx) => (
                   <div
-                    key={city.id}
-                    onClick={() => {
-                      setSelectedCityId(city.id);
-                      setMobileTab("areas");
-                    }}
-                    className={`cursor-pointer border-2 border-black p-3 transition-all ${
-                      isSelected
-                        ? "bg-[#FFDF58] shadow-[3px_3px_0px_0px_#000000] translate-x-1"
-                        : "bg-[#FFFDF7] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFF8D6]"
-                    }`}
+                    key={idx}
+                    className="animate-pulse border-2 border-black bg-white p-3 shadow-[2px_2px_0px_0px_#000000] space-y-2.5"
                   >
-                    {/* Top Row: Name & Active Switch */}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-black uppercase tracking-tight text-black truncate">
-                        {city.name}
-                      </span>
-
-                      {/* Neo-brutalist Direct Toggle Switch */}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={city.isActive}
-                        onClick={(e) => handleToggleCityActive(city, e)}
-                        title={city.isActive ? "Click to Disable City" : "Click to Enable City"}
-                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer border-2 border-black transition-colors ${
-                          city.isActive ? "bg-[#B8E8B8]" : "bg-stone-300"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-3.5 w-3.5 transform border border-black bg-white transition duration-150 ease-in-out ${
-                            city.isActive ? "translate-x-4 bg-black" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 w-28 bg-stone-200 border border-black/30" />
+                      <div className="h-5 w-9 bg-[#B8E8B8]/30 border-2 border-black" />
                     </div>
-
-                    {/* Bottom Row: Status & Actions */}
-                    <div className="mt-2.5 pt-2 border-t border-black/20 flex items-center justify-between">
-                      {isParentDisabled ? (
-                        <span className="border border-black px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase bg-stone-200 text-stone-700 shadow-[1px_1px_0px_0px_#000000]">
-                          STATE PAUSED
+                    <div className="h-3 w-16 bg-stone-200 border border-black/20" />
+                  </div>
+                ))
+              ) : states.length === 0 ? (
+                <div className="border-2 border-dashed border-black p-5 text-center bg-white my-4">
+                  <p className="text-xs font-bold text-stone-600 mb-3">
+                    No states configured yet.
+                  </p>
+                  <Button
+                    onClick={handleOpenAddState}
+                    size="xs"
+                    className="bg-[#FFDF58] font-black border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
+                  >
+                    + Add State
+                  </Button>
+                </div>
+              ) : (
+                states.map((st) => {
+                  const isSelected = st.id === selectedStateId;
+                  return (
+                    <div
+                      key={st.id}
+                      onClick={() => {
+                        setSelectedStateId(st.id);
+                        setMobileTab("cities");
+                      }}
+                      className={`cursor-pointer border-2 border-black p-3 transition-all select-none ${
+                        isSelected
+                          ? "bg-[#FFDF58] border-l-6 border-l-black shadow-[3px_3px_0px_0px_#000000]"
+                          : "bg-white hover:bg-[#FFFDF7] shadow-[2px_2px_0px_0px_#000000]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-black uppercase tracking-tight text-black truncate">
+                          {st.name}
                         </span>
-                      ) : (
-                        <span
-                          className={`border border-black px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase shadow-[1px_1px_0px_0px_#000000] ${
-                            city.isActive
-                              ? "bg-[#B8E8B8] text-black"
-                              : "bg-[#FF8E72] text-black"
+
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={st.isActive}
+                          onClick={(e) => handleToggleStateActive(st, e)}
+                          title={st.isActive ? "Disable State" : "Enable State"}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer border-2 border-black transition-colors ${
+                            st.isActive ? "bg-[#B8E8B8]" : "bg-stone-300"
                           }`}
                         >
-                          {city.isActive ? "ACTIVE" : "DISABLED"}
-                        </span>
-                      )}
+                          <span
+                            className={`pointer-events-none inline-block h-3.5 w-3.5 transform border border-black bg-white transition duration-150 ease-in-out ${
+                              st.isActive ? "translate-x-4 bg-black" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={(e) => handleOpenEditCity(city, e)}
-                          title="Edit City"
-                          className="border border-black bg-white p-1 hover:bg-stone-100 transition-colors shadow-[1px_1px_0px_0px_#000000]"
+                      <div className="mt-2 pt-2 border-t border-black/15 flex items-center justify-between text-[10px]">
+                        <span
+                          className={`border border-black px-1.5 py-0.2 font-mono font-bold uppercase ${
+                            st.isActive ? "bg-[#B8E8B8] text-black" : "bg-stone-200 text-stone-600"
+                          }`}
                         >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => handlePromptDelete("city", city.id, city.name, e)}
-                          title="Delete City"
-                          className="border border-black bg-[#FF8E72] p-1 hover:bg-[#FF7250] transition-colors shadow-[1px_1px_0px_0px_#000000]"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                        <ChevronRight className="h-3.5 w-3.5 ml-0.5 text-stone-500" />
+                          {st.isActive ? "Active" : "Disabled"}
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenEditState(st, e)}
+                            title="Edit"
+                            className="border border-black bg-white p-1 hover:bg-stone-100 shadow-[1px_1px_0px_0px_#000000]"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handlePromptDelete("state", st.id, st.name, e)}
+                            title="Delete"
+                            className="border border-black bg-[#FF8E72] p-1 hover:bg-[#FF7250] shadow-[1px_1px_0px_0px_#000000]"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                          <ChevronRight className="h-3.5 w-3.5 text-stone-500" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* ========================================================= */}
-        {/* COLUMN 3: SERVICEABLE AREAS & PINCODES (flex-1 / lg:col-span-5) */}
-        {/* ========================================================= */}
-        <div
-          className={`lg:col-span-5 flex flex-col border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] ${
-            mobileTab !== "areas" ? "hidden lg:flex" : "flex"
-          }`}
-        >
-          {/* Column Header */}
-          <div className="border-b-2 border-black bg-[#FBF8EE] p-3.5 space-y-3">
-            <div className="flex items-center justify-between gap-2">
+          {/* ========================================================= */}
+          {/* PANE 2: CITIES (lg:col-span-4, border-r-2 border-black)   */}
+          {/* ========================================================= */}
+          <div
+            className={`lg:col-span-4 flex flex-col border-b-2 lg:border-b-0 lg:border-r-2 border-black bg-[#FBF8EE] ${
+              mobileTab !== "cities" ? "hidden lg:flex" : "flex"
+            }`}
+          >
+            {/* Pane Header */}
+            <div className="flex items-center justify-between border-b-2 border-black bg-white p-3.5">
               <div className="flex items-center gap-2 truncate">
-                <Navigation className="h-4 w-4 stroke-[2.5] shrink-0" />
-                <h2 className="text-xs font-black uppercase tracking-tight text-black truncate">
-                  3. Hubs in {selectedCity ? selectedCity.name : "..."}
-                </h2>
+                <Building2 className="h-4 w-4 stroke-[2.5] shrink-0" />
+                <span className="text-xs font-black uppercase tracking-tight text-black truncate">
+                  Cities in {selectedState ? selectedState.name : "..."}
+                </span>
               </div>
-              {selectedCity && (
+              {selectedState && (
                 <button
                   type="button"
-                  onClick={handleOpenAddArea}
-                  className="border-2 border-black bg-[#FFDF58] px-2.5 py-1 text-xs font-black uppercase shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all shrink-0"
+                  onClick={handleOpenAddCity}
+                  className="border-2 border-black bg-[#FFDF58] px-2 py-0.5 text-[11px] font-black uppercase shadow-[1.5px_1.5px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all shrink-0"
                 >
-                  + Add Area / PIN
+                  + Add City
                 </button>
               )}
             </div>
 
-            {/* Area Search Input */}
-            {selectedCity && (
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-500" />
-                <Input
-                  value={areaSearchQuery}
-                  onChange={(e) => setAreaSearchQuery(e.target.value)}
-                  placeholder="Filter by area name or 6-digit pincode..."
-                  className="pl-8 pr-7 h-8 text-xs font-medium border-2 border-black bg-white"
-                />
-                {areaSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setAreaSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-black"
+            {/* Pane List */}
+            <div className="p-3 space-y-2 flex-1 overflow-y-auto max-h-[640px]">
+              {!selectedState ? (
+                <div className="py-16 text-center text-xs font-bold text-stone-500 flex flex-col items-center gap-2">
+                  <Navigation className="h-6 w-6 stroke-[2] text-stone-400" />
+                  <span>Select a state to view cities</span>
+                </div>
+              ) : isLoadingCities && cities.length === 0 ? (
+                Array.from({ length: 3 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="animate-pulse border-2 border-black bg-white p-3 shadow-[2px_2px_0px_0px_#000000] space-y-2.5"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            )}
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 w-32 bg-stone-200 border border-black/30" />
+                      <div className="h-5 w-9 bg-[#B8E8B8]/30 border-2 border-black" />
+                    </div>
+                    <div className="h-3 w-16 bg-stone-200 border border-black/20" />
+                  </div>
+                ))
+              ) : cities.length === 0 ? (
+                <div className="border-2 border-dashed border-black p-5 text-center bg-white my-4">
+                  <p className="text-xs font-bold text-stone-600 mb-3">
+                    No cities in {selectedState.name}.
+                  </p>
+                  <Button
+                    onClick={handleOpenAddCity}
+                    size="xs"
+                    className="bg-[#FFDF58] font-black border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
+                  >
+                    + Add City
+                  </Button>
+                </div>
+              ) : (
+                cities.map((city) => {
+                  const isSelected = city.id === selectedCityId;
+                  const isParentDisabled = !selectedState.isActive;
+                  return (
+                    <div
+                      key={city.id}
+                      onClick={() => {
+                        setSelectedCityId(city.id);
+                        setMobileTab("areas");
+                      }}
+                      className={`cursor-pointer border-2 border-black p-3 transition-all select-none ${
+                        isSelected
+                          ? "bg-[#FFDF58] border-l-6 border-l-black shadow-[3px_3px_0px_0px_#000000]"
+                          : "bg-white hover:bg-[#FFFDF7] shadow-[2px_2px_0px_0px_#000000]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-black uppercase tracking-tight text-black truncate">
+                          {city.name}
+                        </span>
+
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={city.isActive}
+                          onClick={(e) => handleToggleCityActive(city, e)}
+                          title={city.isActive ? "Disable City" : "Enable City"}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer border-2 border-black transition-colors ${
+                            city.isActive ? "bg-[#B8E8B8]" : "bg-stone-300"
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-3.5 w-3.5 transform border border-black bg-white transition duration-150 ease-in-out ${
+                              city.isActive ? "translate-x-4 bg-black" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="mt-2 pt-2 border-t border-black/15 flex items-center justify-between text-[10px]">
+                        {isParentDisabled ? (
+                          <span className="border border-black px-1.5 py-0.2 font-mono font-bold uppercase bg-stone-200 text-stone-600">
+                            State Paused
+                          </span>
+                        ) : (
+                          <span
+                            className={`border border-black px-1.5 py-0.2 font-mono font-bold uppercase ${
+                              city.isActive ? "bg-[#B8E8B8] text-black" : "bg-[#FF8E72] text-black"
+                            }`}
+                          >
+                            {city.isActive ? "Active" : "Disabled"}
+                          </span>
+                        )}
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenEditCity(city, e)}
+                            title="Edit"
+                            className="border border-black bg-white p-1 hover:bg-stone-100 shadow-[1px_1px_0px_0px_#000000]"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handlePromptDelete("city", city.id, city.name, e)}
+                            title="Delete"
+                            className="border border-black bg-[#FF8E72] p-1 hover:bg-[#FF7250] shadow-[1px_1px_0px_0px_#000000]"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                          <ChevronRight className="h-3.5 w-3.5 text-stone-500" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
 
-          {/* Area List Body */}
-          <div className="p-3 space-y-2.5 max-h-[620px] overflow-y-auto">
-            {!selectedCity ? (
-              <div className="py-12 text-center text-xs font-bold text-stone-500 flex flex-col items-center gap-2">
-                <MapPin className="h-6 w-6 stroke-[2] text-stone-400" />
-                <span>Select a city to inspect its serviceable areas & pincodes</span>
-              </div>
-            ) : isLoadingAreas && areas.length === 0 ? (
-              // Vibrant Neo-Brutalist Skeletons for Areas
-              Array.from({ length: 5 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="animate-pulse border-2 border-black bg-[#FFFDF7]/70 p-3.5 shadow-[3px_3px_0px_0px_#000000] space-y-3"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-4 bg-stone-300 border border-black/50"
-                          style={{ width: `${55 + (idx % 3) * 15}%` }}
-                        />
-                        <div className="h-4 w-16 bg-white border border-black/50" />
-                      </div>
-                      <div className="h-2.5 w-24 bg-stone-200 border border-black/20" />
-                    </div>
-                    <div className="h-6 w-11 bg-[#B8E8B8]/30 border-2 border-black" />
-                  </div>
-                  <div className="pt-2.5 border-t border-black/15 flex items-center justify-between">
-                    <div className="h-5 w-24 bg-[#B8E8B8]/40 border border-black shadow-[1px_1px_0px_0px_#000000]" />
-                    <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 bg-white border border-black" />
-                      <div className="h-6 w-6 bg-[#FF8E72]/40 border border-black" />
-                    </div>
-                  </div>
+          {/* ========================================================= */}
+          {/* PANE 3: HUBS & PINCODES (lg:col-span-5 - MAIN WORKSPACE)  */}
+          {/* ========================================================= */}
+          <div
+            className={`lg:col-span-5 flex flex-col bg-white ${
+              mobileTab !== "areas" ? "hidden lg:flex" : "flex"
+            }`}
+          >
+            {/* Workspace Header & Action */}
+            <div className="p-3.5 border-b-2 border-black bg-white flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 truncate">
+                  <Navigation className="h-4 w-4 stroke-[2.5] shrink-0" />
+                  <span className="text-xs font-black uppercase tracking-tight text-black truncate">
+                    Hubs in {selectedCity ? selectedCity.name : "..."}
+                  </span>
                 </div>
-              ))
-            ) : filteredAreas.length === 0 ? (
-              <div className="border-2 border-dashed border-black p-6 text-center bg-[#FFFDF7]">
-                <p className="text-xs font-bold text-stone-600 mb-3">
-                  {areaSearchQuery
-                    ? `No areas matching "${areaSearchQuery}".`
-                    : `No areas configured for ${selectedCity.name}.`}
-                </p>
-                <Button
-                  onClick={handleOpenAddArea}
-                  size="xs"
-                  className="bg-[#FFDF58] font-black border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
-                >
-                  + Add First Area / Pincode
-                </Button>
-              </div>
-            ) : (
-              filteredAreas.map((area) => {
-                const statusInfo = getAreaStatus(area);
-                return (
-                  <div
-                    key={area.id}
-                    className="border-2 border-black bg-white p-3.5 shadow-[3px_3px_0px_0px_#000000] hover:bg-[#FFFDF7] transition-all"
+                {selectedCity && (
+                  <Button
+                    onClick={handleOpenAddArea}
+                    size="xs"
+                    className="bg-[#FFDF58] font-black text-black border-2 border-black shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFD13B] shrink-0"
                   >
-                    {/* Top Row: Name, Pincode & Direct Switch */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm font-black uppercase tracking-tight text-black">
-                            {area.name}
-                          </h3>
-                          <span className="font-mono font-bold bg-white border border-black px-2 py-0.5 text-xs shadow-[1px_1px_0px_0px_#000000]">
-                            PIN {area.pincode}
-                          </span>
-                        </div>
-                        <div className="text-[10px] font-mono text-stone-500 mt-0.5">
-                          {selectedCity.name}, {selectedState?.name}
-                        </div>
-                      </div>
+                    <Plus className="h-3.5 w-3.5 stroke-[3] mr-1" />
+                    <span>Add Area / PIN</span>
+                  </Button>
+                )}
+              </div>
 
-                      {/* Direct Toggle Switch without opening modal */}
+              {/* Search & Filter Bar */}
+              {selectedCity && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-500" />
+                    <Input
+                      value={areaSearchQuery}
+                      onChange={(e) => setAreaSearchQuery(e.target.value)}
+                      placeholder="Search locality or 6-digit PIN..."
+                      className="pl-8 pr-7 h-8 text-xs font-medium border-2 border-black bg-white"
+                    />
+                    {areaSearchQuery && (
                       <button
                         type="button"
-                        role="switch"
-                        aria-checked={area.isActive}
-                        onClick={(e) => handleToggleAreaActive(area, e)}
-                        title={area.isActive ? "Click to Disable Area" : "Click to Enable Area"}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer border-2 border-black transition-colors ${
-                          area.isActive ? "bg-[#B8E8B8]" : "bg-stone-300"
-                        }`}
+                        onClick={() => setAreaSearchQuery("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-black"
                       >
-                        <span
-                          className={`pointer-events-none inline-block h-4.5 w-4.5 transform border-2 border-black bg-white transition duration-150 ease-in-out ${
-                            area.isActive ? "translate-x-5 bg-black" : "translate-x-0"
-                          }`}
-                        />
+                        <X className="h-3.5 w-3.5" />
                       </button>
+                    )}
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setAreaFilterStatus("ALL")}
+                      className={`px-2 py-1 text-[10px] font-black uppercase border-2 border-black transition-all ${
+                        areaFilterStatus === "ALL"
+                          ? "bg-[#FFDF58] shadow-[1.5px_1.5px_0px_0px_#000000]"
+                          : "bg-stone-100 hover:bg-stone-200"
+                      }`}
+                    >
+                      All ({areas.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAreaFilterStatus("ACTIVE")}
+                      className={`px-2 py-1 text-[10px] font-black uppercase border-2 border-black transition-all ${
+                        areaFilterStatus === "ACTIVE"
+                          ? "bg-[#B8E8B8] shadow-[1.5px_1.5px_0px_0px_#000000]"
+                          : "bg-stone-100 hover:bg-stone-200"
+                      }`}
+                    >
+                      Active
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAreaFilterStatus("INACTIVE")}
+                      className={`px-2 py-1 text-[10px] font-black uppercase border-2 border-black transition-all ${
+                        areaFilterStatus === "INACTIVE"
+                          ? "bg-[#FF8E72] shadow-[1.5px_1.5px_0px_0px_#000000]"
+                          : "bg-stone-100 hover:bg-stone-200"
+                      }`}
+                    >
+                      Off
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Workspace Hub List Body */}
+            <div className="p-3.5 space-y-2.5 flex-1 overflow-y-auto max-h-[640px] bg-[#FFFDF7]/50">
+              {!selectedCity ? (
+                <div className="py-20 text-center text-xs font-bold text-stone-500 flex flex-col items-center gap-2">
+                  <MapPin className="h-7 w-7 stroke-[1.8] text-stone-400" />
+                  <span>Select a city from the middle column to inspect its hubs</span>
+                </div>
+              ) : isLoadingAreas && areas.length === 0 ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="animate-pulse border-2 border-black bg-white p-4 shadow-[2px_2px_0px_0px_#000000] space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 w-40 bg-stone-200 border border-black/30" />
+                      <div className="h-6 w-11 bg-[#B8E8B8]/30 border-2 border-black" />
                     </div>
+                    <div className="h-4 w-24 bg-stone-200 border border-black/20" />
+                  </div>
+                ))
+              ) : filteredAreas.length === 0 ? (
+                <div className="border-2 border-dashed border-black p-8 text-center bg-white my-4">
+                  <p className="text-xs font-bold text-stone-600 mb-3">
+                    {areaSearchQuery
+                      ? `No postal hubs matching "${areaSearchQuery}".`
+                      : `No delivery hubs configured for ${selectedCity.name}.`}
+                  </p>
+                  <Button
+                    onClick={handleOpenAddArea}
+                    size="xs"
+                    className="bg-[#FFDF58] font-black border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
+                  >
+                    + Add First Hub
+                  </Button>
+                </div>
+              ) : (
+                filteredAreas.map((area) => {
+                  const statusInfo = getAreaStatus(area);
+                  return (
+                    <div
+                      key={area.id}
+                      className="border-2 border-black bg-white p-3.5 shadow-[3px_3px_0px_0px_#000000] hover:bg-[#FFFDF7] transition-all"
+                    >
+                      {/* Top Header Line */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-black uppercase tracking-tight text-black truncate">
+                              {area.name}
+                            </span>
+                            <span className="font-mono font-black bg-[#FBF8EE] border border-black px-2 py-0.5 text-xs shadow-[1px_1px_0px_0px_#000000]">
+                              PIN {area.pincode}
+                            </span>
+                          </div>
+                          <div className="text-[11px] font-medium text-stone-500 mt-1">
+                            {selectedCity.name}, {selectedState?.name}
+                          </div>
+                        </div>
 
-                    {/* Bottom Row: Status Pill & Actions */}
-                    <div className="mt-3 pt-2.5 border-t border-black/20 flex items-center justify-between">
-                      <span className={statusInfo.className}>
-                        {statusInfo.label}
-                      </span>
-
-                      <div className="flex items-center gap-2">
+                        {/* Direct Neo-Brutalist Status Switch */}
                         <button
                           type="button"
-                          onClick={(e) => handleOpenEditArea(area, e)}
-                          title="Edit Area"
-                          className="border border-black bg-white p-1.5 hover:bg-stone-100 transition-colors shadow-[1px_1px_0px_0px_#000000]"
+                          role="switch"
+                          aria-checked={area.isActive}
+                          onClick={(e) => handleToggleAreaActive(area, e)}
+                          title={area.isActive ? "Click to Disable Hub" : "Click to Enable Hub"}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer border-2 border-black transition-colors ${
+                            area.isActive ? "bg-[#B8E8B8]" : "bg-stone-300"
+                          }`}
                         >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => handlePromptDelete("area", area.id, area.name, e)}
-                          title="Delete Area"
-                          className="border border-black bg-[#FF8E72] p-1.5 hover:bg-[#FF7250] transition-colors shadow-[1px_1px_0px_0px_#000000]"
-                        >
-                          <Trash2 className="h-3 w-3" />
+                          <span
+                            className={`pointer-events-none inline-block h-4.5 w-4.5 transform border-2 border-black bg-white transition duration-150 ease-in-out ${
+                              area.isActive ? "translate-x-5 bg-black" : "translate-x-0"
+                            }`}
+                          />
                         </button>
                       </div>
+
+                      {/* Bottom Footer Line */}
+                      <div className="mt-3 pt-2.5 border-t border-black/15 flex items-center justify-between">
+                        <span className={statusInfo.className}>
+                          {statusInfo.label}
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenEditArea(area, e)}
+                            title="Edit Hub"
+                            className="border border-black bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100 flex items-center gap-1 shadow-[1px_1px_0px_0px_#000000]"
+                          >
+                            <Pencil className="h-3 w-3" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handlePromptDelete("area", area.id, area.name, e)}
+                            title="Delete Hub"
+                            className="border border-black bg-[#FF8E72] p-1.5 hover:bg-[#FF7250] shadow-[1px_1px_0px_0px_#000000]"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 1. ADD / EDIT STATE MODAL */}
-      {/* ------------------------------------------------------------- */}
+      {/* ============================================================= */}
+      {/* 4. NEO-BRUTALIST MODALS                                       */}
+      {/* ============================================================= */}
+
+      {/* 1. Add / Edit State Modal */}
       <Dialog open={stateModalOpen} onOpenChange={setStateModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1339,7 +1437,7 @@ export default function ServiceabilityPage() {
               {editingState ? `Edit State: ${editingState.name}` : "Add New State"}
             </DialogTitle>
             <DialogDescription>
-              States are the top level of delivery serviceability.
+              States define primary geographic operational boundaries.
             </DialogDescription>
           </DialogHeader>
 
@@ -1402,9 +1500,7 @@ export default function ServiceabilityPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 2. ADD / EDIT CITY MODAL */}
-      {/* ------------------------------------------------------------- */}
+      {/* 2. Add / Edit City Modal */}
       <Dialog open={cityModalOpen} onOpenChange={setCityModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1438,7 +1534,7 @@ export default function ServiceabilityPage() {
                 required
                 value={cityFormName}
                 onChange={(e) => setCityFormName(e.target.value)}
-                placeholder="e.g. Pune, Raipur, Nagpur"
+                placeholder="e.g. Pune, Raipur, Dombivali"
                 className="font-bold border-2 border-black"
               />
             </div>
@@ -1488,9 +1584,7 @@ export default function ServiceabilityPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 3. ADD / EDIT AREA MODAL */}
-      {/* ------------------------------------------------------------- */}
+      {/* 3. Add / Edit Area Modal */}
       <Dialog open={areaModalOpen} onOpenChange={setAreaModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1520,7 +1614,7 @@ export default function ServiceabilityPage() {
                 required
                 value={areaFormName}
                 onChange={(e) => setAreaFormName(e.target.value)}
-                placeholder="e.g. Kothrud, Shankar Nagar, Civil Lines"
+                placeholder="e.g. Star Colony, Kothrud, Civil Lines"
                 className="font-bold border-2 border-black"
               />
             </div>
@@ -1533,7 +1627,7 @@ export default function ServiceabilityPage() {
                 required
                 value={areaFormPincode}
                 onChange={(e) => setAreaFormPincode(e.target.value)}
-                placeholder="e.g. 411038 or 492001"
+                placeholder="e.g. 421204 or 492001"
                 maxLength={10}
                 className="font-mono font-bold border-2 border-black"
               />
@@ -1587,9 +1681,7 @@ export default function ServiceabilityPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 4. CONFIRM DELETE MODAL */}
-      {/* ------------------------------------------------------------- */}
+      {/* 4. Delete Confirmation Modal */}
       <Dialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
@@ -1643,9 +1735,7 @@ export default function ServiceabilityPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 5. 409 CONFLICT RESOLUTION MODAL */}
-      {/* ------------------------------------------------------------- */}
+      {/* 5. 409 Conflict Resolution Modal */}
       <Dialog
         open={Boolean(conflictInfo)}
         onOpenChange={(open) => {
