@@ -5,9 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, IndianRupee, Users, CheckCircle2, Save, ShieldCheck } from "lucide-react";
+import { Clock, IndianRupee, Users, CheckCircle2, Save, ShieldCheck, KeyRound } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
+import { ChangePasswordModal } from "@/components/settings/change-password-modal";
 
 export default function SettingsPage() {
+  const { admin } = useAuth();
+
   // 1. Product Pricing
   const [milk1L, setMilk1L] = useState(90);
   const [milk500ml, setMilk500ml] = useState(50);
@@ -239,6 +243,84 @@ export default function SettingsPage() {
             </table>
           </div>
         </Card>
+
+        {/* Section 4: Admin Security & Credentials */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-5">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-[#FFDF58] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
+                <KeyRound className="h-4 w-4 text-black stroke-[2.5]" />
+              </div>
+              <h2 className="text-base font-extrabold uppercase tracking-tight text-black">
+                Admin Security & Credentials
+              </h2>
+            </div>
+            <Badge variant="mint" className="text-[10px]">
+              Edge Protected
+            </Badge>
+          </div>
+
+          <p className="text-xs font-bold text-black/70 mb-5">
+            Manage master administrator credentials, session authentication, and access keys for Raipur operations.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+            {/* Authenticated Account Info */}
+            <div className="border-2 border-black p-4 bg-[#FFFDF7] shadow-[3px_3px_0px_0px_#000000] space-y-2">
+              <span className="text-[10px] font-black uppercase text-stone-500 block">
+                Authenticated Account
+              </span>
+              <div className="font-mono font-bold text-sm text-black break-all">
+                {admin?.email || "admin@puretyfarm.com"}
+              </div>
+              <div className="inline-block bg-[#FFDF58] border-2 border-black px-2 py-0.5 font-mono text-[10px] font-black uppercase text-black shadow-[1.5px_1.5px_0px_0px_#000000]">
+                ROLE: {admin?.role || "ADMIN"}
+              </div>
+            </div>
+
+            {/* Session Security Details */}
+            <div className="border-2 border-black p-4 bg-[#FFFDF7] shadow-[3px_3px_0px_0px_#000000] space-y-2">
+              <span className="text-[10px] font-black uppercase text-stone-500 block">
+                Session Encryption
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#133826] inline-block animate-pulse" />
+                <span className="font-mono text-xs font-bold text-black uppercase">
+                  JWT Bearer Token Active
+                </span>
+              </div>
+              <p className="text-[11px] font-bold text-black/60">
+                Guarded via Next.js Edge Middleware route verification.
+              </p>
+            </div>
+
+            {/* Change Password CTA */}
+            <div className="border-2 border-black p-4 bg-[#FBF8EE] shadow-[3px_3px_0px_0px_#000000] flex flex-col justify-between space-y-3">
+              <div>
+                <span className="text-[10px] font-black uppercase text-stone-500 block mb-1">
+                  Master Password
+                </span>
+                <p className="text-[11px] font-bold text-black/70">
+                  Update your console master login credentials securely.
+                </p>
+              </div>
+
+              <ChangePasswordModal
+                trigger={
+                  <Button
+                    type="button"
+                    variant="default"
+                    className="w-full bg-[#FFDF58] hover:bg-[#FFD13B] text-black font-extrabold uppercase text-xs h-10 gap-2 border-2 border-black shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all cursor-pointer"
+                  >
+                    <KeyRound className="h-4 w-4 stroke-[2.5]" />
+                    Change Admin Password
+                  </Button>
+                }
+              />
+            </div>
+          </div>
+        </Card>
+
 
         {/* Save CTA */}
         <div className="flex justify-end pt-2">

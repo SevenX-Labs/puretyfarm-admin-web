@@ -16,6 +16,8 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
+
 
 const NAV_ITEMS = [
   {
@@ -57,6 +59,7 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { logout, admin } = useAuth();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 flex w-64 flex-col bg-white border-r-2 border-black shadow-[4px_0px_0px_0px_#000000] transition-all">
@@ -116,19 +119,15 @@ export function Sidebar() {
             Current Session
           </span>
           <span className="bg-[#B8E8B8] border-2 border-black text-black font-mono text-[10px] font-black px-2 py-0.5 shadow-[1.5px_1.5px_0px_0px_#000000]">
-            ADMIN / OWNER
+            {admin?.role ? `${admin.role} / OWNER` : "ADMIN / OWNER"}
           </span>
         </div>
 
         {/* Hard-shadow Logout Button */}
         <button
           type="button"
-          onClick={() => {
-            if (typeof window !== "undefined") {
-              alert("Logged out of Raipur Admin session.");
-            }
-          }}
-          className="w-full flex items-center justify-center gap-2 bg-[#FF8E72] hover:bg-[#FF7250] text-black font-black uppercase text-xs py-2 px-3 border-2 border-black shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all"
+          onClick={() => logout()}
+          className="w-full flex items-center justify-center gap-2 bg-[#FF8E72] hover:bg-[#FF7250] text-black font-black uppercase text-xs py-2 px-3 border-2 border-black shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all cursor-pointer"
         >
           <LogOut className="h-4 w-4 stroke-[2.5]" />
           <span>Exit Console</span>

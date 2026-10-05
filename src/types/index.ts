@@ -147,3 +147,6 @@ export interface AuditLogItem {
   action: string;
   details: string;
 }
+
+export * from './auth';
+
