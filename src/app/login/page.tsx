@@ -58,8 +58,15 @@ export default function LoginPage() {
         {/* Brand Top Header */}
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center border-2 border-black bg-[#FFDF58] text-black shadow-[3px_3px_0px_0px_#000000]">
-              <Milk className="h-6 w-6 stroke-[2.5]" />
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center border-2 border-black bg-[#FFDF58] text-black shadow-[3px_3px_0px_0px_#000000] overflow-hidden">
+              <Image
+                src="/gir-cow-logo.jpg"
+                alt="Puretyfarm Gir Cow"
+                width={44}
+                height={44}
+                className="h-full w-full object-cover"
+                priority
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">

@@ -18,17 +18,18 @@ const BASE_URL =
 
 export interface RequestOptions extends RequestInit {
   skipAuth?: boolean;
+  skipAuthRedirect?: boolean;
 }
 
 /**
  * Centralized API client for Puretyfarm Admin.
- * Handles JWT bearer authentication, error normalization, and 401 redirect cleanup.
+ * Handles JWT bearer authentication, error normalization, and safe session handling.
  */
 export async function apiClient<T = unknown>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { skipAuth = false, headers = {}, ...rest } = options;
+  const { skipAuth = false, skipAuthRedirect = false, headers = {}, ...rest } = options;
 
   const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const url = `${BASE_URL}${normalizedEndpoint}`;
@@ -56,11 +57,7 @@ export async function apiClient<T = unknown>(
 
     // Check for 401 Unauthorized
     if (response.status === 401) {
-      // Clear token cookies immediately
-      deleteCookie("admin_access_token");
-      deleteCookie("admin_refresh_token");
-
-      let errorMsg = "Unauthorized session. Please log in.";
+      let errorMsg = "Unauthorized session.";
       try {
         const errJson = await response.json();
         if (errJson && errJson.message) {
@@ -72,9 +69,14 @@ export async function apiClient<T = unknown>(
         // Fallback to default message
       }
 
-      // If in browser and not on login page, redirect to login
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.href = "/login";
+      // If skipAuthRedirect is not set and user is in browser, clean up and redirect
+      if (!skipAuthRedirect) {
+        deleteCookie("admin_access_token");
+        deleteCookie("admin_refresh_token");
+
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
       }
 
       throw new ApiError(errorMsg, 401);

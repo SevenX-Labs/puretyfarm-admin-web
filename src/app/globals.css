@@ -1,7 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @theme inline {
+  --font-sans: "Plus Jakarta Sans", var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", var(--font-geist-mono), monospace;
+
   --color-canvas: #fbf8ee;
   --color-butter: #ffdf58;
   --color-butter-hover: #ffd13b;
@@ -42,10 +46,12 @@
 }
 
 body {
+  font-family: var(--font-sans);
   background-color: var(--background);
   color: var(--foreground);
   min-height: 100vh;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Neo-Brutalist Hard Shadows */
