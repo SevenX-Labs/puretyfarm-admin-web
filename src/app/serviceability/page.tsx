@@ -15,7 +15,6 @@ import {
   ChevronRight,
   RefreshCw,
   Loader2,
-  Power,
   ShieldCheck,
   AlertCircle,
   Layers,
@@ -31,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
+import { getCachedData, setCachedData } from "@/lib/cache";
 import {
   StateItem,
   CityItem,
@@ -65,7 +65,7 @@ interface DeleteTarget {
 }
 
 export default function ServiceabilityPage() {
-  // Data States
+  // Data States (initialized consistently for SSR hydration)
   const [states, setStates] = useState<StateItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
   const [areas, setAreas] = useState<AreaItem[]>([]);
@@ -75,10 +75,10 @@ export default function ServiceabilityPage() {
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
   // Loading States
-  const [isLoadingStates, setIsLoadingStates] = useState(true);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
-  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingStates, setIsLoadingStates] = useState<boolean>(true);
+  const [isLoadingCities, setIsLoadingCities] = useState<boolean>(false);
+  const [isLoadingAreas, setIsLoadingAreas] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Search Filter for Areas
   const [areaSearchQuery, setAreaSearchQuery] = useState("");
@@ -132,11 +132,25 @@ export default function ServiceabilityPage() {
     [cities, selectedCityId]
   );
 
-  // Fetch States on Load
-  const fetchAllStates = useCallback(async () => {
-    setIsLoadingStates(true);
+  // -------------------------------------------------------------
+  // Fetch States with SWR & Silent Background Revalidation
+  // -------------------------------------------------------------
+  const fetchAllStates = useCallback(async (forceRefresh = false) => {
     try {
-      const data = await getStates();
+      const data = await getStates({
+        forceRefresh,
+        onFreshData: (fresh) => {
+          setStates(fresh);
+          setIsLoadingStates(false);
+          if (fresh.length > 0) {
+            setSelectedStateId((prev) => {
+              if (prev && fresh.some((s) => s.id === prev)) return prev;
+              return fresh[0].id;
+            });
+          }
+        },
+      });
+
       setStates(data);
       if (data.length > 0) {
         setSelectedStateId((prev) => {
@@ -149,18 +163,47 @@ export default function ServiceabilityPage() {
         setAreas([]);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load states";
-      notify(msg, "error");
+      if (states.length === 0) {
+        const msg = err instanceof Error ? err.message : "Failed to load states";
+        notify(msg, "error");
+      }
     } finally {
       setIsLoadingStates(false);
     }
-  }, [notify]);
+  }, [states.length, notify]);
 
+  // -------------------------------------------------------------
+  // Client-Side Mount & Instant SWR Cache Hydration (0ms)
+  // -------------------------------------------------------------
   useEffect(() => {
+    // 1. Immediately hydrate from localStorage cache on client mount
+    const cachedStates = getCachedData<StateItem[]>("locations:states");
+    if (cachedStates && cachedStates.length > 0) {
+      setStates(cachedStates);
+      setIsLoadingStates(false);
+      const initialStId = cachedStates[0].id;
+      setSelectedStateId(initialStId);
+
+      const cachedCities = getCachedData<CityItem[]>(`locations:cities:${initialStId}`);
+      if (cachedCities && cachedCities.length > 0) {
+        setCities(cachedCities);
+        const initialCtId = cachedCities[0].id;
+        setSelectedCityId(initialCtId);
+
+        const cachedAreas = getCachedData<AreaItem[]>(`locations:areas:${initialCtId}`);
+        if (cachedAreas) {
+          setAreas(cachedAreas);
+        }
+      }
+    }
+
+    // 2. Silently fetch fresh data in background
     fetchAllStates();
   }, [fetchAllStates]);
 
-  // Fetch Cities when selectedStateId changes
+  // -------------------------------------------------------------
+  // Fetch Cities when selectedStateId changes (with SWR)
+  // -------------------------------------------------------------
   useEffect(() => {
     if (!selectedStateId) {
       setCities([]);
@@ -170,10 +213,33 @@ export default function ServiceabilityPage() {
     }
 
     let isMounted = true;
-    const fetchCities = async () => {
+    const cachedForState = getCachedData<CityItem[]>(`locations:cities:${selectedStateId}`);
+    if (cachedForState && cachedForState.length > 0) {
+      setCities(cachedForState);
+      if (!selectedCityId || !cachedForState.some((c) => c.id === selectedCityId)) {
+        setSelectedCityId(cachedForState[0].id);
+      }
+      setIsLoadingCities(false);
+    } else {
       setIsLoadingCities(true);
+    }
+
+    const fetchCities = async () => {
       try {
-        const data = await getCitiesByState(selectedStateId);
+        const data = await getCitiesByState(selectedStateId, {
+          onFreshData: (fresh) => {
+            if (!isMounted) return;
+            setCities(fresh);
+            setIsLoadingCities(false);
+            if (fresh.length > 0) {
+              setSelectedCityId((prev) => {
+                if (prev && fresh.some((c) => c.id === prev)) return prev;
+                return fresh[0].id;
+              });
+            }
+          },
+        });
+
         if (!isMounted) return;
         setCities(data);
         if (data.length > 0) {
@@ -187,8 +253,10 @@ export default function ServiceabilityPage() {
         }
       } catch (err) {
         if (!isMounted) return;
-        const msg = err instanceof Error ? err.message : "Failed to load cities";
-        notify(msg, "error");
+        if (!cachedForState || cachedForState.length === 0) {
+          const msg = err instanceof Error ? err.message : "Failed to load cities";
+          notify(msg, "error");
+        }
       } finally {
         if (isMounted) setIsLoadingCities(false);
       }
@@ -198,9 +266,11 @@ export default function ServiceabilityPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedStateId, notify]);
+  }, [selectedStateId, selectedCityId, notify]);
 
-  // Fetch Areas when selectedCityId changes
+  // -------------------------------------------------------------
+  // Fetch Areas when selectedCityId changes (with SWR)
+  // -------------------------------------------------------------
   useEffect(() => {
     if (!selectedCityId) {
       setAreas([]);
@@ -208,16 +278,32 @@ export default function ServiceabilityPage() {
     }
 
     let isMounted = true;
-    const fetchAreas = async () => {
+    const cachedForCity = getCachedData<AreaItem[]>(`locations:areas:${selectedCityId}`);
+    if (cachedForCity && cachedForCity.length > 0) {
+      setAreas(cachedForCity);
+      setIsLoadingAreas(false);
+    } else {
       setIsLoadingAreas(true);
+    }
+
+    const fetchAreas = async () => {
       try {
-        const data = await getAreasByCity(selectedCityId);
+        const data = await getAreasByCity(selectedCityId, {
+          onFreshData: (fresh) => {
+            if (!isMounted) return;
+            setAreas(fresh);
+            setIsLoadingAreas(false);
+          },
+        });
+
         if (!isMounted) return;
         setAreas(data);
       } catch (err) {
         if (!isMounted) return;
-        const msg = err instanceof Error ? err.message : "Failed to load areas";
-        notify(msg, "error");
+        if (!cachedForCity || cachedForCity.length === 0) {
+          const msg = err instanceof Error ? err.message : "Failed to load areas";
+          notify(msg, "error");
+        }
       } finally {
         if (isMounted) setIsLoadingAreas(false);
       }
@@ -246,18 +332,17 @@ export default function ServiceabilityPage() {
   const handleToggleStateActive = async (state: StateItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const nextState = !state.isActive;
-    // Optimistic UI update
-    setStates((prev) =>
-      prev.map((s) => (s.id === state.id ? { ...s, isActive: nextState } : s))
-    );
+    const updatedStates = states.map((s) => (s.id === state.id ? { ...s, isActive: nextState } : s));
+    setStates(updatedStates);
+    setCachedData("locations:states", updatedStates);
+
     try {
       await updateState(state.id, { isActive: nextState });
       notify(`${state.name} is now ${nextState ? "Active" : "Disabled"}.`);
     } catch (err) {
-      // Revert on failure
-      setStates((prev) =>
-        prev.map((s) => (s.id === state.id ? { ...s, isActive: !nextState } : s))
-      );
+      const reverted = states.map((s) => (s.id === state.id ? { ...s, isActive: !nextState } : s));
+      setStates(reverted);
+      setCachedData("locations:states", reverted);
       const msg = err instanceof Error ? err.message : "Failed to update state status";
       notify(msg, "error");
     }
@@ -266,18 +351,21 @@ export default function ServiceabilityPage() {
   const handleToggleCityActive = async (city: CityItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const nextState = !city.isActive;
-    // Optimistic UI update
-    setCities((prev) =>
-      prev.map((c) => (c.id === city.id ? { ...c, isActive: nextState } : c))
-    );
+    const updatedCities = cities.map((c) => (c.id === city.id ? { ...c, isActive: nextState } : c));
+    setCities(updatedCities);
+    if (selectedStateId) {
+      setCachedData(`locations:cities:${selectedStateId}`, updatedCities);
+    }
+
     try {
-      await updateCity(city.id, { isActive: nextState });
+      await updateCity(city.id, { isActive: nextState }, selectedStateId || undefined);
       notify(`${city.name} is now ${nextState ? "Active" : "Disabled"}.`);
     } catch (err) {
-      // Revert on failure
-      setCities((prev) =>
-        prev.map((c) => (c.id === city.id ? { ...c, isActive: !nextState } : c))
-      );
+      const reverted = cities.map((c) => (c.id === city.id ? { ...c, isActive: !nextState } : c));
+      setCities(reverted);
+      if (selectedStateId) {
+        setCachedData(`locations:cities:${selectedStateId}`, reverted);
+      }
       const msg = err instanceof Error ? err.message : "Failed to update city status";
       notify(msg, "error");
     }
@@ -286,18 +374,21 @@ export default function ServiceabilityPage() {
   const handleToggleAreaActive = async (area: AreaItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const nextState = !area.isActive;
-    // Optimistic UI update
-    setAreas((prev) =>
-      prev.map((a) => (a.id === area.id ? { ...a, isActive: nextState } : a))
-    );
+    const updatedAreas = areas.map((a) => (a.id === area.id ? { ...a, isActive: nextState } : a));
+    setAreas(updatedAreas);
+    if (selectedCityId) {
+      setCachedData(`locations:areas:${selectedCityId}`, updatedAreas);
+    }
+
     try {
-      await updateArea(area.id, { isActive: nextState });
+      await updateArea(area.id, { isActive: nextState }, selectedCityId || undefined);
       notify(`${area.name} (${area.pincode}) is now ${nextState ? "Active" : "Disabled"}.`);
     } catch (err) {
-      // Revert on failure
-      setAreas((prev) =>
-        prev.map((a) => (a.id === area.id ? { ...a, isActive: !nextState } : a))
-      );
+      const reverted = areas.map((a) => (a.id === area.id ? { ...a, isActive: !nextState } : a));
+      setAreas(reverted);
+      if (selectedCityId) {
+        setCachedData(`locations:areas:${selectedCityId}`, reverted);
+      }
       const msg = err instanceof Error ? err.message : "Failed to update area status";
       notify(msg, "error");
     }
@@ -331,13 +422,15 @@ export default function ServiceabilityPage() {
           name: stateFormName.trim(),
           isActive: stateFormActive,
         });
-        setStates((prev) =>
-          prev.map((s) => (s.id === editingState.id ? updated : s))
-        );
+        const updatedStates = states.map((s) => (s.id === editingState.id ? updated : s));
+        setStates(updatedStates);
+        setCachedData("locations:states", updatedStates);
         notify(`State "${updated.name}" updated successfully.`);
       } else {
         const created = await createState(stateFormName.trim());
-        setStates((prev) => [...prev, created]);
+        const updatedStates = [...states, created];
+        setStates(updatedStates);
+        setCachedData("locations:states", updatedStates);
         setSelectedStateId(created.id);
         notify(`State "${created.name}" created successfully.`);
       }
@@ -378,17 +471,23 @@ export default function ServiceabilityPage() {
     setIsSubmitting(true);
     try {
       if (editingCity) {
-        const updated = await updateCity(editingCity.id, {
-          name: cityFormName.trim(),
-          isActive: cityFormActive,
-        });
-        setCities((prev) =>
-          prev.map((c) => (c.id === editingCity.id ? updated : c))
+        const updated = await updateCity(
+          editingCity.id,
+          {
+            name: cityFormName.trim(),
+            isActive: cityFormActive,
+          },
+          selectedStateId
         );
+        const updatedCities = cities.map((c) => (c.id === editingCity.id ? updated : c));
+        setCities(updatedCities);
+        setCachedData(`locations:cities:${selectedStateId}`, updatedCities);
         notify(`City "${updated.name}" updated successfully.`);
       } else {
         const created = await createCity(selectedStateId, cityFormName.trim());
-        setCities((prev) => [...prev, created]);
+        const updatedCities = [...cities, created];
+        setCities(updatedCities);
+        setCachedData(`locations:cities:${selectedStateId}`, updatedCities);
         setSelectedCityId(created.id);
         notify(`City "${created.name}" created successfully.`);
       }
@@ -431,14 +530,18 @@ export default function ServiceabilityPage() {
     setIsSubmitting(true);
     try {
       if (editingArea) {
-        const updated = await updateArea(editingArea.id, {
-          name: areaFormName.trim(),
-          pincode: areaFormPincode.trim(),
-          isActive: areaFormActive,
-        });
-        setAreas((prev) =>
-          prev.map((a) => (a.id === editingArea.id ? updated : a))
+        const updated = await updateArea(
+          editingArea.id,
+          {
+            name: areaFormName.trim(),
+            pincode: areaFormPincode.trim(),
+            isActive: areaFormActive,
+          },
+          selectedCityId
         );
+        const updatedAreas = areas.map((a) => (a.id === editingArea.id ? updated : a));
+        setAreas(updatedAreas);
+        setCachedData(`locations:areas:${selectedCityId}`, updatedAreas);
         notify(`Area "${updated.name}" updated successfully.`);
       } else {
         const created = await createArea(
@@ -446,7 +549,9 @@ export default function ServiceabilityPage() {
           areaFormName.trim(),
           areaFormPincode.trim()
         );
-        setAreas((prev) => [...prev, created]);
+        const updatedAreas = [...areas, created];
+        setAreas(updatedAreas);
+        setCachedData(`locations:areas:${selectedCityId}`, updatedAreas);
         notify(`Area "${created.name}" created successfully.`);
       }
       setAreaModalOpen(false);
@@ -479,23 +584,31 @@ export default function ServiceabilityPage() {
     try {
       if (type === "state") {
         await deleteState(id);
-        setStates((prev) => prev.filter((s) => s.id !== id));
+        const remaining = states.filter((s) => s.id !== id);
+        setStates(remaining);
+        setCachedData("locations:states", remaining);
         if (selectedStateId === id) {
-          const remaining = states.filter((s) => s.id !== id);
           setSelectedStateId(remaining.length > 0 ? remaining[0].id : null);
         }
         notify(`State "${name}" deleted.`);
       } else if (type === "city") {
-        await deleteCity(id);
-        setCities((prev) => prev.filter((c) => c.id !== id));
+        await deleteCity(id, selectedStateId || undefined);
+        const remaining = cities.filter((c) => c.id !== id);
+        setCities(remaining);
+        if (selectedStateId) {
+          setCachedData(`locations:cities:${selectedStateId}`, remaining);
+        }
         if (selectedCityId === id) {
-          const remaining = cities.filter((c) => c.id !== id);
           setSelectedCityId(remaining.length > 0 ? remaining[0].id : null);
         }
         notify(`City "${name}" deleted.`);
       } else if (type === "area") {
-        await deleteArea(id);
-        setAreas((prev) => prev.filter((a) => a.id !== id));
+        await deleteArea(id, selectedCityId || undefined);
+        const remaining = areas.filter((a) => a.id !== id);
+        setAreas(remaining);
+        if (selectedCityId) {
+          setCachedData(`locations:areas:${selectedCityId}`, remaining);
+        }
         notify(`Area "${name}" deleted.`);
       }
       setDeleteTarget(null);
@@ -539,19 +652,23 @@ export default function ServiceabilityPage() {
     try {
       if (type === "state") {
         await updateState(id, { isActive: false });
-        setStates((prev) =>
-          prev.map((s) => (s.id === id ? { ...s, isActive: false } : s))
-        );
+        const updated = states.map((s) => (s.id === id ? { ...s, isActive: false } : s));
+        setStates(updated);
+        setCachedData("locations:states", updated);
       } else if (type === "city") {
-        await updateCity(id, { isActive: false });
-        setCities((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, isActive: false } : c))
-        );
+        await updateCity(id, { isActive: false }, selectedStateId || undefined);
+        const updated = cities.map((c) => (c.id === id ? { ...c, isActive: false } : c));
+        setCities(updated);
+        if (selectedStateId) {
+          setCachedData(`locations:cities:${selectedStateId}`, updated);
+        }
       } else if (type === "area") {
-        await updateArea(id, { isActive: false });
-        setAreas((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, isActive: false } : a))
-        );
+        await updateArea(id, { isActive: false }, selectedCityId || undefined);
+        const updated = areas.map((a) => (a.id === id ? { ...a, isActive: false } : a));
+        setAreas(updated);
+        if (selectedCityId) {
+          setCachedData(`locations:areas:${selectedCityId}`, updated);
+        }
       }
       notify(`"${name}" has been disabled instead of deleted.`);
       setConflictInfo(null);
@@ -613,7 +730,7 @@ export default function ServiceabilityPage() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={fetchAllStates}
+            onClick={() => fetchAllStates(true)}
             disabled={isLoadingStates}
             className="flex items-center gap-1.5"
           >
@@ -761,11 +878,29 @@ export default function ServiceabilityPage() {
 
           {/* State List Body */}
           <div className="p-3 space-y-2.5 max-h-[620px] overflow-y-auto">
-            {isLoadingStates ? (
-              <div className="py-8 text-center text-xs font-bold text-stone-500 flex flex-col items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Loading states...</span>
-              </div>
+            {isLoadingStates && states.length === 0 ? (
+              // Vibrant Neo-Brutalist Skeletons for States
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="animate-pulse border-2 border-black bg-[#FFFDF7]/70 p-3 shadow-[2px_2px_0px_0px_#000000] space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div
+                      className="h-4 bg-stone-300 border border-black/50"
+                      style={{ width: `${60 + (idx % 3) * 15}%` }}
+                    />
+                    <div className="h-5 w-9 bg-[#B8E8B8]/30 border-2 border-black" />
+                  </div>
+                  <div className="pt-2 border-t border-black/15 flex items-center justify-between">
+                    <div className="h-3.5 w-14 bg-stone-200 border border-black/30" />
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-5 w-5 bg-stone-200 border border-black/30" />
+                      <div className="h-5 w-5 bg-[#FF8E72]/30 border border-black/30" />
+                    </div>
+                  </div>
+                </div>
+              ))
             ) : states.length === 0 ? (
               <div className="border-2 border-dashed border-black p-5 text-center bg-[#FFFDF7]">
                 <p className="text-xs font-bold text-stone-600 mb-3">
@@ -893,11 +1028,29 @@ export default function ServiceabilityPage() {
                 <Navigation className="h-6 w-6 stroke-[2] text-stone-400" />
                 <span>Select a state to view cities</span>
               </div>
-            ) : isLoadingCities ? (
-              <div className="py-8 text-center text-xs font-bold text-stone-500 flex flex-col items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Loading cities in {selectedState.name}...</span>
-              </div>
+            ) : isLoadingCities && cities.length === 0 ? (
+              // Vibrant Neo-Brutalist Skeletons for Cities
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="animate-pulse border-2 border-black bg-[#FFFDF7]/70 p-3 shadow-[2px_2px_0px_0px_#000000] space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div
+                      className="h-4 bg-stone-300 border border-black/50"
+                      style={{ width: `${65 + (idx % 3) * 15}%` }}
+                    />
+                    <div className="h-5 w-9 bg-[#B8E8B8]/30 border-2 border-black" />
+                  </div>
+                  <div className="pt-2 border-t border-black/15 flex items-center justify-between">
+                    <div className="h-3.5 w-16 bg-[#B8E8B8]/30 border border-black/30" />
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-5 w-5 bg-stone-200 border border-black/30" />
+                      <div className="h-5 w-5 bg-[#FF8E72]/30 border border-black/30" />
+                    </div>
+                  </div>
+                </div>
+              ))
             ) : cities.length === 0 ? (
               <div className="border-2 border-dashed border-black p-5 text-center bg-[#FFFDF7]">
                 <p className="text-xs font-bold text-stone-600 mb-3">
@@ -1056,11 +1209,35 @@ export default function ServiceabilityPage() {
                 <MapPin className="h-6 w-6 stroke-[2] text-stone-400" />
                 <span>Select a city to inspect its serviceable areas & pincodes</span>
               </div>
-            ) : isLoadingAreas ? (
-              <div className="py-8 text-center text-xs font-bold text-stone-500 flex flex-col items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Loading areas in {selectedCity.name}...</span>
-              </div>
+            ) : isLoadingAreas && areas.length === 0 ? (
+              // Vibrant Neo-Brutalist Skeletons for Areas
+              Array.from({ length: 5 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="animate-pulse border-2 border-black bg-[#FFFDF7]/70 p-3.5 shadow-[3px_3px_0px_0px_#000000] space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-4 bg-stone-300 border border-black/50"
+                          style={{ width: `${55 + (idx % 3) * 15}%` }}
+                        />
+                        <div className="h-4 w-16 bg-white border border-black/50" />
+                      </div>
+                      <div className="h-2.5 w-24 bg-stone-200 border border-black/20" />
+                    </div>
+                    <div className="h-6 w-11 bg-[#B8E8B8]/30 border-2 border-black" />
+                  </div>
+                  <div className="pt-2.5 border-t border-black/15 flex items-center justify-between">
+                    <div className="h-5 w-24 bg-[#B8E8B8]/40 border border-black shadow-[1px_1px_0px_0px_#000000]" />
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 bg-white border border-black" />
+                      <div className="h-6 w-6 bg-[#FF8E72]/40 border border-black" />
+                    </div>
+                  </div>
+                </div>
+              ))
             ) : filteredAreas.length === 0 ? (
               <div className="border-2 border-dashed border-black p-6 text-center bg-[#FFFDF7]">
                 <p className="text-xs font-bold text-stone-600 mb-3">

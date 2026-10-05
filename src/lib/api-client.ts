@@ -41,9 +41,15 @@ export async function apiClient<T = unknown>(
     requestHeaders.set("Content-Type", "application/json");
   }
 
-  // Attach Bearer token from cookies unless explicitly skipped
+  // Attach Bearer token from cookies or localStorage unless explicitly skipped
   if (!skipAuth) {
-    const token = getCookie("admin_access_token");
+    let token = getCookie("admin_access_token");
+    if (!token && typeof window !== "undefined") {
+      token = localStorage.getItem("admin_access_token");
+      if (token) {
+        setCookie("admin_access_token", token, 30);
+      }
+    }
     if (token && !requestHeaders.has("Authorization")) {
       requestHeaders.set("Authorization", `Bearer ${token}`);
     }
@@ -69,16 +75,8 @@ export async function apiClient<T = unknown>(
         // Fallback to default message
       }
 
-      // If skipAuthRedirect is not set and user is in browser, clean up and redirect
-      if (!skipAuthRedirect) {
-        deleteCookie("admin_access_token");
-        deleteCookie("admin_refresh_token");
-
-        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
-      }
-
+      // DO NOT delete cookies or forcibly redirect to /login in background API calls.
+      // Explicit logout handles session termination.
       throw new ApiError(errorMsg, 401);
     }
 

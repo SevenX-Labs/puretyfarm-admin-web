@@ -35,19 +35,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return Boolean(getCookie("admin_access_token"));
+    const cookieToken = getCookie("admin_access_token");
+    const localToken = localStorage.getItem("admin_access_token");
+    if (!cookieToken && localToken) {
+      setCookie("admin_access_token", localToken, 30);
+    } else if (cookieToken && !localToken) {
+      localStorage.setItem("admin_access_token", cookieToken);
+    }
+    return Boolean(cookieToken || localToken);
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
-    return !getCookie("admin_access_token");
+    return !getCookie("admin_access_token") && !localStorage.getItem("admin_access_token");
   });
 
   /**
    * Silently verifies or updates admin profile in the background without forcing logout on refresh.
    */
   const checkAuth = useCallback(async () => {
-    const token = getCookie("admin_access_token");
+    let token = getCookie("admin_access_token");
+    if (!token && typeof window !== "undefined") {
+      token = localStorage.getItem("admin_access_token");
+      if (token) {
+        setCookie("admin_access_token", token, 30);
+      }
+    }
+
     if (!token) {
       setAdmin(null);
       setIsAuthenticated(false);
@@ -108,9 +122,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (res.accessToken) {
         setCookie("admin_access_token", res.accessToken, 30);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("admin_access_token", res.accessToken);
+        }
       }
       if (res.refreshToken) {
         setCookie("admin_refresh_token", res.refreshToken, 60);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("admin_refresh_token", res.refreshToken);
+        }
       }
 
       const adminUser: AdminUser =
@@ -140,6 +160,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     deleteCookie("admin_refresh_token");
     if (typeof window !== "undefined") {
       localStorage.removeItem("pf_admin_user");
+      localStorage.removeItem("admin_access_token");
+      localStorage.removeItem("admin_refresh_token");
     }
     setAdmin(null);
     setIsAuthenticated(false);
