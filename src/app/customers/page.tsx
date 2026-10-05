@@ -39,13 +39,13 @@ function CustomerAvatarItem({
         src={profile.profileImageUrl}
         alt={profile.firstName || "Customer"}
         onError={() => setImgError(true)}
-        className="w-9 h-9 border-2 border-black object-cover shadow-[2px_2px_0px_0px_#000000] shrink-0"
+        className="w-9 h-9 border-2 border-[#1A1A1A] rounded-[8px] object-cover shadow-[2px_2px_0px_0px_#1A1A1A] shrink-0"
       />
     );
   }
 
   return (
-    <div className="w-9 h-9 border-2 border-black bg-[#FFDF58] text-black font-black text-xs flex items-center justify-center shadow-[2px_2px_0px_0px_#000000] shrink-0 font-mono">
+    <div className="w-9 h-9 border-2 border-[#1A1A1A] bg-[#FFD84D] text-[#1A1A1A] font-black text-xs flex items-center justify-center rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] shrink-0 font-mono">
       {initials}
     </div>
   );
@@ -99,22 +99,23 @@ export default function CustomersPage() {
     async (forceRefresh = false) => {
       setError(null);
 
+      // Instant 0ms cache read
       const query = new URLSearchParams();
       if (page) query.set("page", page.toString());
       if (limit) query.set("limit", limit.toString());
-      if (debouncedSearch.trim()) query.set("search", debouncedSearch.trim());
-      const cacheKey = `customers:${query.toString()}`;
+      if (debouncedSearch?.trim()) query.set("search", debouncedSearch.trim());
 
-      // 1. Immediately hydrate from cache if available (0ms instant render)
-      const cached = forceRefresh ? null : getCachedData<CustomersApiResponse>(cacheKey);
-      if (cached && cached.data) {
-        setCustomers(cached.data);
+      const cacheKey = `customers:${query.toString()}`;
+      const cached = getCachedData<CustomersApiResponse>(cacheKey);
+
+      if (cached && !forceRefresh) {
+        setCustomers(cached.data || []);
         setPagination(
           cached.pagination || {
             page,
             limit,
-            total: cached.data.length,
-            totalPages: Math.max(1, Math.ceil(cached.data.length / limit)),
+            total: cached.data?.length || 0,
+            totalPages: Math.max(1, Math.ceil((cached.data?.length || 0) / limit)),
           }
         );
         setIsLoading(false);
@@ -122,7 +123,7 @@ export default function CustomersPage() {
         setIsLoading(true);
       }
 
-      // 2. Fetch fresh data in the background and update UI silently
+      // Fetch fresh data in the background and update UI silently
       try {
         const response = await fetchCustomers(
           {
@@ -147,15 +148,17 @@ export default function CustomersPage() {
           }
         );
 
-        setCustomers(response.data || []);
-        setPagination(
-          response.pagination || {
-            page,
-            limit,
-            total: response.data?.length || 0,
-            totalPages: Math.max(1, Math.ceil((response.data?.length || 0) / limit)),
-          }
-        );
+        if (response && response.data) {
+          setCustomers(response.data);
+          setPagination(
+            response.pagination || {
+              page,
+              limit,
+              total: response.data.length,
+              totalPages: Math.max(1, Math.ceil(response.data.length / limit)),
+            }
+          );
+        }
       } catch (err: unknown) {
         if (!cached) {
           const msg =
@@ -185,38 +188,38 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Consolidated Sleek Header & Control Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000000]">
+    <div className="space-y-6">
+      {/* Consolidated Header & Control Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border-2 border-[#1A1A1A] rounded-[14px] p-5 shadow-[5px_5px_0px_0px_#1A1A1A]">
         {/* Title and stats pill */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-extrabold uppercase tracking-tight text-black">
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-[#1A1A1A]">
               Customer Directory
             </h1>
-            <span className="bg-[#B8E8B8] border-2 border-black font-mono text-[11px] font-black uppercase px-2.5 py-0.5 shadow-[1.5px_1.5px_0px_0px_#000000] whitespace-nowrap inline-flex items-center shrink-0">
+            <span className="bg-[#B9E8B4] border-2 border-[#1A1A1A] font-mono text-[11px] font-black uppercase px-2.5 py-0.5 rounded-[6px] shadow-[1.5px_1.5px_0px_0px_#1A1A1A] whitespace-nowrap inline-flex items-center shrink-0">
               {pagination.total} Registered
             </span>
           </div>
         </div>
 
-        {/* Integrated Search, Limit, & Refresh */}
+        {/* Integrated Search, Filter, & Refresh */}
         <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
           {/* Search Bar */}
           <div className="relative flex-1 sm:w-72">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-black stroke-[2.5]" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
             <input
               type="text"
               placeholder="Search by name, phone, email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-9 pl-9 pr-7 border-2 border-black bg-[#FFFDF7] font-mono text-xs text-black placeholder:text-stone-400 shadow-[2px_2px_0px_0px_#000000] focus:shadow-[3px_3px_0px_0px_#000000] outline-none transition-all"
+              className="w-full h-11 pl-10 pr-8 border-2 border-[#1A1A1A] bg-white font-mono text-xs text-[#1A1A1A] placeholder:text-[#5C5647]/60 rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#FFD84D] transition-all"
             />
             {search && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-2.5 top-2 text-stone-500 hover:text-black font-bold text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5C5647] hover:text-[#1A1A1A] font-bold text-xs"
                 title="Clear"
               >
                 ✕
@@ -224,13 +227,13 @@ export default function CustomersPage() {
             )}
           </div>
 
-          {/* Filter Dropdown (instead of page size) */}
-          <div className="flex items-center gap-1.5 border-2 border-black bg-[#FFFDF7] px-2.5 h-9 shadow-[2px_2px_0px_0px_#000000]">
-            <Filter className="h-3.5 w-3.5 text-black stroke-[2.5] shrink-0" />
+          {/* Filter Dropdown */}
+          <div className="flex items-center gap-1.5 border-2 border-[#1A1A1A] bg-white px-3 h-11 rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A]">
+            <Filter className="h-4 w-4 text-[#1A1A1A] stroke-[2.5] shrink-0" />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-transparent font-mono font-bold text-xs text-black outline-none cursor-pointer pr-1"
+              className="bg-transparent font-mono font-bold text-xs text-[#1A1A1A] outline-none cursor-pointer pr-1"
             >
               <option value="ALL">All Profiles</option>
               <option value="COMPLETE">Complete Profile</option>
@@ -246,37 +249,37 @@ export default function CustomersPage() {
             type="button"
             onClick={() => loadCustomers(true)}
             disabled={isLoading}
-            className="h-9 px-3.5 bg-[#FFDF58] hover:bg-[#FFD13B] text-black font-black uppercase text-xs border-2 border-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
+            className="h-11 px-4 bg-[#FFD84D] hover:bg-[#E6C23D] text-[#1A1A1A] font-black uppercase text-xs border-2 border-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
           >
-            <RotateCcw className={`h-3.5 w-3.5 stroke-[2.5] ${isLoading ? "animate-spin" : ""}`} />
+            <RotateCcw className={`h-4 w-4 stroke-[2.5] ${isLoading ? "animate-spin" : ""}`} />
             <span>Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* Filter Tag Alert (if active search or status filter) */}
+      {/* Active Filter Tags */}
       {(debouncedSearch || filterStatus !== "ALL") && (
-        <div className="flex items-center gap-2 text-xs font-mono font-bold text-black px-1 flex-wrap">
+        <div className="flex items-center gap-2 text-xs font-mono font-bold text-[#1A1A1A] px-1 flex-wrap">
           <span>Active:</span>
           {debouncedSearch && (
-            <span className="bg-[#FFDF58] border-2 border-black px-2 py-0.5 inline-flex items-center gap-1.5 shadow-[1.5px_1.5px_0px_0px_#000000]">
+            <span className="bg-[#FFD84D] border-2 border-[#1A1A1A] rounded-[6px] px-2 py-0.5 inline-flex items-center gap-1.5 shadow-[1.5px_1.5px_0px_0px_#1A1A1A]">
               &quot;{debouncedSearch}&quot;
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="hover:font-black text-black ml-1 text-xs"
+                className="hover:font-black text-[#1A1A1A] ml-1 text-xs cursor-pointer"
               >
                 ✕
               </button>
             </span>
           )}
           {filterStatus !== "ALL" && (
-            <span className="bg-[#B8E8B8] border-2 border-black px-2 py-0.5 inline-flex items-center gap-1.5 shadow-[1.5px_1.5px_0px_0px_#000000]">
+            <span className="bg-[#B9E8B4] border-2 border-[#1A1A1A] rounded-[6px] px-2 py-0.5 inline-flex items-center gap-1.5 shadow-[1.5px_1.5px_0px_0px_#1A1A1A]">
               Filter: {filterStatus.replace("_", " ")}
               <button
                 type="button"
                 onClick={() => setFilterStatus("ALL")}
-                className="hover:font-black text-black ml-1 text-xs"
+                className="hover:font-black text-[#1A1A1A] ml-1 text-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -287,7 +290,7 @@ export default function CustomersPage() {
 
       {/* Error Alert */}
       {error && (
-        <div className="bg-[#FF8E72] border-2 border-black p-3.5 font-mono text-xs font-bold text-black shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between gap-3">
+        <div className="bg-[#FFD9D0] border-2 border-[#1A1A1A] rounded-[10px] p-4 font-mono text-xs font-bold text-[#1A1A1A] shadow-[4px_4px_0px_0px_#1A1A1A] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 stroke-[2.5] shrink-0" />
             <span>{error}</span>
@@ -295,7 +298,7 @@ export default function CustomersPage() {
           <button
             type="button"
             onClick={() => loadCustomers()}
-            className="text-xs font-black bg-white px-2.5 py-1 border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]"
+            className="text-xs font-black bg-white px-3 py-1 border-2 border-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] cursor-pointer"
           >
             Retry
           </button>
@@ -303,200 +306,154 @@ export default function CustomersPage() {
       )}
 
       {/* Streamlined Customer Data Table */}
-      <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
+      <div className="border-2 border-[#1A1A1A] bg-white rounded-[14px] shadow-[5px_5px_0px_0px_#1A1A1A] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
-            <thead className="bg-[#FFDF58] text-black uppercase text-[11px] font-black tracking-wider border-b-2 border-black">
+            <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase font-mono text-[11px] font-black tracking-wider border-b-2 border-[#1A1A1A]">
               <tr>
-                <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Contact</th>
-                <th className="py-3 px-4">Profile</th>
-                <th className="py-3 px-4">Addresses</th>
-                <th className="py-3 px-4">Active Plans</th>
-                <th className="py-3 px-4">Registered</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Customer</th>
+                <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Contact</th>
+                <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Profile</th>
+                <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Addresses</th>
+                <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Active Plans</th>
+                <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Registered</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-black/15 bg-white">
+            <tbody className="divide-y-2 divide-[#1A1A1A] bg-white">
               {isLoading ? (
-                // Vibrant Neo-Brutalist Skeleton Rows
                 Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse bg-[#FFFDF7]/60">
-                    {/* Avatar & Name Skeleton */}
-                    <td className="py-3.5 px-4">
+                  <tr key={idx} className="animate-pulse bg-[#FAF7EC]/30">
+                    <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 border-2 border-black bg-[#FFDF58]/40 shadow-[2px_2px_0px_0px_#000000] shrink-0" />
+                        <div className="w-9 h-9 border-2 border-[#1A1A1A] rounded-[8px] bg-[#FFD84D]/40 shrink-0" />
                         <div className="space-y-1.5 flex-1 min-w-0">
                           <div
-                            className="h-3.5 bg-stone-300 border border-black/60"
+                            className="h-3.5 bg-stone-300 border border-[#1A1A1A]/40 rounded-[4px]"
                             style={{ width: `${65 + (idx % 3) * 15}%`, maxWidth: "150px" }}
                           />
-                          <div className="h-2 w-20 bg-stone-200 border border-black/20" />
+                          <div className="h-2.5 w-20 bg-stone-200 border border-[#1A1A1A]/20 rounded-[4px]" />
                         </div>
                       </div>
                     </td>
-
-                    {/* Contact Skeleton */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
                       <div className="space-y-1.5">
-                        <div className="h-3 w-28 bg-stone-300 border border-black/50" />
-                        <div className="h-2.5 w-36 bg-stone-200 border border-black/20" />
+                        <div className="h-3 w-28 bg-stone-300 rounded-[4px]" />
+                        <div className="h-2.5 w-36 bg-stone-200 rounded-[4px]" />
                       </div>
                     </td>
-
-                    {/* Profile Status Skeleton */}
-                    <td className="py-3.5 px-4">
-                      <div className="h-5 w-16 bg-[#B8E8B8]/40 border border-black shadow-[1px_1px_0px_0px_#000000]" />
+                    <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                      <div className="h-5 w-16 bg-[#B9E8B4]/40 border-2 border-[#1A1A1A] rounded-[6px]" />
                     </td>
-
-                    {/* Addresses Skeleton */}
-                    <td className="py-3.5 px-4">
-                      <div className="h-5 w-16 bg-stone-200 border border-black/50" />
+                    <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                      <div className="h-5 w-14 bg-stone-200 border-2 border-[#1A1A1A] rounded-[6px]" />
                     </td>
-
-                    {/* Active Plans Skeleton */}
-                    <td className="py-3.5 px-4">
-                      <div className="h-5 w-16 bg-[#D8CEF6]/40 border border-black shadow-[1px_1px_0px_0px_#000000]" />
+                    <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                      <div className="h-5 w-14 bg-stone-200 border-2 border-[#1A1A1A] rounded-[6px]" />
                     </td>
-
-                    {/* Registered Date Skeleton */}
-                    <td className="py-3.5 px-4">
-                      <div className="h-3.5 w-20 bg-stone-300 border border-black/40" />
+                    <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                      <div className="h-3 w-20 bg-stone-200 rounded-[4px]" />
                     </td>
-
-                    {/* Action Button Skeleton */}
                     <td className="py-3.5 px-4 text-right">
-                      <div className="h-8 w-28 bg-[#FFDF58]/40 border-2 border-black shadow-[2px_2px_0px_0px_#000000] ml-auto" />
+                      <div className="h-8 w-24 bg-[#FFD84D]/30 border-2 border-[#1A1A1A] rounded-[10px] ml-auto" />
                     </td>
                   </tr>
                 ))
-              ) : customers.length === 0 ? (
+              ) : filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center">
-                    <div className="max-w-sm mx-auto p-5 bg-[#FFFDF7] border-2 border-black shadow-[3px_3px_0px_0px_#000000] space-y-2.5">
-                      <Users className="h-7 w-7 mx-auto text-black stroke-[2.5]" />
-                      <h3 className="text-sm font-black uppercase text-black">
+                  <td colSpan={7} className="py-10 px-4 text-center">
+                    <div className="max-w-xs mx-auto space-y-2">
+                      <p className="font-black text-sm uppercase text-[#1A1A1A]">No Customers Found</p>
+                      <p className="text-xs font-semibold text-[#5C5647]">
                         {debouncedSearch
-                          ? `No matches for "${debouncedSearch}"`
-                          : "No Customers Found"}
-                      </h3>
-                      <p className="text-xs font-medium text-stone-600">
-                        {debouncedSearch
-                          ? "Check spelling or search by phone number instead."
-                          : "Customer accounts will display here when registered."}
+                          ? `No customer records matched "${debouncedSearch}".`
+                          : "No records found for the current query."}
                       </p>
-                      {debouncedSearch && (
-                        <button
-                          type="button"
-                          onClick={handleClearSearch}
-                          className="mt-2 bg-[#FFDF58] text-black font-extrabold uppercase text-xs px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
-                        >
-                          Clear Search
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
               ) : (
                 filteredCustomers.map((customer) => {
-                  const hasProfile = Boolean(customer.profile);
-                  const fullName = hasProfile
-                    ? `${customer.profile!.firstName} ${customer.profile!.lastName}`.trim()
+                  const fullName = customer.profile
+                    ? `${customer.profile.firstName} ${customer.profile.lastName}`.trim()
                     : null;
 
                   return (
                     <tr
                       key={customer.id}
-                      className="hover:bg-[#FFFDF0] transition-colors"
+                      onClick={() => handleOpenDetail(customer.id)}
+                      className="hover:bg-[#FFFDF7] transition-colors cursor-pointer group"
                     >
-                      {/* Customer: Avatar + Name */}
-                      <td className="py-3.5 px-4">
+                      {/* Customer Identity */}
+                      <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
                         <div className="flex items-center gap-3">
                           <CustomerAvatarItem
                             profile={customer.profile}
                             mobile={customer.mobile}
                           />
                           <div className="min-w-0">
-                            {fullName ? (
-                              <div className="font-extrabold text-black text-sm uppercase tracking-tight truncate">
-                                {fullName}
-                              </div>
-                            ) : (
-                              <span className="bg-[#FF8E72] text-black text-[10px] font-mono font-bold px-1.5 py-0.5 border border-black shadow-[1px_1px_0px_0px_#000000]">
-                                Incomplete
-                              </span>
-                            )}
-                            <div className="text-[10px] font-mono font-bold text-stone-500 truncate mt-0.5">
+                            <div className="font-extrabold text-[#1A1A1A] text-sm group-hover:underline truncate max-w-[180px]">
+                              {fullName || "Profile Incomplete"}
+                            </div>
+                            <div className="text-[11px] font-mono font-bold text-[#5C5647] truncate">
                               ID: {customer.id.slice(0, 8)}...
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Contact: Phone & Email */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-mono font-black tabular-nums text-xs text-black flex items-center gap-1.5">
-                          <Phone className="h-3 w-3 stroke-[2.5]" />
-                          {customer.mobile}
-                        </div>
-                        {customer.email ? (
-                          <div className="text-xs font-mono font-medium text-stone-700 flex items-center gap-1.5 mt-0.5">
-                            <Mail className="h-3 w-3 stroke-[2] text-stone-500 shrink-0" />
-                            <span className="truncate max-w-[160px]">{customer.email}</span>
-                            {customer.emailVerified && (
-                              <span title="Verified" className="text-emerald-700">
-                                <CheckCircle2 className="h-3 w-3 stroke-[3]" />
-                              </span>
-                            )}
+                      {/* Contact Info */}
+                      <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-[#1A1A1A]">
+                            <Phone className="h-3 w-3 stroke-[2.5]" />
+                            <span>{customer.mobile}</span>
                           </div>
-                        ) : (
-                          <span className="text-[11px] font-mono text-stone-400">
-                            No email
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Profile Status */}
-                      <td className="py-3.5 px-4">
-                        {hasProfile ? (
-                          <span className="bg-[#B8E8B8] text-black font-mono text-[10px] font-black uppercase px-2 py-0.5 border border-black shadow-[1px_1px_0px_0px_#000000] inline-block">
-                            {customer.profile?.gender || "Active"}
-                          </span>
-                        ) : (
-                          <span className="bg-[#FF8E72] text-black font-mono text-[10px] font-black uppercase px-2 py-0.5 border border-black shadow-[1px_1px_0px_0px_#000000] inline-block">
-                            Incomplete
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Saved Addresses Count */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-black">
-                          <MapPin className="h-3 w-3 text-stone-500 stroke-[2.5]" />
-                          <span>{customer.counts?.addresses ?? 0}</span>
-                          <span className="text-[11px] text-stone-500 font-normal">saved</span>
-                        </div>
-                      </td>
-
-                      {/* Active Plans Count */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5">
-                          {(customer.counts?.planSelections ?? 0) > 0 ? (
-                            <span className="bg-[#D8CEF6] border border-black px-2 py-0.5 font-mono text-[11px] font-black text-black shadow-[1px_1px_0px_0px_#000000]">
-                              {customer.counts.planSelections} Active
-                            </span>
+                          {customer.email ? (
+                            <div className="flex items-center gap-1.5 text-[11px] text-[#5C5647] font-mono truncate max-w-[190px]">
+                              <Mail className="h-3 w-3 stroke-[2]" />
+                              <span className="truncate">{customer.email}</span>
+                            </div>
                           ) : (
-                            <span className="font-mono text-xs text-stone-500">
-                              0 plans
+                            <span className="text-[10px] text-stone-400 font-mono italic">
+                              No email registered
                             </span>
                           )}
                         </div>
                       </td>
 
-                      {/* Registered Date */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-xs text-stone-700">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="h-3 w-3 text-stone-500" />
+                      {/* Profile Status */}
+                      <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                        {customer.profile ? (
+                          <span className="inline-block bg-[#B9E8B4] border-2 border-[#1A1A1A] font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] shadow-[1px_1px_0px_0px_#1A1A1A]">
+                            Complete
+                          </span>
+                        ) : (
+                          <span className="inline-block bg-[#FFD9D0] border-2 border-[#1A1A1A] font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] shadow-[1px_1px_0px_0px_#1A1A1A]">
+                            Incomplete
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Addresses Count */}
+                      <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                        <span className="inline-flex items-center gap-1 font-mono text-xs font-extrabold text-[#1A1A1A]">
+                          <MapPin className="h-3.5 w-3.5 stroke-[2.5]" />
+                          <span>{customer.counts?.addresses ?? 0}</span>
+                        </span>
+                      </td>
+
+                      {/* Active Plans */}
+                      <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                        <span className="inline-flex items-center gap-1 font-mono text-xs font-extrabold text-[#1A1A1A]">
+                          <Calendar className="h-3.5 w-3.5 stroke-[2.5]" />
+                          <span>{customer.counts?.planSelections ?? 0}</span>
+                        </span>
+                      </td>
+
+                      {/* Registration Date */}
+                      <td className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">
+                        <div className="font-mono text-xs font-bold text-[#5C5647]">
                           <span>{customer.createdAt ? customer.createdAt.split("T")[0] : "—"}</span>
                         </div>
                       </td>
@@ -506,7 +463,7 @@ export default function CustomersPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(customer.id)}
-                          className="bg-[#FFDF58] hover:bg-[#FFD13B] text-black font-black text-xs px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all inline-flex items-center gap-1 cursor-pointer select-none"
+                          className="bg-[#FFD84D] hover:bg-[#E6C23D] text-[#1A1A1A] font-black text-xs px-3 py-1.5 border-2 border-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all inline-flex items-center gap-1 cursor-pointer select-none"
                         >
                           VIEW PROFILE
                           <ArrowRight className="h-3 w-3 stroke-[3]" />
@@ -521,15 +478,15 @@ export default function CustomersPage() {
         </div>
 
         {/* Compact Footer / Pagination Bar */}
-        <div className="px-4 py-2.5 bg-[#FBF8EE] border-t-2 border-black flex flex-col sm:flex-row items-center justify-between gap-2.5">
+        <div className="px-5 py-3.5 bg-[#FAF7EC] border-t-2 border-[#1A1A1A] flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-xs font-bold text-black/80">
+            <span className="font-mono text-xs font-bold text-[#1A1A1A]/80">
               Page <span className="font-black">{pagination.page}</span> of{" "}
               <span className="font-black">{pagination.totalPages}</span> •{" "}
               <span className="font-black">{pagination.total}</span> Customers
             </span>
 
-            <div className="hidden sm:flex items-center gap-1.5 text-xs font-mono font-bold text-black/60 pl-3 border-l border-black/20">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs font-mono font-bold text-[#5C5647] pl-3 border-l-2 border-[#1A1A1A]/20">
               <span>Show:</span>
               <select
                 value={limit}
@@ -537,7 +494,7 @@ export default function CustomersPage() {
                   setLimit(Number(e.target.value));
                   setPage(1);
                 }}
-                className="h-6 border border-black bg-white px-1.5 font-mono font-bold text-xs outline-none cursor-pointer"
+                className="h-7 border-2 border-[#1A1A1A] rounded-[6px] bg-white px-2 font-mono font-bold text-xs outline-none cursor-pointer"
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -551,18 +508,18 @@ export default function CustomersPage() {
               type="button"
               disabled={pagination.page <= 1 || isLoading}
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              className="h-8 px-3 font-mono font-black text-xs border-2 border-black bg-white shadow-[1.5px_1.5px_0px_0px_#000000] hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-white cursor-pointer select-none transition-all"
+              className="h-9 px-3.5 font-mono font-black text-xs border-2 border-[#1A1A1A] rounded-[10px] bg-white shadow-[3px_3px_0px_0px_#1A1A1A] hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-white cursor-pointer select-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
             >
               PREV
             </button>
-            <span className="font-mono font-black text-xs px-2 text-black">
+            <span className="font-mono font-black text-xs px-2 text-[#1A1A1A]">
               {pagination.page} / {pagination.totalPages}
             </span>
             <button
               type="button"
               disabled={pagination.page >= pagination.totalPages || isLoading}
               onClick={() => setPage((prev) => Math.min(pagination.totalPages, prev + 1))}
-              className="h-8 px-3 font-mono font-black text-xs border-2 border-black bg-white shadow-[1.5px_1.5px_0px_0px_#000000] hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-white cursor-pointer select-none transition-all"
+              className="h-9 px-3.5 font-mono font-black text-xs border-2 border-[#1A1A1A] rounded-[10px] bg-white shadow-[3px_3px_0px_0px_#1A1A1A] hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-white cursor-pointer select-none transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
             >
               NEXT
             </button>

@@ -114,33 +114,33 @@ export function CustomerDetailSheet({
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-xl md:max-w-xl bg-[#FBF8EE] border-l-4 border-black p-6 overflow-y-auto"
+        className="w-full sm:max-w-xl md:max-w-xl bg-[#FAF7EC] border-l-2 border-[#1A1A1A] p-6 overflow-y-auto"
       >
-        <SheetHeader className="border-b-2 border-black pb-4 mb-4">
+        <SheetHeader className="border-b-2 border-[#1A1A1A] pb-4 mb-4">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-xs font-black uppercase text-[#FFDF58] bg-black px-2 py-0.5 border border-black shadow-[1.5px_1.5px_0px_0px_#000000]">
+            <span className="font-mono text-xs font-black uppercase text-[#1A1A1A] bg-[#FFD84D] px-2.5 py-0.5 rounded-[6px] border-2 border-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#1A1A1A]">
               {customer?.id || customerId || "CUSTOMER"}
             </span>
             {customer?.counts && (
               <div className="flex items-center gap-1.5">
-                <span className="bg-[#FFFDF7] border-2 border-black px-2 py-0.5 font-mono text-[10px] font-black shadow-[1px_1px_0px_0px_#000000]">
+                <span className="bg-white border-2 border-[#1A1A1A] rounded-[6px] px-2 py-0.5 font-mono text-[10px] font-black uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#1A1A1A]">
                   {customer.counts.addresses} ADDR
                 </span>
-                <span className="bg-[#FFDF58] border-2 border-black px-2 py-0.5 font-mono text-[10px] font-black shadow-[1px_1px_0px_0px_#000000]">
+                <span className="bg-[#FFD84D] border-2 border-[#1A1A1A] rounded-[6px] px-2 py-0.5 font-mono text-[10px] font-black uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#1A1A1A]">
                   {customer.counts.planSelections} PLANS
                 </span>
               </div>
             )}
           </div>
 
-          <SheetTitle className="text-xl font-black uppercase tracking-tight text-black mt-2">
+          <SheetTitle className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] mt-2">
             {isLoading ? "Loading Profile..." : fullName || "Profile Incomplete"}
           </SheetTitle>
-          <SheetDescription className="text-xs font-mono font-bold text-black/70 flex items-center gap-1.5">
-            <Phone className="h-3.5 w-3.5 stroke-[2.5] text-black" />
+          <SheetDescription className="text-xs font-mono font-bold text-[#5C5647] flex items-center gap-1.5">
+            <Phone className="h-3.5 w-3.5 stroke-[2.5] text-[#1A1A1A]" />
             <span>{customer?.mobile || "—"}</span>
             {customer?.createdAt && (
-              <span className="ml-2 font-mono text-[11px] text-stone-600">
+              <span className="ml-2 font-mono text-[11px] text-[#5C5647]">
                 • Registered: {customer.createdAt.split("T")[0]}
               </span>
             )}
@@ -149,17 +149,17 @@ export function CustomerDetailSheet({
 
         {isLoading ? (
           <div className="space-y-4 py-8">
-            <div className="flex flex-col items-center justify-center p-8 bg-white border-2 border-black shadow-[3px_3px_0px_0px_#000000]">
-              <Loader2 className="h-8 w-8 animate-spin stroke-[3] text-black mb-3" />
-              <p className="font-mono font-black text-xs uppercase tracking-wider text-black">
+            <div className="flex flex-col items-center justify-center p-8 bg-white border-2 border-[#1A1A1A] rounded-[14px] shadow-[4px_4px_0px_0px_#1A1A1A]">
+              <Loader2 className="h-8 w-8 animate-spin stroke-[3] text-[#1A1A1A] mb-3" />
+              <p className="font-mono font-black text-xs uppercase tracking-wider text-[#1A1A1A]">
                 Retrieving Customer Data...
               </p>
             </div>
-            <div className="h-24 bg-stone-200 border-2 border-black animate-pulse shadow-[2px_2px_0px_0px_#000000]" />
-            <div className="h-32 bg-stone-200 border-2 border-black animate-pulse shadow-[2px_2px_0px_0px_#000000]" />
+            <div className="h-24 bg-[#E4DFD0] rounded-[12px] border-2 border-[#1A1A1A] animate-pulse shadow-[2px_2px_0px_0px_#1A1A1A]" />
+            <div className="h-32 bg-[#E4DFD0] rounded-[12px] border-2 border-[#1A1A1A] animate-pulse shadow-[2px_2px_0px_0px_#1A1A1A]" />
           </div>
         ) : error ? (
-          <div className="bg-[#FF8E72] border-2 border-black p-4 font-mono text-xs font-bold text-black shadow-[3px_3px_0px_0px_#000000] space-y-2">
+          <div className="bg-[#FFD9D0] border-2 border-[#1A1A1A] rounded-[12px] p-4 font-mono text-xs font-bold text-[#1A1A1A] shadow-[4px_4px_0px_0px_#1A1A1A] space-y-2">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 stroke-[3]" />
               <span className="font-black uppercase">Failed to Load Customer</span>
@@ -186,38 +186,38 @@ export function CustomerDetailSheet({
         ) : customer ? (
           <div className="space-y-5 py-2">
             {/* Header Avatar & Identity Banner */}
-            <div className="flex items-center gap-4 bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000]">
+            <div className="flex items-center gap-4 bg-white border-2 border-[#1A1A1A] rounded-[14px] p-4 shadow-[4px_4px_0px_0px_#1A1A1A]">
               {customer.profile?.profileImageUrl && !imgError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={customer.profile.profileImageUrl}
                   alt={fullName || "Customer Avatar"}
                   onError={() => setImgError(true)}
-                  className="w-14 h-14 border-2 border-black object-cover shadow-[2px_2px_0px_0px_#000000] shrink-0"
+                  className="w-14 h-14 rounded-[10px] border-2 border-[#1A1A1A] object-cover shadow-[2px_2px_0px_0px_#1A1A1A] shrink-0"
                 />
               ) : (
-                <div className="w-14 h-14 border-2 border-black bg-[#FFDF58] text-black font-black text-xl flex items-center justify-center shadow-[2px_2px_0px_0px_#000000] shrink-0 font-mono">
+                <div className="w-14 h-14 rounded-[10px] border-2 border-[#1A1A1A] bg-[#FFD84D] text-[#1A1A1A] font-black text-xl flex items-center justify-center shadow-[2px_2px_0px_0px_#1A1A1A] shrink-0 font-mono">
                   {initials}
                 </div>
               )}
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-base font-black uppercase text-black truncate">
+                  <h3 className="text-base font-black uppercase text-[#1A1A1A] truncate">
                     {fullName || "Profile Incomplete"}
                   </h3>
                   {!customer.profile && (
-                    <span className="bg-[#FF8E72] text-black text-[10px] font-mono font-bold px-2 py-0.5 border border-black">
+                    <span className="bg-[#FFD9D0] text-[#1A1A1A] text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-[6px] border-2 border-[#1A1A1A]">
                       Incomplete
                     </span>
                   )}
                 </div>
-                <div className="text-xs font-mono font-bold text-black flex items-center gap-1.5 mt-0.5">
+                <div className="text-xs font-mono font-bold text-[#1A1A1A] flex items-center gap-1.5 mt-0.5">
                   <Phone className="h-3 w-3 stroke-[2.5]" />
                   <span>{customer.mobile}</span>
                 </div>
                 {customer.email && (
-                  <div className="text-xs font-mono font-medium text-stone-700 flex items-center gap-1.5 mt-0.5 truncate">
+                  <div className="text-xs font-mono font-medium text-[#5C5647] flex items-center gap-1.5 mt-0.5 truncate">
                     <Mail className="h-3 w-3 stroke-[2.5]" />
                     <span className="truncate">{customer.email}</span>
                   </div>
@@ -226,29 +226,29 @@ export function CustomerDetailSheet({
             </div>
 
             {/* Profile Summary Card */}
-            <div className="bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] space-y-3">
-              <div className="flex items-center gap-2 border-b-2 border-black pb-2">
-                <User className="h-4 w-4 stroke-[2.5] text-black" />
-                <h4 className="text-xs font-black uppercase tracking-wider text-black">
+            <div className="bg-white border-2 border-[#1A1A1A] rounded-[14px] p-4 shadow-[4px_4px_0px_0px_#1A1A1A] space-y-3">
+              <div className="flex items-center gap-2 border-b-2 border-[#1A1A1A] pb-2">
+                <User className="h-4 w-4 stroke-[2.5] text-[#1A1A1A]" />
+                <h4 className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A]">
                   Profile Details
                 </h4>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-[10px] font-bold text-stone-500 uppercase block">
+                  <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
                     Gender
                   </span>
-                  <span className="font-mono font-black text-black">
+                  <span className="font-mono font-black text-[#1A1A1A]">
                     {customer.profile?.gender || "Not Specified"}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-bold text-stone-500 uppercase block">
+                  <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
                     Date of Birth
                   </span>
-                  <span className="font-mono font-black text-black">
+                  <span className="font-mono font-black text-[#1A1A1A]">
                     {customer.profile?.dateOfBirth
                       ? customer.profile.dateOfBirth.split("T")[0]
                       : "Not Specified"}
@@ -256,25 +256,25 @@ export function CustomerDetailSheet({
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-bold text-stone-500 uppercase block">
+                  <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
                     Email Status
                   </span>
                   {customer.emailVerified ? (
-                    <span className="bg-[#B8E8B8] text-black font-mono text-[10px] font-bold px-2 py-0.5 border border-black inline-flex items-center gap-1 mt-0.5">
+                    <span className="bg-[#B9E8B4] text-[#1A1A1A] font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] border-2 border-[#1A1A1A] inline-flex items-center gap-1 mt-0.5">
                       <CheckCircle2 className="h-3 w-3 stroke-[3]" /> Verified
                     </span>
                   ) : (
-                    <span className="bg-[#FF8E72] text-black font-mono text-[10px] font-bold px-2 py-0.5 border border-black inline-flex items-center gap-1 mt-0.5">
+                    <span className="bg-[#FFD9D0] text-[#1A1A1A] font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] border-2 border-[#1A1A1A] inline-flex items-center gap-1 mt-0.5">
                       <XCircle className="h-3 w-3 stroke-[3]" /> Unverified
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-bold text-stone-500 uppercase block">
+                  <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
                     Account Created
                   </span>
-                  <span className="font-mono font-black text-black">
+                  <span className="font-mono font-black text-[#1A1A1A]">
                     {customer.createdAt.split("T")[0]}
                   </span>
                 </div>
@@ -285,16 +285,16 @@ export function CustomerDetailSheet({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 stroke-[2.5] text-black" />
-                  <h4 className="text-xs font-black uppercase tracking-wider text-black">
+                  <MapPin className="h-4 w-4 stroke-[2.5] text-[#1A1A1A]" />
+                  <h4 className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A]">
                     Saved Addresses ({customer.addresses?.length || 0})
                   </h4>
                 </div>
               </div>
 
               {!customer.addresses || customer.addresses.length === 0 ? (
-                <div className="bg-white border-2 border-black p-4 text-center shadow-[2px_2px_0px_0px_#000000]">
-                  <p className="text-xs font-bold text-stone-500 uppercase font-mono">
+                <div className="bg-white border-2 border-[#1A1A1A] rounded-[12px] p-4 text-center shadow-[3px_3px_0px_0px_#1A1A1A]">
+                  <p className="text-xs font-bold text-[#5C5647] uppercase font-mono">
                     No delivery addresses registered yet.
                   </p>
                 </div>
@@ -302,23 +302,23 @@ export function CustomerDetailSheet({
                 customer.addresses.map((address) => (
                   <div
                     key={address.id}
-                    className="bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] space-y-2"
+                    className="bg-white border-2 border-[#1A1A1A] rounded-[12px] p-4 shadow-[3px_3px_0px_0px_#1A1A1A] space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="font-black text-black text-xs uppercase">
+                        <div className="font-black text-[#1A1A1A] text-xs uppercase">
                           {address.fullName || "Delivery Recipient"}
                         </div>
-                        <div className="text-[11px] font-mono font-bold text-stone-600">
+                        <div className="text-[11px] font-mono font-bold text-[#5C5647]">
                           {address.mobile}
                         </div>
                       </div>
-                      <span className="bg-[#B8E8B8] border border-black px-2 py-0.5 font-mono text-[10px] font-black uppercase text-black">
+                      <span className="bg-[#B9E8B4] border-2 border-[#1A1A1A] rounded-[6px] px-2 py-0.5 font-mono text-[10px] font-black uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#1A1A1A]">
                         {address.area} • {address.pincode}
                       </span>
                     </div>
 
-                    <p className="text-xs font-bold text-black leading-relaxed">
+                    <p className="text-xs font-bold text-[#1A1A1A] leading-relaxed">
                       {[
                         address.houseNumber,
                         address.buildingName,
@@ -331,7 +331,7 @@ export function CustomerDetailSheet({
                     </p>
 
                     {(address.latitude !== null && address.latitude !== undefined) && (
-                      <div className="pt-1 border-t border-stone-200 font-mono text-[10px] text-stone-500">
+                      <div className="pt-1.5 border-t border-[#1A1A1A]/20 font-mono text-[10px] text-[#5C5647]">
                         GPS: {address.latitude?.toFixed(4)}, {address.longitude?.toFixed(4)}
                       </div>
                     )}
@@ -344,16 +344,16 @@ export function CustomerDetailSheet({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Milk className="h-4 w-4 stroke-[2.5] text-black" />
-                  <h4 className="text-xs font-black uppercase tracking-wider text-black">
+                  <Milk className="h-4 w-4 stroke-[2.5] text-[#1A1A1A]" />
+                  <h4 className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A]">
                     Plans & Subscriptions ({customer.plans?.length || 0})
                   </h4>
                 </div>
               </div>
 
               {!customer.plans || customer.plans.length === 0 ? (
-                <div className="bg-white border-2 border-black p-4 text-center shadow-[2px_2px_0px_0px_#000000]">
-                  <p className="text-xs font-bold text-stone-500 uppercase font-mono">
+                <div className="bg-white border-2 border-[#1A1A1A] rounded-[12px] p-4 text-center shadow-[3px_3px_0px_0px_#1A1A1A]">
+                  <p className="text-xs font-bold text-[#5C5647] uppercase font-mono">
                     No active or historical dairy subscription plans found.
                   </p>
                 </div>
@@ -365,10 +365,10 @@ export function CustomerDetailSheet({
                   return (
                     <div
                       key={plan.id}
-                      className="bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] space-y-2"
+                      className="bg-white border-2 border-[#1A1A1A] rounded-[12px] p-4 shadow-[3px_3px_0px_0px_#1A1A1A] space-y-2"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="bg-[#FFDF58] border border-black font-mono font-black text-[10px] uppercase px-2 py-0.5">
+                        <span className="bg-[#FFD84D] border-2 border-[#1A1A1A] rounded-[6px] font-mono font-black text-[10px] uppercase px-2 py-0.5 shadow-[1px_1px_0px_0px_#1A1A1A]">
                           {plan.planType}
                         </span>
                         <Badge
@@ -381,24 +381,24 @@ export function CustomerDetailSheet({
 
                       <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
                         <div>
-                          <span className="text-[10px] font-bold text-stone-500 uppercase block">
+                          <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
                             Frequency
                           </span>
-                          <span className="font-mono font-black text-black">
+                          <span className="font-mono font-black text-[#1A1A1A]">
                             {plan.frequency}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[10px] font-bold text-stone-500 uppercase block">
+                          <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
                             Daily Volume
                           </span>
-                          <span className="font-mono font-black text-black">
+                          <span className="font-mono font-black text-[#1A1A1A]">
                             {plan.quantity} Liters ({plan.quantityMode})
                           </span>
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-stone-200 flex items-center justify-between text-[11px] font-mono text-stone-600">
+                      <div className="pt-2 border-t border-[#1A1A1A]/20 flex items-center justify-between text-[11px] font-mono text-[#5C5647]">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3 stroke-[2]" />
                           <span>
@@ -415,11 +415,11 @@ export function CustomerDetailSheet({
           </div>
         ) : null}
 
-        <SheetFooter className="pt-4 border-t-2 border-black mt-6">
+        <SheetFooter className="pt-4 border-t-2 border-[#1A1A1A] mt-6">
           <Button
             variant="outline"
             onClick={onClose}
-            className="w-full text-xs font-black uppercase h-10 border-2 border-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+            className="w-full text-xs font-black uppercase h-11"
           >
             Close Profile Drawer
           </Button>

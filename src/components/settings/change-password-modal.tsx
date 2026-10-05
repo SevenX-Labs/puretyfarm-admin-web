@@ -115,17 +115,17 @@ export function ChangePasswordModal({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
 
-      <DialogContent className="max-w-md w-full border-[3px] border-black bg-white p-6 shadow-[6px_6px_0px_0px_#000000]">
-        <DialogHeader className="border-b-2 border-black pb-3">
+      <DialogContent className="max-w-md w-full border-2 border-[#1A1A1A] bg-white p-6 shadow-[5px_5px_0px_0px_#1A1A1A] rounded-[14px]">
+        <DialogHeader className="border-b-2 border-[#1A1A1A] pb-3.5">
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 bg-[#FFDF58] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-              <KeyRound className="h-4 w-4 stroke-[2.5] text-black" />
+            <div className="p-1.5 bg-[#FFD84D] border-2 border-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A]">
+              <KeyRound className="h-4 w-4 stroke-[2.5] text-[#1A1A1A]" />
             </div>
-            <DialogTitle className="text-base font-extrabold uppercase tracking-tight text-black">
+            <DialogTitle className="text-lg font-black uppercase tracking-tight text-[#1A1A1A]">
               Change Master Password
             </DialogTitle>
           </div>
-          <DialogDescription className="text-xs font-bold text-black/70">
+          <DialogDescription className="text-xs font-bold text-[#5C5647]">
             Update credentials for Raipur Dairy Operations administrator console.
           </DialogDescription>
         </DialogHeader>
@@ -134,7 +134,7 @@ export function ChangePasswordModal({
         {successBanner && (
           <div
             role="status"
-            className="bg-[#B8E8B8] border-2 border-black p-3 text-xs font-bold uppercase shadow-[2px_2px_0px_0px_#000000] flex items-start gap-2 text-black"
+            className="bg-[#B9E8B4] border-2 border-[#1A1A1A] rounded-[10px] p-3 text-xs font-black uppercase shadow-[2px_2px_0px_0px_#1A1A1A] flex items-start gap-2 text-[#1A1A1A]"
           >
             <CheckCircle2 className="h-4 w-4 stroke-[2.5] shrink-0 mt-0.5" />
             <div className="leading-snug">{successBanner}</div>
@@ -144,7 +144,7 @@ export function ChangePasswordModal({
         {errorBanner && (
           <div
             role="alert"
-            className="bg-[#FF8E72] border-2 border-black p-3 text-xs font-bold uppercase shadow-[2px_2px_0px_0px_#000000] flex items-start gap-2 text-black"
+            className="bg-[#FFD9D0] border-2 border-[#1A1A1A] rounded-[10px] p-3 text-xs font-black uppercase shadow-[2px_2px_0px_0px_#1A1A1A] flex items-start gap-2 text-[#1A1A1A]"
           >
             <AlertCircle className="h-4 w-4 stroke-[2.5] shrink-0 mt-0.5" />
             <div className="leading-snug flex-1 break-words">{errorBanner}</div>
@@ -154,18 +154,18 @@ export function ChangePasswordModal({
         {/* Password Form */}
         <form onSubmit={handleSubmit} className="space-y-4 pt-1" noValidate>
           {/* Current Password */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex justify-between items-center">
               <label
                 htmlFor="currentPassword"
-                className="text-xs font-black uppercase tracking-tight text-black block"
+                className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block"
               >
                 Current Password
               </label>
               <button
                 type="button"
                 onClick={() => setShowCurrent(!showCurrent)}
-                className="text-[10px] font-mono font-bold uppercase text-stone-600 hover:text-black flex items-center gap-1 cursor-pointer select-none"
+                className="text-[10px] font-mono font-bold uppercase text-[#5C5647] hover:text-[#1A1A1A] flex items-center gap-1 cursor-pointer select-none"
               >
                 {showCurrent ? (
                   <>
@@ -190,23 +190,23 @@ export function ChangePasswordModal({
                 if (errorBanner) setErrorBanner(null);
               }}
               placeholder="••••••••••••"
-              className="w-full border-2 border-black bg-white px-3 py-2 font-mono text-xs text-black shadow-[2px_2px_0px_0px_#000000] focus:shadow-[3px_3px_0px_0px_#000000] focus:bg-[#FFFDF7] outline-none transition-all placeholder:text-stone-400"
+              className="w-full h-11 border-2 border-[#1A1A1A] bg-white rounded-[10px] px-3.5 py-2 font-mono text-xs text-[#1A1A1A] shadow-[2px_2px_0px_0px_#1A1A1A] focus:shadow-[3px_3px_0px_0px_#1A1A1A] focus:ring-2 focus:ring-[#FFD84D] focus:bg-[#FFFDF7] outline-none transition-all placeholder:text-[#5C5647]/50"
             />
           </div>
 
           {/* New Password */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex justify-between items-center">
               <label
                 htmlFor="newPassword"
-                className="text-xs font-black uppercase tracking-tight text-black block"
+                className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block"
               >
                 New Password (Min 8 Chars)
               </label>
               <button
                 type="button"
                 onClick={() => setShowNew(!showNew)}
-                className="text-[10px] font-mono font-bold uppercase text-stone-600 hover:text-black flex items-center gap-1 cursor-pointer select-none"
+                className="text-[10px] font-mono font-bold uppercase text-[#5C5647] hover:text-[#1A1A1A] flex items-center gap-1 cursor-pointer select-none"
               >
                 {showNew ? (
                   <>
@@ -232,23 +232,23 @@ export function ChangePasswordModal({
                 if (errorBanner) setErrorBanner(null);
               }}
               placeholder="••••••••••••"
-              className="w-full border-2 border-black bg-white px-3 py-2 font-mono text-xs text-black shadow-[2px_2px_0px_0px_#000000] focus:shadow-[3px_3px_0px_0px_#000000] focus:bg-[#FFFDF7] outline-none transition-all placeholder:text-stone-400"
+              className="w-full h-11 border-2 border-[#1A1A1A] bg-white rounded-[10px] px-3.5 py-2 font-mono text-xs text-[#1A1A1A] shadow-[2px_2px_0px_0px_#1A1A1A] focus:shadow-[3px_3px_0px_0px_#1A1A1A] focus:ring-2 focus:ring-[#FFD84D] focus:bg-[#FFFDF7] outline-none transition-all placeholder:text-[#5C5647]/50"
             />
           </div>
 
           {/* Confirm New Password */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex justify-between items-center">
               <label
                 htmlFor="confirmPassword"
-                className="text-xs font-black uppercase tracking-tight text-black block"
+                className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block"
               >
                 Confirm New Password
               </label>
               <button
                 type="button"
                 onClick={() => setShowConfirm(!showConfirm)}
-                className="text-[10px] font-mono font-bold uppercase text-stone-600 hover:text-black flex items-center gap-1 cursor-pointer select-none"
+                className="text-[10px] font-mono font-bold uppercase text-[#5C5647] hover:text-[#1A1A1A] flex items-center gap-1 cursor-pointer select-none"
               >
                 {showConfirm ? (
                   <>
@@ -273,17 +273,17 @@ export function ChangePasswordModal({
                 if (errorBanner) setErrorBanner(null);
               }}
               placeholder="••••••••••••"
-              className="w-full border-2 border-black bg-white px-3 py-2 font-mono text-xs text-black shadow-[2px_2px_0px_0px_#000000] focus:shadow-[3px_3px_0px_0px_#000000] focus:bg-[#FFFDF7] outline-none transition-all placeholder:text-stone-400"
+              className="w-full h-11 border-2 border-[#1A1A1A] bg-white rounded-[10px] px-3.5 py-2 font-mono text-xs text-[#1A1A1A] shadow-[2px_2px_0px_0px_#1A1A1A] focus:shadow-[3px_3px_0px_0px_#1A1A1A] focus:ring-2 focus:ring-[#FFD84D] focus:bg-[#FFFDF7] outline-none transition-all placeholder:text-[#5C5647]/50"
             />
           </div>
 
           {/* Modal Actions */}
-          <div className="pt-3 border-t-2 border-black flex items-center justify-end gap-2.5">
+          <div className="pt-3.5 border-t-2 border-[#1A1A1A] flex items-center justify-end gap-2.5">
             <button
               type="button"
               disabled={isLoading}
               onClick={() => handleOpenChange(false)}
-              className="bg-white hover:bg-[#FBF8EE] text-black font-extrabold uppercase border-2 border-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all px-4 py-2 text-xs cursor-pointer select-none disabled:opacity-50"
+              className="rounded-[10px] bg-white hover:bg-[#FAF7EC] text-[#1A1A1A] font-black uppercase border-2 border-[#1A1A1A] shadow-[2px_2px_0px_0px_#1A1A1A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#1A1A1A] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all px-4 py-2 text-xs cursor-pointer select-none disabled:opacity-50"
             >
               Cancel
             </button>
@@ -291,7 +291,7 @@ export function ChangePasswordModal({
             <button
               type="submit"
               disabled={isLoading}
-              className="bg-[#FFDF58] hover:bg-[#FFD13B] text-black font-extrabold uppercase border-2 border-black shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all px-5 py-2 text-xs flex items-center gap-1.5 cursor-pointer select-none disabled:opacity-50"
+              className="rounded-[10px] bg-[#FFD84D] hover:bg-[#FFD13B] text-[#1A1A1A] font-black uppercase border-2 border-[#1A1A1A] shadow-[3px_3px_0px_0px_#1A1A1A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all px-5 py-2 text-xs flex items-center gap-1.5 cursor-pointer select-none disabled:opacity-50"
             >
               {isLoading ? (
                 <>

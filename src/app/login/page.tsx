@@ -58,17 +58,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:grid lg:grid-cols-12 bg-[#FBF8EE] selection:bg-[#FFDF58] selection:text-black">
+    <div className="min-h-screen w-full flex flex-col lg:grid lg:grid-cols-12 bg-[#FAF7EC] selection:bg-[#FFD84D] selection:text-[#1A1A1A]">
       {/* ========================================================================= */}
       {/* Left Column: Form & Access Console                                       */}
-      {/* On mobile / phone: full width, centered, only UI                          */}
-      {/* On desktop: 5 columns, border-r-2 border-black                            */}
       {/* ========================================================================= */}
-      <div className="w-full flex-1 lg:col-span-5 flex flex-col justify-between p-6 sm:p-10 lg:p-12 min-h-screen bg-[#FBF8EE] border-r-0 lg:border-r-2 lg:border-black z-10">
+      <div className="w-full flex-1 lg:col-span-5 flex flex-col justify-between p-6 sm:p-10 lg:p-12 min-h-screen bg-[#FAF7EC] border-r-0 lg:border-r-2 lg:border-[#1A1A1A] z-10">
         {/* Brand Top Header */}
         <div>
           <div className="flex items-center gap-3">
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center border-2 border-black bg-[#FFDF58] text-black shadow-[3px_3px_0px_0px_#000000] overflow-hidden">
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center border-2 border-[#1A1A1A] bg-[#FFD84D] text-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] overflow-hidden">
               <Image
                 src="/gir-cow-logo.jpg"
                 alt="Puretyfarm Gir Cow"
@@ -80,14 +78,14 @@ export default function LoginPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xl font-black uppercase tracking-tight text-black leading-none">
+                <span className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] leading-none">
                   PURETYFARM
                 </span>
-                <span className="bg-[#FFDF58] border-2 border-black text-black font-black uppercase text-[10px] px-2 py-0.5 shadow-[1.5px_1.5px_0px_0px_#000000]">
+                <span className="bg-[#FFD84D] border-2 border-[#1A1A1A] text-[#1A1A1A] font-black uppercase text-[10px] px-2 py-0.5 rounded-[6px] shadow-[1.5px_1.5px_0px_0px_#1A1A1A]">
                   ADMIN PANEL
                 </span>
               </div>
-              <div className="text-[11px] font-mono font-bold text-black/70 uppercase mt-0.5">
+              <div className="text-[11px] font-mono font-bold text-[#5C5647] uppercase mt-0.5">
                 Raipur Operations Console
               </div>
             </div>
@@ -97,10 +95,10 @@ export default function LoginPage() {
         {/* Form Container (Vertically centered) */}
         <div className="my-auto py-8 max-w-md w-full mx-auto">
           <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-black mb-1.5">
+            <h1 className="text-[30px] font-black uppercase tracking-tight text-[#1A1A1A] leading-tight mb-1.5">
               OPERATOR SIGN IN
             </h1>
-            <p className="text-black/70 text-xs sm:text-sm font-bold leading-relaxed">
+            <p className="text-[#5C5647] text-xs sm:text-sm font-bold leading-relaxed">
               Enter your administrator credentials to access the Raipur delivery, customer dispatch, and wallet management console.
             </p>
           </div>
@@ -109,9 +107,9 @@ export default function LoginPage() {
           {sessionNotice && !errorMessage && (
             <div
               role="status"
-              className="bg-[#FFDF58] border-2 border-black p-3.5 font-mono text-xs font-black text-black shadow-[3px_3px_0px_0px_#000000] rounded-none mb-5 flex items-start gap-2.5 animate-in fade-in-0 duration-150"
+              className="bg-[#FFD84D] border-2 border-[#1A1A1A] p-3.5 font-mono text-xs font-black text-[#1A1A1A] shadow-[3px_3px_0px_0px_#1A1A1A] rounded-[10px] mb-5 flex items-start gap-2.5 animate-in fade-in-0 duration-150"
             >
-              <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5] mt-0.5 text-black" />
+              <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5] mt-0.5 text-[#1A1A1A]" />
               <div className="leading-snug flex-1 break-words">{sessionNotice}</div>
             </div>
           )}
@@ -120,9 +118,9 @@ export default function LoginPage() {
           {errorMessage && (
             <div
               role="alert"
-              className="bg-[#FF8E72] border-2 border-black p-3.5 font-mono text-xs font-black text-black shadow-[3px_3px_0px_0px_#000000] rounded-none mb-5 flex items-start gap-2.5 animate-in fade-in-0 duration-150"
+              className="bg-[#FFD9D0] border-2 border-[#1A1A1A] p-3.5 font-mono text-xs font-black text-[#1A1A1A] shadow-[3px_3px_0px_0px_#1A1A1A] rounded-[10px] mb-5 flex items-start gap-2.5 animate-in fade-in-0 duration-150"
             >
-              <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5] mt-0.5 text-black" />
+              <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5] mt-0.5 text-[#1A1A1A]" />
               <div className="leading-snug flex-1 break-words">{errorMessage}</div>
             </div>
           )}
@@ -133,7 +131,7 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <label
                 htmlFor="email"
-                className="block text-xs font-black uppercase tracking-wider text-black"
+                className="block text-[11px] font-black uppercase tracking-wider text-[#1A1A1A]"
               >
                 ADMIN EMAIL
               </label>
@@ -150,7 +148,7 @@ export default function LoginPage() {
                   if (errorMessage) setErrorMessage(null);
                 }}
                 placeholder="admin@puretyfarm.com"
-                className="w-full h-12 border-2 border-black bg-white px-4 font-mono font-bold text-sm text-black shadow-[2px_2px_0px_0px_#000000] focus:shadow-[4px_4px_0px_0px_#000000] focus:translate-x-[-1px] focus:translate-y-[-1px] focus:bg-[#FFFDF7] outline-none transition-all disabled:opacity-50"
+                className="w-full h-11 border-2 border-[#1A1A1A] bg-white px-4 font-mono font-bold text-xs text-[#1A1A1A] rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] focus:shadow-[3px_3px_0px_0px_#1A1A1A] focus:ring-2 focus:ring-[#FFD84D] focus:bg-[#FFFDF7] outline-none transition-all disabled:opacity-50"
               />
             </div>
 
@@ -159,7 +157,7 @@ export default function LoginPage() {
               <div className="flex justify-between items-center">
                 <label
                   htmlFor="password"
-                  className="block text-xs font-black uppercase tracking-wider text-black"
+                  className="block text-[11px] font-black uppercase tracking-wider text-[#1A1A1A]"
                 >
                   MASTER PASSWORD
                 </label>
@@ -177,21 +175,21 @@ export default function LoginPage() {
                     setPassword(e.target.value);
                     if (errorMessage) setErrorMessage(null);
                   }}
-                  className="w-full h-12 border-2 border-black bg-white px-4 pr-14 font-mono font-bold text-sm text-black shadow-[2px_2px_0px_0px_#000000] focus:shadow-[4px_4px_0px_0px_#000000] focus:translate-x-[-1px] focus:translate-y-[-1px] focus:bg-[#FFFDF7] outline-none transition-all disabled:opacity-50"
+                  className="w-full h-11 border-2 border-[#1A1A1A] bg-white px-4 pr-16 font-mono font-bold text-xs text-[#1A1A1A] rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] focus:shadow-[3px_3px_0px_0px_#1A1A1A] focus:ring-2 focus:ring-[#FFD84D] focus:bg-[#FFFDF7] outline-none transition-all disabled:opacity-50"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 px-2.5 py-1 text-black font-mono text-xs font-black uppercase hover:bg-stone-100 transition-colors flex items-center gap-1 select-none border border-black/20"
+                  className="absolute right-2 px-2.5 py-1 text-[#1A1A1A] font-mono text-xs font-black uppercase hover:bg-[#FAF7EC] transition-colors flex items-center gap-1 select-none border-2 border-[#1A1A1A] rounded-[6px] cursor-pointer"
                 >
                   {showPassword ? (
                     <>
-                      <EyeOff className="h-3.5 w-3.5" />
+                      <EyeOff className="h-3 w-3" />
                       <span className="text-[10px]">HIDE</span>
                     </>
                   ) : (
                     <>
-                      <Eye className="h-3.5 w-3.5" />
+                      <Eye className="h-3 w-3" />
                       <span className="text-[10px]">SHOW</span>
                     </>
                   )}
@@ -204,7 +202,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-12 bg-[#FFDF58] hover:bg-[#FFD13B] text-black font-black uppercase tracking-wider text-xs sm:text-sm border-2 border-black shadow-[4px_4px_0px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#000000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed select-none"
+                className="w-full h-11 bg-[#FFD84D] hover:bg-[#FFD13B] text-[#1A1A1A] font-black uppercase tracking-wider text-xs border-2 border-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed select-none"
               >
                 {isSubmitting ? (
                   <>
@@ -223,7 +221,7 @@ export default function LoginPage() {
         </div>
 
         {/* Clean Footer */}
-        <div className="pt-4 border-t-2 border-black/10 flex items-center justify-between text-xs font-bold text-black/60">
+        <div className="pt-4 border-t-2 border-[#1A1A1A]/20 flex items-center justify-between text-xs font-bold text-[#5C5647]">
           <span>Puretyfarm A2 Dairy</span>
           <span>Raipur, CG</span>
         </div>

@@ -16,11 +16,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   if (isLoginPage) {
-    return <main className="min-h-screen w-full">{children}</main>;
+    return <main className="min-h-screen w-full bg-[#FAF7EC]">{children}</main>;
   }
 
   return (
-    <div className="min-h-screen w-full flex bg-[#FBF8EE]">
+    <div className="min-h-screen w-full flex bg-[#FAF7EC]">
       {/* Neo-Brutalist Sidebar (Desktop fixed + Mobile slide-out drawer) */}
       <Sidebar
         isMobileOpen={isMobileMenuOpen}
@@ -28,9 +28,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Main Content Area - lg:pl-64 on desktop, pl-0 on mobile */}
-      <div className="flex flex-1 flex-col lg:pl-64 min-w-0 w-full">
+      <div className="flex flex-1 flex-col lg:pl-64 min-w-0 w-full bg-[#FAF7EC]">
         <Header onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)} />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 py-4 sm:px-6 sm:py-6 lg:py-8">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
           {children}
         </main>
       </div>

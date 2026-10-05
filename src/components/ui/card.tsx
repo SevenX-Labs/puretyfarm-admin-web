@@ -8,7 +8,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "border-2 border-black bg-white text-black shadow-[4px_4px_0px_0px_#000000] rounded-none transition-all",
+      "border-2 border-[#1A1A1A] bg-white text-[#1A1A1A] shadow-[5px_5px_0px_0px_#1A1A1A] rounded-[14px] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[6px_6px_0px_0px_#1A1A1A]",
       className
     )}
     {...props}
@@ -22,7 +22,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-5 border-b-2 border-black", className)}
+    className={cn("flex flex-col space-y-1.5 p-4 sm:p-5 border-b-2 border-[#1A1A1A]", className)}
     {...props}
   />
 ));
@@ -34,7 +34,7 @@ const CardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn("text-base font-extrabold uppercase tracking-tight text-black", className)}
+    className={cn("text-[18px] font-black uppercase tracking-tight text-[#1A1A1A]", className)}
     {...props}
   />
 ));
@@ -46,7 +46,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-xs font-medium text-stone-600", className)}
+    className={cn("text-xs font-semibold text-[#5C5647]", className)}
     {...props}
   />
 ));
@@ -56,7 +56,7 @@ const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-5", className)} {...props} />
+  <div ref={ref} className={cn("p-4 sm:p-5", className)} {...props} />
 ));
 CardContent.displayName = "CardContent";
 
@@ -66,7 +66,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-5 pt-0 border-t-2 border-black mt-4", className)}
+    className={cn("flex items-center p-4 sm:p-5 border-t-2 border-[#1A1A1A] bg-[#FAF7EC] rounded-b-[12px]", className)}
     {...props}
   />
 ));
