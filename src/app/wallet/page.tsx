@@ -5,6 +5,8 @@ import {
   CreditRequestItem,
   CreditRequestStatus,
   CreditRequestsApiResponse,
+  RejectResponse,
+  RefundStatus,
 } from "@/types/wallet";
 import {
   fetchCreditRequests,
@@ -25,14 +27,9 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  SlidersHorizontal,
   RotateCcw,
-  ArrowRight,
   ShieldCheck,
   ShieldAlert,
-  Calendar,
-  Clock,
-  User,
   ExternalLink,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -84,6 +81,7 @@ export default function WalletPage() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedCustomerSearch(customerSearch.trim());
+      setCurrentPage(1);
     }, 350);
     return () => clearTimeout(handler);
   }, [customerSearch]);
@@ -132,9 +130,36 @@ export default function WalletPage() {
   );
 
   useEffect(() => {
-    setCurrentPage(1);
-    loadCreditRequests(1, false);
-  }, [loadCreditRequests]);
+    let ignore = false;
+    (async () => {
+      const params: CreditRequestQueryParams = {
+        page: currentPage,
+        limit: pageSize,
+      };
+
+      if (statusFilter !== "ALL") params.status = statusFilter;
+      if (debouncedCustomerSearch) params.customerSearch = debouncedCustomerSearch;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      try {
+        const response = await fetchCreditRequests(params);
+        if (!ignore && response && Array.isArray(response.data)) {
+          setRequests(response.data);
+          setTotalPages(response.pagination?.totalPages || 1);
+          setTotalRequests(response.pagination?.total || response.data.length);
+          setIsLoading(false);
+        }
+      } catch (err: unknown) {
+        console.error("Failed to load credit requests:", err);
+        if (!ignore) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [currentPage, statusFilter, debouncedCustomerSearch, startDate, endDate]);
 
   const handleResetFilters = () => {
     setCustomerSearch("");
@@ -145,7 +170,7 @@ export default function WalletPage() {
     setCurrentPage(1);
   };
 
-  // Approve action
+  // Approve action (enforces atomic autoCreditEnabled flip on first credit)
   const handleApprove = async (request: CreditRequestItem) => {
     setApprovingId(request.id);
 
@@ -169,7 +194,7 @@ export default function WalletPage() {
       showNotice(
         `Approved ₹${(request.amountPaise / 100).toFixed(0)} credit for ${
           request.customer?.name || "customer"
-        }.`,
+        }. Auto-credit enabled for future verified top-ups.`,
         "success"
       );
     } catch (err: unknown) {
@@ -188,15 +213,31 @@ export default function WalletPage() {
     }
   };
 
-  // Rejection callback
-  const handleRequestRejected = (updated: CreditRequestItem) => {
+  // Rejection callback with automated PayU refund orchestration feedback
+  const handleRequestRejected = (
+    updated: CreditRequestItem,
+    refund?: RejectResponse["refund"]
+  ) => {
     setRequests((prev) =>
       prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
     );
-    showNotice(
-      `Credit request rejected and flagged as REFUND_PENDING.`,
-      "info"
-    );
+
+    if (refund?.refundInitiated) {
+      showNotice(
+        "Credit rejected. PayU refund requested (Awaiting provider webhook)",
+        "info"
+      );
+    } else if (refund && !refund.refundInitiated && refund.reason === "NO_REFUNDABLE_PAYMENT") {
+      showNotice(
+        "Cash top-up rejected. No online refund needed — reconcile cash offline",
+        "info"
+      );
+    } else {
+      showNotice(
+        "Credit request rejected and marked as REFUND_PENDING.",
+        "info"
+      );
+    }
   };
 
   // Inspect Wallet Ledger Slide-over trigger
@@ -214,8 +255,44 @@ export default function WalletPage() {
         return "bg-[#FF8E72] border border-black text-black font-mono font-bold text-xs";
       case "PENDING":
         return "bg-[#D8CEF6] border border-black text-black font-mono font-bold text-xs";
+      case "CANCELLED":
+        return "bg-stone-200 border border-black text-stone-700 font-mono font-bold text-xs";
       default:
         return "bg-white border border-black text-black font-mono font-bold text-xs";
+    }
+  };
+
+  // Refund Status Badges
+  const getRefundBadge = (refundStatus: RefundStatus) => {
+    switch (refundStatus) {
+      case "REFUND_PENDING":
+        return (
+          <span
+            title="PayU refund initiated; waiting for webhook"
+            className="rounded-[4px] border border-black bg-[#FFE58F] text-black font-mono text-[11px] font-bold px-1.5 py-0.5 inline-block shadow-[1px_1px_0px_0px_#000000]"
+          >
+            REFUND_PENDING
+          </span>
+        );
+      case "REFUNDED":
+        return (
+          <span className="rounded-[4px] border border-black bg-[#D8CEF6] text-black font-mono text-[11px] font-bold px-1.5 py-0.5 inline-block shadow-[1px_1px_0px_0px_#000000]">
+            REFUNDED
+          </span>
+        );
+      case "REFUND_FAILED":
+        return (
+          <span className="rounded-[4px] border border-black bg-[#FF8E72] text-black font-mono text-[11px] font-bold px-1.5 py-0.5 inline-block shadow-[1px_1px_0px_0px_#000000]">
+            REFUND_FAILED
+          </span>
+        );
+      case "NOT_REQUIRED":
+      default:
+        return (
+          <span className="rounded-[4px] border border-black bg-stone-200 text-stone-700 font-mono text-[11px] font-bold px-1.5 py-0.5 inline-block">
+            NOT_REQUIRED
+          </span>
+        );
     }
   };
 
@@ -270,7 +347,7 @@ export default function WalletPage() {
       {/* ========================================================= */}
       {/* 2. OPERATIONAL BANNER STRIP                                */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Pending Requests Metric */}
         <div className="rounded-[12px] bg-[#FFDF58] border-2 border-black p-3.5 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between">
           <div>
@@ -289,53 +366,35 @@ export default function WalletPage() {
           <Wallet className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
         </div>
 
-        {/* Auto-Credit System Status */}
-        <div className="rounded-[12px] bg-[#FFFDF7] border-2 border-black p-3.5 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647] block">
-              Automation Safeguards
+        {/* Per-Wallet Architecture Callout */}
+        <div className="rounded-[12px] bg-[#FFFDF7] border-2 border-black p-3.5 shadow-[3px_3px_0px_0px_#000000] flex items-start gap-2.5 col-span-1 md:col-span-2">
+          <ShieldCheck className="h-5 w-5 text-[#1A1A1A] shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
+              Per-Wallet Auto-Credit Architecture
             </span>
-            <div className="text-xs font-black uppercase text-[#1A1A1A] mt-1">
-              Auto-Credit: <span className="text-red-700 bg-red-100 px-1.5 py-0.5 rounded border border-black/30">DISABLED</span>
-            </div>
-            <p className="text-[10px] font-bold text-[#5C5647] mt-1">
-              Manual bank/UPI validation enforced
+            <p className="text-xs font-bold text-[#5C5647] leading-relaxed">
+              First top-ups require admin approval to enable future auto-credits. Physical cash always requires admin confirmation. Rejecting online payments automatically triggers PayU refunds.
             </p>
           </div>
-          <ShieldCheck className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
-        </div>
-
-        {/* Total Ledger Float Status */}
-        <div className="rounded-[12px] bg-white border-2 border-black p-3.5 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647] block">
-              Audited Request Records
-            </span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="font-mono text-2xl font-black text-[#1A1A1A]">
-                {totalRequests}
-              </span>
-              <span className="text-[10px] font-mono text-[#5C5647]">
-                Total Requests
-              </span>
-            </div>
-          </div>
-          <Clock className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
         </div>
       </div>
 
       {/* ========================================================= */}
       {/* 3. INTERACTIVE MULTI-FILTER CARD                          */}
       {/* ========================================================= */}
-      <div className="bg-white border-2 border-black p-4 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3">
+      <div className="bg-white border-2 border-black p-4 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3 mb-6">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Status Tabs */}
           <div className="flex flex-wrap items-center gap-1.5">
-            {(["ALL", "PENDING", "COMPLETED", "REJECTED"] as const).map((st) => (
+            {(["ALL", "PENDING", "COMPLETED", "REJECTED", "CANCELLED"] as const).map((st) => (
               <button
                 key={st}
                 type="button"
-                onClick={() => setStatusFilter(st)}
+                onClick={() => {
+                  setStatusFilter(st);
+                  setCurrentPage(1);
+                }}
                 className={`rounded-[8px] border-2 border-black px-3.5 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                   statusFilter === st
                     ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
@@ -379,7 +438,10 @@ export default function WalletPage() {
             <Input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
               className="h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px]"
             />
           </div>
@@ -392,7 +454,10 @@ export default function WalletPage() {
             <Input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
               className="h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px]"
             />
           </div>
@@ -516,13 +581,7 @@ export default function WalletPage() {
 
                       {/* REFUND STATUS */}
                       <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
-                        {req.refundStatus !== "NOT_REQUIRED" ? (
-                          <span className="rounded-[4px] border border-black bg-amber-100 text-amber-900 font-mono text-[11px] font-bold px-1.5 py-0.5 inline-block">
-                            {req.refundStatus}
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-mono text-[#5C5647]">None</span>
-                        )}
+                        {getRefundBadge(req.refundStatus)}
                       </td>
 
                       {/* CREATED AT */}
@@ -575,10 +634,9 @@ export default function WalletPage() {
                               setSelectedForDetail(req.id);
                               setIsDetailOpen(true);
                             }}
-                            className="rounded-[8px] bg-[#FFDF58] hover:bg-[#fcd033] font-bold text-xs px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#1A1A1A]"
+                            className="rounded-[8px] bg-[#FFDF58] hover:bg-[#fcd033] font-black text-xs px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#1A1A1A]"
                           >
-                            <span>View Details</span>
-                            <ArrowRight className="h-3 w-3 stroke-[2.5]" />
+                            <span>VIEW DETAILS →</span>
                           </button>
                         )}
                       </td>

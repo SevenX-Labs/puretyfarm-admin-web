@@ -118,10 +118,29 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
           Operations
         </div>
         {NAV_ITEMS.map((item) => {
+          const isSettings = item.name === "Settings" || item.href === "/settings";
           const isActive =
-            item.href === "/"
+            !isSettings &&
+            (item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : pathname.startsWith(item.href));
+
+          if (isSettings) {
+            return (
+              <button
+                key={item.name}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // No-op: settings disabled / static data hidden from admin
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-black uppercase tracking-tight text-[#1A1A1A] transition-all border-2 rounded-[10px] bg-transparent border-transparent cursor-default select-none text-left"
+              >
+                <item.icon className="h-4 w-4 shrink-0 stroke-[2.5]" />
+                <span>{item.name}</span>
+              </button>
+            );
+          }
 
           return (
             <Link

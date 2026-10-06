@@ -211,16 +211,34 @@ function normalizeChangeRequestsResponse(res: unknown): ChangeRequestsApiRespons
   return EMPTY_REQUESTS_RESPONSE;
 }
 
+export interface ChangeRequestQueryParams {
+  status?: RequestStatus | "ALL";
+  requestType?: RequestType | "ALL";
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Fetch a single plan by its type
+ */
+export async function getPlanByType(planType: PlanType): Promise<PlanConfig> {
+  const res = await apiClient<PlanConfig | { plan?: PlanConfig; data?: PlanConfig }>(
+    `/admin/plans/${planType}`,
+    { skipAuthRedirect: true }
+  );
+  if (res && typeof res === "object") {
+    const obj = res as Record<string, unknown>;
+    if (obj.plan && typeof obj.plan === "object") return obj.plan as PlanConfig;
+    if (obj.data && typeof obj.data === "object") return obj.data as PlanConfig;
+  }
+  return res as PlanConfig;
+}
+
 /**
  * Fetch delivery change requests with filters, pagination, and SWR caching
  */
-export async function getChangeRequests(
-  params: {
-    status?: RequestStatus | "ALL";
-    requestType?: RequestType | "ALL";
-    page?: number;
-    limit?: number;
-  } = {},
+export async function fetchChangeRequests(
+  params: ChangeRequestQueryParams = {},
   options?: SwrOptions<ChangeRequestsApiResponse>
 ): Promise<ChangeRequestsApiResponse> {
   const query = new URLSearchParams();
@@ -332,3 +350,23 @@ export async function rejectChangeRequest(
     throw err;
   }
 }
+
+/**
+ * Fetch detailed change request by ID
+ */
+export async function fetchChangeRequestDetail(
+  requestId: string
+): Promise<ChangeRequestItem> {
+  const res = await apiClient<ChangeRequestItem | { data: ChangeRequestItem; request?: ChangeRequestItem }>(
+    `/admin/manage-delivery/requests/${requestId}`,
+    { skipAuthRedirect: true }
+  );
+  if (res && typeof res === "object") {
+    const obj = res as Record<string, unknown>;
+    if (obj.request && typeof obj.request === "object") return obj.request as ChangeRequestItem;
+    if (obj.data && typeof obj.data === "object") return obj.data as ChangeRequestItem;
+  }
+  return res as ChangeRequestItem;
+}
+
+export const getChangeRequests = fetchChangeRequests;

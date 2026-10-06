@@ -1,4 +1,4 @@
-export type CreditRequestStatus = "PENDING" | "COMPLETED" | "REJECTED";
+export type CreditRequestStatus = "PENDING" | "COMPLETED" | "REJECTED" | "CANCELLED";
 export type RefundStatus =
   | "NOT_REQUIRED"
   | "REFUND_PENDING"
@@ -41,6 +41,25 @@ export interface CreditRequestItem {
   transaction?: WalletTransactionSnapshot | null;
 }
 
+export interface RejectResponse {
+  success: boolean;
+  message: string;
+  request: {
+    id: string;
+    status: "REJECTED";
+    refundStatus: RefundStatus;
+    adminNote: string;
+  };
+  refund: {
+    refundInitiated: boolean;
+    reason?:
+      | "NO_REFUNDABLE_PAYMENT"
+      | "REFUND_ALREADY_IN_PROGRESS"
+      | "CREDIT_REQUEST_NOT_REJECTED"
+      | string;
+  };
+}
+
 export interface CreditRequestsApiResponse {
   data: CreditRequestItem[];
   pagination: {
@@ -54,6 +73,7 @@ export interface CreditRequestsApiResponse {
 export interface CustomerWalletDetail {
   customer: WalletCustomer;
   balancePaise: number;
+  autoCreditEnabled?: boolean;
   summary: {
     totalCreditsPaise: number;
     totalCreditsCount: number;

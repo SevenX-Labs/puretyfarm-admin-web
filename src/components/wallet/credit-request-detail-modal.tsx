@@ -13,14 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import {
   Receipt,
-  FileText,
   User,
   Clock,
-  ShieldCheck,
-  ShieldAlert,
-  ArrowRight,
-  CheckCircle2,
-  Calendar,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -38,24 +32,25 @@ export function CreditRequestDetailModal({
   onRequestInspectWallet,
 }: CreditRequestDetailModalProps) {
   const [detail, setDetail] = useState<CreditRequestItem | null>(null);
-  const [loading, setLoading] = useState(false);
+  const displayDetail = isOpen && detail?.id === requestId ? detail : null;
+  const loading = Boolean(isOpen && requestId && !displayDetail);
 
   useEffect(() => {
-    if (isOpen && requestId) {
-      setLoading(true);
-      fetchCreditRequestDetail(requestId)
-        .then((data) => {
+    if (!isOpen || !requestId) return;
+    let isMounted = true;
+    fetchCreditRequestDetail(requestId)
+      .then((data) => {
+        if (isMounted) {
           setDetail(data);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch credit request detail:", err);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else if (!isOpen) {
-      setDetail(null);
-    }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch credit request detail:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, requestId]);
 
   const getStatusBadge = (status: string) => {
@@ -66,6 +61,8 @@ export function CreditRequestDetailModal({
         return "bg-[#FF8E72] text-black border-2 border-black font-black";
       case "PENDING":
         return "bg-[#D8CEF6] text-black border-2 border-black font-black";
+      case "CANCELLED":
+        return "bg-stone-200 text-stone-700 border-2 border-black font-black";
       default:
         return "bg-white text-black border-2 border-black";
     }
@@ -84,13 +81,13 @@ export function CreditRequestDetailModal({
           </DialogDescription>
         </DialogHeader>
 
-        {loading && !detail ? (
+        {loading && !displayDetail ? (
           <div className="space-y-3 py-4 animate-pulse">
             <div className="h-14 bg-[#E5E0D8] rounded-[8px]" />
             <div className="h-24 bg-[#E5E0D8] rounded-[8px]" />
             <div className="h-24 bg-[#E5E0D8] rounded-[8px]" />
           </div>
-        ) : detail ? (
+        ) : displayDetail ? (
           <div className="space-y-4 pt-2 text-xs font-bold">
             {/* Top Stat Banner */}
             <div className="rounded-[10px] border-2 border-black bg-[#FFDF58] p-4 flex items-center justify-between shadow-[2px_2px_0px_0px_#000000]">
@@ -99,16 +96,16 @@ export function CreditRequestDetailModal({
                   Credit Amount
                 </span>
                 <span className="font-mono text-2xl font-black text-[#1A1A1A]">
-                  {formatCurrency(detail.amountPaise / 100)}
+                  {formatCurrency(displayDetail.amountPaise / 100)}
                 </span>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className={`rounded-[6px] px-2.5 py-0.5 text-xs font-mono uppercase ${getStatusBadge(detail.status)}`}>
-                  {detail.status}
+                <span className={`rounded-[6px] px-2.5 py-0.5 text-xs font-mono uppercase ${getStatusBadge(displayDetail.status)}`}>
+                  {displayDetail.status}
                 </span>
-                {detail.refundStatus !== "NOT_REQUIRED" && (
+                {displayDetail.refundStatus !== "NOT_REQUIRED" && (
                   <span className="rounded-[4px] border border-black bg-amber-100 px-1.5 py-0.2 text-[10px] font-mono font-bold text-amber-900">
-                    {detail.refundStatus}
+                    {displayDetail.refundStatus}
                   </span>
                 )}
               </div>
@@ -121,12 +118,12 @@ export function CreditRequestDetailModal({
                   <User className="h-3.5 w-3.5 stroke-[2]" />
                   Customer Profile
                 </span>
-                {onRequestInspectWallet && detail.customer?.id && (
+                {onRequestInspectWallet && displayDetail.customer?.id && (
                   <button
                     type="button"
                     onClick={() => {
                       onClose();
-                      onRequestInspectWallet(detail.customer.id);
+                      onRequestInspectWallet(displayDetail.customer.id);
                     }}
                     className="text-[11px] font-black underline text-blue-700 hover:text-black cursor-pointer"
                   >
@@ -136,17 +133,17 @@ export function CreditRequestDetailModal({
               </div>
               <div className="flex justify-between">
                 <span className="text-[#5C5647]">Name:</span>
-                <span className="font-black text-[#1A1A1A]">{detail.customer?.name}</span>
+                <span className="font-black text-[#1A1A1A]">{displayDetail.customer?.name}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#5C5647]">Mobile:</span>
-                <span className="font-mono font-bold text-[#1A1A1A]">{detail.customer?.mobile || "N/A"}</span>
+                <span className="font-mono font-bold text-[#1A1A1A]">{displayDetail.customer?.mobile || "N/A"}</span>
               </div>
-              {detail.walletBalancePaise !== undefined && (
+              {displayDetail.walletBalancePaise !== undefined && (
                 <div className="flex justify-between">
                   <span className="text-[#5C5647]">Balance at Snapshot:</span>
                   <span className="font-mono font-black text-[#1A1A1A]">
-                    {formatCurrency(detail.walletBalancePaise / 100)}
+                    {formatCurrency(displayDetail.walletBalancePaise / 100)}
                   </span>
                 </div>
               )}
@@ -160,30 +157,30 @@ export function CreditRequestDetailModal({
               </span>
               <div className="flex justify-between">
                 <span className="text-[#5C5647]">Submitted:</span>
-                <span className="font-mono text-[#1A1A1A]">{formatDate(detail.createdAt)} {new Date(detail.createdAt).toLocaleTimeString()}</span>
+                <span className="font-mono text-[#1A1A1A]">{formatDate(displayDetail.createdAt)} {new Date(displayDetail.createdAt).toLocaleTimeString()}</span>
               </div>
-              {detail.reviewedAt && (
+              {displayDetail.reviewedAt && (
                 <div className="flex justify-between">
                   <span className="text-[#5C5647]">Reviewed At:</span>
-                  <span className="font-mono text-[#1A1A1A]">{formatDate(detail.reviewedAt)}</span>
+                  <span className="font-mono text-[#1A1A1A]">{formatDate(displayDetail.reviewedAt)}</span>
                 </div>
               )}
-              {detail.reviewedByAdminId && (
+              {displayDetail.reviewedByAdminId && (
                 <div className="flex justify-between">
                   <span className="text-[#5C5647]">Admin Reviewer ID:</span>
-                  <span className="font-mono text-[#1A1A1A] text-[11px]">{detail.reviewedByAdminId}</span>
+                  <span className="font-mono text-[#1A1A1A] text-[11px]">{displayDetail.reviewedByAdminId}</span>
                 </div>
               )}
-              {detail.adminNote && (
+              {displayDetail.adminNote && (
                 <div className="mt-2 rounded-[6px] border border-black/20 bg-[#FFD9D0]/50 p-2 text-xs">
                   <span className="font-black text-[#1A1A1A] block mb-0.5">Admin Note:</span>
-                  <span className="text-[#1A1A1A]">{detail.adminNote}</span>
+                  <span className="text-[#1A1A1A]">{displayDetail.adminNote}</span>
                 </div>
               )}
             </div>
 
             {/* Associated Transaction Snapshot */}
-            {detail.transaction && (
+            {displayDetail.transaction && (
               <div className="rounded-[10px] border-2 border-black bg-white p-3.5 space-y-1.5 shadow-[2px_2px_0px_0px_#000000]">
                 <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1 border-b border-black/10 pb-1.5">
                   <Receipt className="h-3.5 w-3.5 stroke-[2]" />
@@ -191,18 +188,18 @@ export function CreditRequestDetailModal({
                 </span>
                 <div className="flex justify-between">
                   <span className="text-[#5C5647]">Transaction ID:</span>
-                  <span className="font-mono font-bold text-[#1A1A1A]">{detail.transaction.id}</span>
+                  <span className="font-mono font-bold text-[#1A1A1A]">{displayDetail.transaction.id}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#5C5647]">Balance After:</span>
                   <span className="font-mono font-black text-[#1A1A1A]">
-                    {formatCurrency(detail.transaction.balanceAfterPaise / 100)}
+                    {formatCurrency(displayDetail.transaction.balanceAfterPaise / 100)}
                   </span>
                 </div>
-                {detail.transaction.description && (
+                {displayDetail.transaction.description && (
                   <div className="flex justify-between">
                     <span className="text-[#5C5647]">Memo:</span>
-                    <span className="text-[#1A1A1A]">{detail.transaction.description}</span>
+                    <span className="text-[#1A1A1A]">{displayDetail.transaction.description}</span>
                   </div>
                 )}
               </div>

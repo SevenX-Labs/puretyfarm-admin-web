@@ -4,6 +4,7 @@ import {
   CreditRequestItem,
   CustomerWalletDetail,
   CreditRequestStatus,
+  RejectResponse,
 } from "@/types/wallet";
 import {
   swrFetch,
@@ -81,6 +82,7 @@ function normalizeCustomerWalletDetail(res: unknown, userId: string): CustomerWa
         };
 
     const balancePaise = Number(base.balancePaise ?? base.walletBalancePaise ?? 0);
+    const autoCreditEnabled = Boolean(base.autoCreditEnabled ?? false);
     const summary = (base.summary && typeof base.summary === "object")
       ? (base.summary as CustomerWalletDetail["summary"])
       : {
@@ -99,6 +101,7 @@ function normalizeCustomerWalletDetail(res: unknown, userId: string): CustomerWa
     return {
       customer,
       balancePaise,
+      autoCreditEnabled,
       summary,
       recentTransactions,
       createdAt: String(base.createdAt || new Date().toISOString()),
@@ -255,12 +258,12 @@ export async function approveCreditRequest(
 }
 
 /**
- * Reject credit request with mandatory note
+ * Reject credit request with mandatory note (Auto-initiates PayU refund on backend)
  */
 export async function rejectCreditRequest(
   id: string,
   note: string
-): Promise<{ success: boolean; message: string; request?: Partial<CreditRequestItem> }> {
+): Promise<RejectResponse> {
   const trimmed = note.trim();
   if (!trimmed || trimmed.length < 3) {
     throw new ApiError("Rejection reason note must be at least 3 characters.", 400);
@@ -270,7 +273,7 @@ export async function rejectCreditRequest(
   }
 
   try {
-    const res = await apiClient<{ success: boolean; message: string; request?: Partial<CreditRequestItem> }>(
+    const res = await apiClient<RejectResponse>(
       `/admin/wallet/credit-requests/${id}/reject`,
       {
         method: "POST",

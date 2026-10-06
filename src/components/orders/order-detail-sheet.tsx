@@ -165,6 +165,12 @@ export function OrderDetailSheet({
     }
   };
 
+  const isPrepaidPlan = order
+    ? ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType)
+    : false;
+  const displayPaymentStatus: PaymentStatus =
+    order && isPrepaidPlan ? "PAID" : order?.paymentStatus || "PENDING";
+
   const allowedTransitions = order ? ORDER_STATE_MACHINE[order.status] || [] : [];
   const isTerminal = allowedTransitions.length === 0;
 
@@ -206,10 +212,10 @@ export function OrderDetailSheet({
                 <div className="flex items-center gap-1.5">
                   <span
                     className={`rounded-[6px] px-2 py-0.5 text-[10px] uppercase ${getPaymentStatusBadgeClass(
-                      order.paymentStatus
+                      displayPaymentStatus
                     )}`}
                   >
-                    Payment: {order.paymentStatus}
+                    Payment: {displayPaymentStatus}
                   </span>
                 </div>
               )}
@@ -254,13 +260,13 @@ export function OrderDetailSheet({
                 </div>
               )}
 
-              {/* 1. STATE MACHINE LIFECYCLE TRANSITION CONTROL */}
+              {/* 1. STATE MACHINE LIFECYCLE TRANSITION HUB */}
               <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Truck className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
                     <span className="text-xs font-black uppercase text-[#1A1A1A]">
-                      Lifecycle State Machine
+                      State Machine Transition Hub
                     </span>
                   </div>
                   <span className="text-[10px] font-mono font-bold text-[#5C5647]">
@@ -271,7 +277,7 @@ export function OrderDetailSheet({
                 {isTerminal ? (
                   <div className="rounded-[10px] border-2 border-black bg-[#FAF7EC] p-3 text-xs font-bold text-[#5C5647] flex items-center gap-2">
                     <ShieldAlert className="h-4 w-4 shrink-0 text-[#1A1A1A]" />
-                    <span>Order is in a terminal status. No further updates allowed.</span>
+                    <span>Terminal status reached. No further modifications permitted.</span>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -316,7 +322,7 @@ export function OrderDetailSheet({
                 <div className="flex items-center justify-between border-b border-black/10 pb-2">
                   <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 stroke-[2.5]" />
-                    Delivery Schedule
+                    Delivery Schedule & Plan
                   </span>
                   <span className="rounded-[6px] border border-black bg-[#FFDF58] px-2 py-0.5 text-[10px] font-mono font-bold text-[#1A1A1A]">
                     {order.planType.replace(/_/g, " ")}
@@ -326,7 +332,7 @@ export function OrderDetailSheet({
                 <div className="grid grid-cols-2 gap-3 text-xs font-bold pt-1">
                   <div>
                     <span className="text-[10px] font-black uppercase text-[#5C5647] block">
-                      Target Date
+                      Target Delivery Date
                     </span>
                     <span className="font-mono font-black text-sm text-[#1A1A1A]">
                       {order.deliveryDate || formatDate(order.createdAt)}
@@ -344,33 +350,21 @@ export function OrderDetailSheet({
                     </span>
                   </div>
                 </div>
-
-                {order.invoice && (
-                  <div className="flex items-center justify-between pt-2 border-t border-black/10 text-xs font-bold">
-                    <span className="text-[#5C5647] flex items-center gap-1">
-                      <FileCheck2 className="h-3.5 w-3.5 stroke-[2.5]" />
-                      Invoice Generated:
-                    </span>
-                    <span className="font-mono font-black text-[#1A1A1A]">
-                      {order.invoice.invoiceNumber}
-                    </span>
-                  </div>
-                )}
               </div>
 
-              {/* 3. CUSTOMER & DELIVERY ADDRESS SNAPSHOT */}
+              {/* 3. CUSTOMER & DELIVERY ADDRESS SNAPSHOT CARD */}
               <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
                 <div className="flex items-center justify-between border-b border-black/10 pb-2">
                   <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5 stroke-[2.5]" />
-                    Customer & Address Snapshot
+                    Delivery Address Snapshot
                   </span>
                   <span className="text-[10px] font-mono text-[#5C5647]">
                     Immutable Record
                   </span>
                 </div>
 
-                {/* Customer Details */}
+                {/* Customer Contact */}
                 <div className="rounded-[10px] border border-black/20 bg-[#FAF7EC] p-3 text-xs font-bold space-y-1">
                   <div className="font-black text-sm text-[#1A1A1A]">
                     {order.customer?.name || "Customer"}
@@ -389,60 +383,108 @@ export function OrderDetailSheet({
                   </div>
                 </div>
 
-                {/* Address Lines */}
-                <div className="space-y-1 text-xs font-bold text-[#1A1A1A]">
-                  <span className="text-[10px] font-black uppercase text-[#5C5647] block">
-                    Dispatched Delivery Destination:
-                  </span>
-                  {formattedAddressLines.length > 0 ? (
-                    formattedAddressLines.map((line, idx) => (
-                      <div key={idx} className="text-xs leading-relaxed">
-                        {line}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-xs text-[#5C5647]">
-                      Raipur Central Serviceable Hub
-                    </div>
-                  )}
+                {/* Explicit Address Snapshot Breakdown */}
+                <div className="grid grid-cols-2 gap-2 text-xs font-bold pt-1">
+                  <div className="rounded-[8px] border border-black/15 bg-white p-2">
+                    <span className="text-[10px] uppercase text-[#5C5647] block font-mono">House / Flat</span>
+                    <span className="text-xs text-[#1A1A1A] font-bold">
+                      {addressSnap.houseNumber || "—"}
+                    </span>
+                  </div>
+                  <div className="rounded-[8px] border border-black/15 bg-white p-2">
+                    <span className="text-[10px] uppercase text-[#5C5647] block font-mono">Building / Society</span>
+                    <span className="text-xs text-[#1A1A1A] font-bold">
+                      {addressSnap.buildingName || "—"}
+                    </span>
+                  </div>
+                  <div className="rounded-[8px] border border-black/15 bg-white p-2">
+                    <span className="text-[10px] uppercase text-[#5C5647] block font-mono">Street / Landmark</span>
+                    <span className="text-xs text-[#1A1A1A] font-bold">
+                      {[addressSnap.streetName, addressSnap.landmark].filter(Boolean).join(" • ") || "—"}
+                    </span>
+                  </div>
+                  <div className="rounded-[8px] border border-black/15 bg-white p-2">
+                    <span className="text-[10px] uppercase text-[#5C5647] block font-mono">Area</span>
+                    <span className="text-xs text-[#1A1A1A] font-bold">
+                      {addressSnap.area || "—"}
+                    </span>
+                  </div>
+                  <div className="rounded-[8px] border border-black/15 bg-white p-2">
+                    <span className="text-[10px] uppercase text-[#5C5647] block font-mono">City / State</span>
+                    <span className="text-xs text-[#1A1A1A] font-bold">
+                      {[addressSnap.city || "Raipur", addressSnap.state || "Chhattisgarh"].filter(Boolean).join(", ")}
+                    </span>
+                  </div>
+                  <div className="rounded-[8px] border border-black/15 bg-white p-2">
+                    <span className="text-[10px] uppercase text-[#5C5647] block font-mono">Pincode</span>
+                    <span className="text-xs font-mono text-[#1A1A1A] font-black">
+                      {addressSnap.pincode || "—"}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Formatted Full Destination */}
+                {formattedAddressLines.length > 0 && (
+                  <div className="border-t border-black/10 pt-2 space-y-0.5">
+                    <span className="text-[10px] font-black uppercase text-[#5C5647] block">
+                      Full Destination Line:
+                    </span>
+                    <p className="text-xs text-[#1A1A1A] font-bold leading-snug">
+                      {formattedAddressLines.join(", ")}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* 4. ORDERED ITEMS SNAPSHOT */}
+              {/* 4. LINE ITEMS SNAPSHOT TABLE */}
               <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
                 <div className="flex items-center justify-between border-b border-black/10 pb-2">
                   <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5">
                     <Package className="h-3.5 w-3.5 stroke-[2.5]" />
-                    Ordered Items Snapshot
+                    Line Items Snapshot
                   </span>
                   <span className="font-mono text-xs font-bold text-[#5C5647]">
-                    {order.items?.length || 0} Line Item(s)
+                    {order.items?.length || 0} Item(s)
                   </span>
                 </div>
 
-                <div className="divide-y divide-black/10">
-                  {order.items && order.items.length > 0 ? (
-                    order.items.map((item, idx) => (
-                      <div key={idx} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                        <div>
-                          <div className="font-black text-[#1A1A1A]">
-                            {item.productNameSnapshot}
-                          </div>
-                          <div className="text-[10px] font-mono text-[#5C5647]">
-                            {item.quantity} Unit(s) × ₹{Math.round(item.unitPricePaise / 100)}
-                          </div>
-                        </div>
-
-                        <div className="text-right font-mono font-black text-sm text-[#1A1A1A]">
-                          ₹{Math.round(item.totalPaise / 100)}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-3 text-center text-xs font-bold text-[#5C5647]">
-                      1x Standard Daily Bottle (Snapshot Default)
-                    </div>
-                  )}
+                <div className="overflow-x-auto border-2 border-black rounded-[8px]">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[10px] font-black tracking-wider border-b-2 border-black">
+                      <tr>
+                        <th className="py-2 px-3 border-r-2 border-black">Product Snapshot</th>
+                        <th className="py-2 px-2 border-r-2 border-black text-center">Qty</th>
+                        <th className="py-2 px-2 border-r-2 border-black text-right">Unit Price</th>
+                        <th className="py-2 px-3 text-right">Item Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y border-black bg-white">
+                      {order.items && order.items.length > 0 ? (
+                        order.items.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-[#FAF7EC]/50">
+                            <td className="py-2.5 px-3 border-r-2 border-black font-black text-[#1A1A1A]">
+                              {item.productNameSnapshot}
+                            </td>
+                            <td className="py-2.5 px-2 border-r-2 border-black text-center font-mono font-bold text-[#1A1A1A]">
+                              {item.quantity}
+                            </td>
+                            <td className="py-2.5 px-2 border-r-2 border-black text-right font-mono font-bold text-[#1A1A1A]">
+                              ₹{Math.round(item.unitPricePaise / 100)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-[#1A1A1A]">
+                              ₹{Math.round(item.totalPaise / 100)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="py-3 px-3 text-center text-xs font-bold text-[#5C5647]">
+                            Standard Daily Milk Bottle (1 Unit)
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -450,12 +492,12 @@ export function OrderDetailSheet({
               <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2.5">
                 <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
                   <Receipt className="h-3.5 w-3.5 stroke-[2.5]" />
-                  Financial Accounting
+                  Financial Breakdown
                 </span>
 
                 <div className="space-y-1.5 text-xs font-bold">
                   <div className="flex justify-between text-[#5C5647]">
-                    <span>Items Subtotal</span>
+                    <span>Subtotal</span>
                     <span className="font-mono font-black text-[#1A1A1A]">
                       ₹{Math.round(order.subtotalPaise / 100)}
                     </span>
@@ -463,7 +505,7 @@ export function OrderDetailSheet({
 
                   {order.discountPaise > 0 && (
                     <div className="flex justify-between text-emerald-700">
-                      <span>Promotional Discount</span>
+                      <span>Discounts</span>
                       <span className="font-mono font-black">
                         - ₹{Math.round(order.discountPaise / 100)}
                       </span>
@@ -479,7 +521,7 @@ export function OrderDetailSheet({
 
                   {order.taxPaise > 0 && (
                     <div className="flex justify-between text-[#5C5647]">
-                      <span>Applicable Taxes</span>
+                      <span>Taxes</span>
                       <span className="font-mono font-black text-[#1A1A1A]">
                         ₹{Math.round(order.taxPaise / 100)}
                       </span>
@@ -490,6 +532,34 @@ export function OrderDetailSheet({
                     <span className="font-black uppercase text-[#1A1A1A]">Grand Total</span>
                     <span className="font-mono font-black text-lg text-[#1A1A1A]">
                       ₹{Math.round(order.totalPaise / 100)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 6. INVOICE METADATA CARD */}
+              <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2.5">
+                <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
+                  <FileCheck2 className="h-3.5 w-3.5 stroke-[2.5]" />
+                  Invoice Metadata
+                </span>
+
+                <div className="grid grid-cols-2 gap-3 text-xs font-bold pt-1">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-[#5C5647] block">
+                      Invoice Number
+                    </span>
+                    <span className="font-mono font-black text-sm text-[#1A1A1A]">
+                      {order.invoice?.invoiceNumber || "Not Invoiced"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-[#5C5647] block">
+                      Issued At
+                    </span>
+                    <span className="font-mono font-bold text-xs text-[#1A1A1A]">
+                      {order.invoice?.issuedAt ? formatDate(order.invoice.issuedAt) : "N/A"}
                     </span>
                   </div>
                 </div>

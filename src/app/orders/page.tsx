@@ -58,19 +58,19 @@ export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
 
-  // Debounce customer search input (350ms)
+  // Debounce customer search input (400ms)
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedCustomerSearch(customerSearch.trim());
-    }, 350);
+    }, 400);
     return () => clearTimeout(handler);
   }, [customerSearch]);
 
-  // Debounce order number input (350ms)
+  // Debounce order number input (400ms)
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedOrderNumber(orderNumberInput.trim());
-    }, 350);
+    }, 400);
     return () => clearTimeout(handler);
   }, [orderNumberInput]);
 
@@ -208,7 +208,7 @@ export default function OrdersPage() {
             Order Dispatch & Fulfillment
           </h1>
           <p className="text-xs font-bold text-[#5C5647]">
-            Manage daily morning delivery dispatches, order transitions, and customer invoices.
+            Manage daily morning dispatches, delivery windows, and status updates across Raipur.
           </p>
         </div>
 
@@ -233,7 +233,7 @@ export default function OrdersPage() {
       {/* ========================================================= */}
       {/* 2. INTERACTIVE MULTI-FILTER CARD                          */}
       {/* ========================================================= */}
-      <div className="bg-white border-2 border-black p-4 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3">
+      <div className="bg-white border-2 border-black p-4 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3 mb-6">
         <div className="flex items-center justify-between border-b-2 border-black/10 pb-2">
           <span className="text-xs font-black uppercase tracking-wider text-[#1A1A1A] flex items-center gap-1.5">
             <SlidersHorizontal className="h-3.5 w-3.5 stroke-[2.5]" />
@@ -363,11 +363,12 @@ export default function OrdersPage() {
               <tr>
                 <th className="py-3.5 px-4 border-r-2 border-black">Order #</th>
                 <th className="py-3.5 px-4 border-r-2 border-black">Customer</th>
-                <th className="py-3.5 px-4 border-r-2 border-black">Delivery Date & Time</th>
-                <th className="py-3.5 px-4 border-r-2 border-black">Items & Plan</th>
-                <th className="py-3.5 px-4 border-r-2 border-black text-right">Total</th>
+                <th className="py-3.5 px-4 border-r-2 border-black">Delivery Window</th>
+                <th className="py-3.5 px-4 border-r-2 border-black">Plan</th>
+                <th className="py-3.5 px-4 border-r-2 border-black text-right">Order Total</th>
                 <th className="py-3.5 px-4 border-r-2 border-black text-center">Status</th>
-                <th className="py-3.5 px-4 text-center">Actions</th>
+                <th className="py-3.5 px-4 border-r-2 border-black text-center">Payment</th>
+                <th className="py-3.5 px-4 text-center">Action</th>
               </tr>
             </thead>
 
@@ -389,13 +390,15 @@ export default function OrdersPage() {
                     </td>
                     <td className="py-4 px-4 border-r-2 border-black">
                       <div className="h-5 bg-[#E5E0D8] rounded w-28 mb-1" />
-                      <div className="h-3 bg-[#E5E0D8]/60 rounded w-20" />
                     </td>
                     <td className="py-4 px-4 border-r-2 border-black text-right">
                       <div className="h-5 bg-[#E5E0D8] rounded w-16 ml-auto" />
                     </td>
                     <td className="py-4 px-4 border-r-2 border-black text-center">
                       <div className="h-6 bg-[#E5E0D8] rounded w-20 mx-auto" />
+                    </td>
+                    <td className="py-4 px-4 border-r-2 border-black text-center">
+                      <div className="h-5 bg-[#E5E0D8] rounded w-14 mx-auto" />
                     </td>
                     <td className="py-4 px-4 text-center">
                       <div className="h-7 bg-[#E5E0D8] rounded w-28 mx-auto" />
@@ -405,7 +408,7 @@ export default function OrdersPage() {
               ) : orders.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="py-14 text-center font-bold text-xs uppercase text-[#5C5647]"
                   >
                     No orders match your filter criteria.
@@ -413,16 +416,27 @@ export default function OrdersPage() {
                 </tr>
               ) : (
                 orders.map((order) => {
-                  const itemsCount = order.items?.length || 0;
-                  const itemSummary =
-                    order.items && order.items.length > 0
-                      ? order.items[0].productNameSnapshot + (itemsCount > 1 ? ` +${itemsCount - 1} more` : "")
-                      : "Standard Milk Dispatch";
-
                   const windowTime =
                     order.deliveryStartTime && order.deliveryEndTime
                       ? `${order.deliveryStartTime} - ${order.deliveryEndTime}`
                       : "06:00 - 08:00";
+
+                  const planLabel =
+                    order.planType === "BUY_ONCE"
+                      ? "BUY ONCE"
+                      : order.planType === "SEVEN_DAY_TRIAL"
+                      ? "7-DAY TRIAL"
+                      : "MONTHLY";
+
+                  const planBadgeBg =
+                    order.planType === "BUY_ONCE"
+                      ? "bg-[#FFDF58]"
+                      : order.planType === "SEVEN_DAY_TRIAL"
+                      ? "bg-[#D8CEF6]"
+                      : "bg-[#B8E8B8]";
+
+                  const isPrepaidPlan = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
+                  const displayPaymentStatus: PaymentStatus = isPrepaidPlan ? "PAID" : order.paymentStatus;
 
                   return (
                     <tr
@@ -441,12 +455,12 @@ export default function OrdersPage() {
                         <div className="font-black text-[#1A1A1A] text-xs">
                           {order.customer?.name || "Customer"}
                         </div>
-                        <div className="text-[11px] font-mono font-bold text-[#5C5647]">
+                        <div className="text-xs font-mono text-[#5C5647]">
                           {order.customer?.mobile || "No phone"}
                         </div>
                       </td>
 
-                      {/* DELIVERY DATE & TIME */}
+                      {/* DELIVERY WINDOW */}
                       <td className="py-3.5 px-4 border-r-2 border-black align-middle">
                         <div className="font-mono font-bold text-xs text-[#1A1A1A]">
                           {order.deliveryDate || formatDate(order.createdAt)}
@@ -457,44 +471,40 @@ export default function OrdersPage() {
                         </div>
                       </td>
 
-                      {/* ITEMS & PLAN */}
+                      {/* PLAN */}
                       <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className="rounded-[4px] border border-black bg-[#FAF7EC] px-1.5 py-0.2 text-[10px] font-mono font-black text-[#1A1A1A]">
-                            {order.planType.replace(/_/g, " ")}
-                          </span>
-                        </div>
-                        <div className="text-xs font-bold text-[#1A1A1A] truncate max-w-[200px]" title={itemSummary}>
-                          {itemSummary}
-                        </div>
+                        <span className={`rounded-[4px] border border-black px-2 py-0.5 text-[10px] font-mono font-black text-[#1A1A1A] ${planBadgeBg}`}>
+                          {planLabel}
+                        </span>
                       </td>
 
-                      {/* TOTAL */}
+                      {/* ORDER TOTAL */}
                       <td className="py-3.5 px-4 border-r-2 border-black text-right font-mono font-black text-sm tabular-nums text-[#1A1A1A] align-middle">
                         ₹{Math.round(order.totalPaise / 100)}
                       </td>
 
-                      {/* STATUS BADGES */}
+                      {/* STATUS PILLS */}
                       <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
-                        <div className="flex flex-col items-center gap-1">
-                          <span className={`inline-block rounded-[6px] px-2 py-0.5 uppercase tracking-wider ${getOrderStatusBadge(order.status)}`}>
-                            {order.status.replace(/_/g, " ")}
-                          </span>
-                          <span className={`inline-block rounded-[4px] px-1.5 py-0.2 uppercase ${getPaymentStatusBadge(order.paymentStatus)}`}>
-                            {order.paymentStatus}
-                          </span>
-                        </div>
+                        <span className={`inline-block rounded-[6px] px-2.5 py-0.5 uppercase tracking-wider ${getOrderStatusBadge(order.status)}`}>
+                          {order.status.replace(/_/g, " ")}
+                        </span>
                       </td>
 
-                      {/* ACTIONS */}
+                      {/* PAYMENT */}
+                      <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
+                        <span className={`inline-block rounded-[4px] px-2 py-0.5 uppercase tracking-wider ${getPaymentStatusBadge(displayPaymentStatus)}`}>
+                          {displayPaymentStatus}
+                        </span>
+                      </td>
+
+                      {/* ACTION */}
                       <td className="py-3.5 px-4 text-center align-middle">
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(order.id)}
                           className="rounded-[8px] bg-[#FFDF58] hover:bg-[#fcd033] font-black text-xs px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all cursor-pointer inline-flex items-center gap-1 text-[#1A1A1A]"
                         >
-                          <span>Inspect & Manage</span>
-                          <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
+                          <span>INSPECT ORDER →</span>
                         </button>
                       </td>
                     </tr>
