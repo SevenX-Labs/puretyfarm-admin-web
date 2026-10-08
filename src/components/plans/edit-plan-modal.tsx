@@ -162,8 +162,8 @@ export function EditPlanModal({
     >
       <DialogContent className="border-[3px] border-black bg-white shadow-[6px_6px_0px_0px_#000000] sm:max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 pr-12">
+            <div className="flex min-w-0 items-center gap-2">
               <div className="rounded-[8px] bg-[#FFDF58] border-2 border-black p-2 shadow-[2px_2px_0px_0px_#000000]">
                 <Settings className="h-5 w-5 text-[#1A1A1A] stroke-[2.5]" />
               </div>
@@ -178,7 +178,7 @@ export function EditPlanModal({
             </div>
 
             {/* Active Toggle Switch */}
-            <label className="flex items-center gap-2 cursor-pointer bg-[#FAF7EC] px-3 py-1.5 rounded-[8px] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
+            <label className="flex shrink-0 items-center gap-2 cursor-pointer bg-[#FAF7EC] px-3 py-1.5 rounded-[8px] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
               <input
                 type="checkbox"
                 checked={isActive}

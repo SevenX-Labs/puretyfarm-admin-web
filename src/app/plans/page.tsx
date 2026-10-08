@@ -1134,7 +1134,10 @@ export default function PlansAndDeliveryPage() {
           )}
 
           {/* 3-Column Plan Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6" aria-busy={plansLoading}>
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+            aria-busy={plansLoading}
+          >
             {plansLoading && plans.length === 0 ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div
@@ -1171,20 +1174,18 @@ export default function PlansAndDeliveryPage() {
                 return (
                   <div
                     key={plan.type}
-                    className={`border-2 border-black rounded-[14px] p-5 sm:p-6 shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between transition-all ${
+                    className={`h-full min-h-[390px] min-w-0 border-2 border-black rounded-[14px] p-5 shadow-[4px_4px_0px_0px_#000000] flex flex-col transition-all ${
                       plan.isActive ? "bg-white" : "bg-[#FAF7EC]/60 opacity-80"
                     }`}
                   >
-                    <div>
-                      {/* Top Header: Badge + Active Toggle */}
-                      <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex flex-1 flex-col">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                         <span
                           className={`rounded-[6px] border border-black font-mono text-[11px] font-bold px-2 py-0.5 ${badgeBg}`}
                         >
                           {badgeLabel}
                         </span>
 
-                        {/* Inline Active Switch */}
                         <button
                           type="button"
                           onClick={() => handleTogglePlanActive(plan)}
@@ -1199,7 +1200,6 @@ export default function PlansAndDeliveryPage() {
                         </button>
                       </div>
 
-                      {/* Pricing Display */}
                       <div className="border-b-2 border-black/15 pb-4 mb-4">
                         <div className="flex items-baseline gap-2">
                           <span className="text-3xl font-black font-mono text-[#1A1A1A]">
@@ -1212,9 +1212,8 @@ export default function PlansAndDeliveryPage() {
                         </div>
                       </div>
 
-                      {/* Allowed Litres & Delivery Window */}
-                      <div className="space-y-2 text-xs font-bold text-[#1A1A1A] mb-5">
-                        <div className="flex items-center justify-between border-b border-black/10 pb-1.5">
+                      <div className="space-y-3 rounded-[10px] border-2 border-black/10 bg-[#FAF7EC] p-3 text-xs font-bold text-[#1A1A1A] mb-5">
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-black/10 pb-2">
                           <span className="text-[#5C5647] flex items-center gap-1">
                             <SlidersHorizontal className="h-3 w-3 stroke-[2.5]" />
                             Volume Limits:
@@ -1224,7 +1223,7 @@ export default function PlansAndDeliveryPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between border-b border-black/10 pb-1.5">
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-black/10 pb-2">
                           <span className="text-[#5C5647] flex items-center gap-1">
                             <Clock className="h-3 w-3 stroke-[2.5]" />
                             Delivery Window:
@@ -1234,7 +1233,7 @@ export default function PlansAndDeliveryPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between border-b border-black/10 pb-1.5">
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-black/10 pb-2">
                           <span className="text-[#5C5647]">Delivery Fee:</span>
                           <span className="font-mono font-black">
                             {plan.deliveryFeePaise === 0
@@ -1242,6 +1241,80 @@ export default function PlansAndDeliveryPage() {
                               : `₹${Math.round(plan.deliveryFeePaise / 100)}`}
                           </span>
                         </div>
+
+                        {isBuyOnce && (
+                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 pt-1">
+                            <span className="text-[#5C5647]">Max Usages:</span>
+                            <span className="font-mono font-black bg-[#FFDF58] px-2 py-0.5 rounded border border-black">
+                              {plan.maxUsages || 3} orders per customer
+                            </span>
+                          </div>
+                        )}
+
+                        {isSevenDay && (
+                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 pt-1">
+                            <span className="text-[#5C5647]">Parameters:</span>
+                            <span className="font-mono font-black bg-[#D8CEF6] px-2 py-0.5 rounded border border-black">
+                              Duration: 7 Days | Max Usages: 1 (Fixed)
+                            </span>
+                          </div>
+                        )}
+
+                        {isMonthly && (
+                          <div className="space-y-3 border-t border-black/10 pt-3">
+                            <div>
+                              <span className="text-[11px] font-black uppercase text-[#5C5647] block mb-1">
+                                Allowed Frequencies:
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                <span
+                                  className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
+                                    plan.dailyEnabled !== false
+                                      ? "bg-[#B8E8B8]"
+                                      : "bg-gray-100 line-through text-gray-400"
+                                  }`}
+                                >
+                                  Daily
+                                </span>
+                                <span
+                                  className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
+                                    plan.alternateDaysEnabled !== false
+                                      ? "bg-[#B8E8B8]"
+                                      : "bg-gray-100 line-through text-gray-400"
+                                  }`}
+                                >
+                                  Alternate Days
+                                </span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="text-[11px] font-black uppercase text-[#5C5647] block mb-1">
+                                Allowed Quantity Modes:
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                <span
+                                  className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
+                                    plan.fixedQuantityEnabled !== false
+                                      ? "bg-[#D8CEF6]"
+                                      : "bg-gray-100 line-through text-gray-400"
+                                  }`}
+                                >
+                                  Fixed Quantity
+                                </span>
+                                <span
+                                  className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
+                                    plan.alternatingQuantityEnabled !== false
+                                      ? "bg-[#D8CEF6]"
+                                      : "bg-gray-100 line-through text-gray-400"
+                                  }`}
+                                >
+                                  Alternating (Qty A / Qty B)
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
