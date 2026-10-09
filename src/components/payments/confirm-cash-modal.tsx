@@ -79,7 +79,7 @@ export function ConfirmCashModal({
                 Confirm Physical Cash Receipt
               </DialogTitle>
               <DialogDescription className="text-xs font-bold text-[#5C5647]">
-                Depot reconciliation & customer float allocation
+                Confirm cash received and add balance to customer wallet
               </DialogDescription>
             </div>
           </div>
@@ -140,7 +140,7 @@ export function ConfirmCashModal({
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Handed over by delivery partner at Raipur Central Depot."
+              placeholder="e.g. Received cash from delivery person at Raipur center."
               maxLength={1000}
               rows={3}
               className="w-full rounded-[8px] border-2 border-black bg-white p-2.5 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] focus:outline-none placeholder:text-[#5C5647]/60"

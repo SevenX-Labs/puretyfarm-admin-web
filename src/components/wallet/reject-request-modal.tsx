@@ -96,7 +96,7 @@ export function RejectRequestModal({
             REJECT WALLET CREDIT REQUEST
           </DialogTitle>
           <DialogDescription className="text-xs font-bold text-[#5C5647]">
-            Provide an explicit audit reason explaining why this wallet credit request is turned down.
+            Write a reason why this wallet top-up request is being rejected.
           </DialogDescription>
         </DialogHeader>
 
@@ -136,7 +136,7 @@ export function RejectRequestModal({
                 rows={3}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="e.g., Payment could not be reconciled against bank statement."
+                placeholder="e.g., Payment was not received in the bank account."
                 className="w-full rounded-[10px] border-2 border-black p-3 text-xs font-bold text-[#1A1A1A] focus:outline-none shadow-[2px_2px_0px_0px_#000000]"
               />
             </div>

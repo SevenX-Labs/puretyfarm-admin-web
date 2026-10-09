@@ -225,7 +225,7 @@ export function OrderDetailSheet({
               Order Dispatch Snapshot
             </SheetTitle>
             <SheetDescription className="text-xs font-bold text-[#5C5647]">
-              Immutable order line items, customer address snapshot, and live delivery lifecycle controls.
+              Order items, customer address, and delivery status updates.
             </SheetDescription>
           </SheetHeader>
         </div>
@@ -360,7 +360,7 @@ export function OrderDetailSheet({
                     Delivery Address Snapshot
                   </span>
                   <span className="text-[10px] font-mono text-[#5C5647]">
-                    Immutable Record
+                    Saved Order
                   </span>
                 </div>
 

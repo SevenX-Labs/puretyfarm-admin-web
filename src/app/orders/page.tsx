@@ -341,7 +341,7 @@ export default function OrdersPage() {
             Order Dispatch & Fulfillment
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-[#5C5647] mt-0.5">
-            Manage daily morning dispatches, delivery windows, and status updates across Raipur.
+            Manage morning deliveries, time slots, and order status updates in Raipur.
           </p>
         </div>
 
@@ -644,7 +644,7 @@ export default function OrdersPage() {
                         <h3 className="text-sm font-black uppercase tracking-tight text-[#1A1A1A]">
                           {hasActiveFilters
                             ? "No orders for these filters"
-                            : "No dispatched orders yet"}
+                            : "No orders yet"}
                         </h3>
                         <p className="text-xs font-semibold text-[#5C5647]">
                           {hasActiveFilters

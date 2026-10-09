@@ -74,10 +74,10 @@ export function CreditRequestDetailModal({
         <DialogHeader>
           <DialogTitle className="text-lg font-black uppercase tracking-tight text-[#1A1A1A] flex items-center gap-2">
             <Receipt className="h-5 w-5 stroke-[2.5]" />
-            Credit Request Audit Details
+            Wallet Request Details
           </DialogTitle>
           <DialogDescription className="text-xs font-bold text-[#5C5647]">
-            Complete ledger snapshot, review audit log, and refund state.
+            Customer details, history, and refund status.
           </DialogDescription>
         </DialogHeader>
 
@@ -127,7 +127,7 @@ export function CreditRequestDetailModal({
                     }}
                     className="text-[11px] font-black underline text-blue-700 hover:text-black cursor-pointer"
                   >
-                    View Wallet Ledger →
+                    View Wallet Details →
                   </button>
                 )}
               </div>
@@ -149,7 +149,7 @@ export function CreditRequestDetailModal({
               )}
             </div>
 
-            {/* Admin Audit Trail */}
+            {/* Admin Activity History */}
             <div className="rounded-[10px] border-2 border-black bg-white p-3.5 space-y-1.5 shadow-[2px_2px_0px_0px_#000000]">
               <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1 border-b border-black/10 pb-1.5">
                 <Clock className="h-3.5 w-3.5 stroke-[2]" />
@@ -184,7 +184,7 @@ export function CreditRequestDetailModal({
               <div className="rounded-[10px] border-2 border-black bg-white p-3.5 space-y-1.5 shadow-[2px_2px_0px_0px_#000000]">
                 <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1 border-b border-black/10 pb-1.5">
                   <Receipt className="h-3.5 w-3.5 stroke-[2]" />
-                  Ledger Transaction Created
+                  Money Added to Wallet
                 </span>
                 <div className="flex justify-between">
                   <span className="text-[#5C5647]">Transaction ID:</span>

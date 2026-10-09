@@ -380,7 +380,7 @@ export default function WalletPage() {
             Customer Wallets & Credit Management
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-[#5C5647] mt-0.5">
-            Review and approve pending customer wallet top-ups and inspect account ledgers.
+            Review and approve customer wallet top-ups and see customer balance history.
           </p>
         </div>
 
@@ -518,7 +518,7 @@ export default function WalletPage() {
               <span className="text-xs font-bold text-[#5C5647]">declined</span>
             </div>
             <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
-              With auto-refund or cash reconcile
+              Declined with refund or cash return
             </p>
           </div>
         </button>
@@ -551,7 +551,7 @@ export default function WalletPage() {
               <span className="text-xs font-bold text-[#5C5647]">requests</span>
             </div>
             <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
-              Across all customer accounts
+              Total wallet top-up requests
             </p>
           </div>
         </button>
@@ -775,7 +775,7 @@ export default function WalletPage() {
                         </h3>
                         <p className="text-xs font-semibold text-[#5C5647]">
                           {statusFilter === "PENDING" && !hasActiveFilters
-                            ? "All incoming customer wallet top-ups have been reviewed and processed."
+                            ? "All wallet top-up requests have been approved and processed."
                             : hasActiveFilters
                             ? "Try adjusting your search query, date range, or status filter."
                             : "There are currently no credit requests in this category."}
@@ -869,8 +869,8 @@ export default function WalletPage() {
                               type="button"
                               onClick={() => handleOpenWalletSheet(req.customer.id)}
                               className="p-1.5 rounded-[6px] border border-black/30 bg-white hover:bg-[#FFDF58] text-[#1A1A1A] cursor-pointer shadow-[1px_1px_0px_0px_#000000] shrink-0"
-                              title="Inspect customer wallet ledger"
-                              aria-label={`Inspect wallet ledger for ${req.customer.name}`}
+                              title="View customer wallet history"
+                              aria-label={`View wallet history for ${req.customer.name}`}
                             >
                               <ExternalLink className="h-3 w-3 stroke-[2.5]" />
                             </button>
@@ -1033,7 +1033,7 @@ export default function WalletPage() {
         }}
       />
 
-      {/* Customer Wallet Ledger Slide-Over Sheet */}
+      {/* Customer Wallet History Sheet */}
       <CustomerWalletSheet
         userId={inspectUserId}
         isOpen={isWalletSheetOpen}

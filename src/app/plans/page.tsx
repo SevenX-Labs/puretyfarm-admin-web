@@ -454,7 +454,7 @@ export default function PlansAndDeliveryPage() {
             Plans & Subscriptions
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-[#5C5647] mt-0.5">
-            Review customer delivery modifications and manage fixed subscription catalogs across Raipur.
+            Review delivery changes requested by customers and manage milk subscription plans in Raipur.
           </p>
         </div>
 
@@ -1158,10 +1158,10 @@ export default function PlansAndDeliveryPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-[#1A1A1A]">
-                Subscription Plans Catalog
+                Milk Subscription Plans
               </h2>
               <p className="text-xs font-semibold text-[#5C5647]">
-                Live delivery pricing, litre thresholds, and active schedule toggles across Raipur.
+                Set milk prices, bottle limits, and active delivery days in Raipur.
               </p>
             </div>
           </div>
@@ -1299,7 +1299,7 @@ export default function PlansAndDeliveryPage() {
                           <div className="pt-2 space-y-2">
                             <div>
                               <span className="text-[11px] font-black uppercase text-[#5C5647] block mb-1">
-                                Delivery Cadence:
+                                Delivery Days:
                               </span>
                               <div className="flex flex-wrap gap-1.5">
                                 <span

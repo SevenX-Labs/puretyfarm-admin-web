@@ -204,7 +204,7 @@ export function PaymentDetailSheet({
               Payment Gateway Audit Detail
             </SheetTitle>
             <SheetDescription className="text-xs font-bold text-[#5C5647]">
-              Read-only immutable gateway transaction record, PayU response payload, and refund orchestration.
+              Full details of the online payment and refund status.
             </SheetDescription>
           </SheetHeader>
         </div>
@@ -497,7 +497,7 @@ export function PaymentDetailSheet({
 
                     {payment.walletCredit.transactionId && (
                       <div className="flex justify-between">
-                        <span className="text-[#5C5647]">Ledger Txn ID:</span>
+                        <span className="text-[#5C5647]">Transaction ID:</span>
                         <span className="font-mono text-[#1A1A1A]">
                           {payment.walletCredit.transactionId}
                         </span>

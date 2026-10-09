@@ -87,15 +87,15 @@ export function CustomerWalletSheet({
                 PREPAID WALLET
               </span>
               <span className="rounded-[6px] border border-black bg-white px-2 py-0.5 text-[10px] font-mono text-[#5C5647]">
-                IMMUTABLE LEDGER
+                BALANCE HISTORY
               </span>
             </div>
 
             <SheetTitle className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] mt-3">
-              Customer Wallet Ledger
+              Customer Wallet Details
             </SheetTitle>
             <SheetDescription className="text-xs font-bold text-[#5C5647]">
-              Live prepaid float, historical credits/debits, and balance audit trail.
+              Current balance and a list of all money added or spent.
             </SheetDescription>
           </SheetHeader>
         </div>
@@ -140,7 +140,7 @@ export function CustomerWalletSheet({
                     {formatCurrency(displayWallet.balancePaise / 100)}
                   </span>
                   <span className="text-[10px] font-mono font-black uppercase bg-black text-[#FFDF58] px-2 py-0.5 rounded-[4px]">
-                    Current Float
+                    Current Balance
                   </span>
                 </div>
               </div>
@@ -213,7 +213,7 @@ export function CustomerWalletSheet({
               <div className="rounded-[14px] border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
                 <div className="p-3.5 bg-[#FAF7EC] border-b-2 border-black flex items-center justify-between">
                   <span className="text-xs font-black uppercase tracking-wider text-[#1A1A1A]">
-                    Ledger Transactions Log
+                    Transaction History
                   </span>
                   <span className="font-mono text-[10px] font-bold text-[#5C5647]">
                     {displayWallet.recentTransactions.length} Entries
@@ -223,7 +223,7 @@ export function CustomerWalletSheet({
                 <div className="divide-y-2 divide-black/10 max-h-96 overflow-y-auto">
                   {displayWallet.recentTransactions.length === 0 ? (
                     <div className="py-8 text-center text-xs font-bold text-[#5C5647]">
-                      No ledger transactions found for this account.
+                      No transactions found for this customer.
                     </div>
                   ) : (
                     displayWallet.recentTransactions.map((tx) => {

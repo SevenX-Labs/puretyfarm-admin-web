@@ -443,7 +443,7 @@ export default function PaymentsPage() {
             Payments & Cash Collection
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-[#5C5647] mt-0.5">
-            Reconcile depot cash collections, audit payment gateway transactions, and process refunds.
+            Track and confirm cash payments, view online transactions, and handle refunds.
           </p>
         </div>
 
@@ -505,7 +505,7 @@ export default function PaymentsPage() {
           }`}
         >
           <Banknote className="h-4 w-4 stroke-[2.5]" />
-          <span>Physical Cash Hub</span>
+          <span>Cash Payments</span>
           {cashMetrics.pendingCount > 0 && (
             <span className="ml-1 rounded-full bg-black text-[#FFDF58] px-2 py-0.5 text-[11px] font-mono font-black">
               {cashMetrics.pendingCount}
@@ -524,7 +524,7 @@ export default function PaymentsPage() {
           }`}
         >
           <CreditCard className="h-4 w-4 stroke-[2.5]" />
-          <span>PayU Audit Ledger</span>
+          <span>Online Payments (PayU)</span>
         </button>
       </div>
 
@@ -551,7 +551,7 @@ export default function PaymentsPage() {
                   <span className="text-xs font-bold text-[#1A1A1A]">collections</span>
                 </div>
                 <p className="text-[11px] font-bold text-[#423918] mt-0.5">
-                  Depot deliveries awaiting physical confirmation
+                  Cash collected by drivers waiting for approval
                 </p>
               </div>
 
@@ -560,7 +560,7 @@ export default function PaymentsPage() {
               </div>
             </div>
 
-            {/* Stat 2: Total Unreconciled Cash Float */}
+            {/* Stat 2: Total Pending Cash to Confirm */}
             <div className="rounded-[14px] bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000000] flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-[#14532D] bg-[#B8E8B8] border border-black/30 px-2 py-0.5 rounded-md inline-block">
@@ -572,7 +572,7 @@ export default function PaymentsPage() {
                   </span>
                 </div>
                 <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
-                  Physical currency pending wallet ledger credit
+                  Cash collected by drivers waiting to be approved
                 </p>
               </div>
 
@@ -780,7 +780,7 @@ export default function PaymentsPage() {
                             </h3>
                             <p className="text-xs font-semibold text-[#5C5647]">
                               {cashStatusFilter === "PENDING" && !hasActiveCashFilters
-                                ? "All physical depot cash collections have been confirmed and reconciled."
+                                ? "All cash payments have been checked and confirmed."
                                 : "Try adjusting your search terms or status filter."}
                             </p>
                           </div>
@@ -987,7 +987,7 @@ export default function PaymentsPage() {
                   </h3>
                   <p className="text-xs font-semibold text-[#5C5647]">
                     {cashStatusFilter === "PENDING"
-                      ? "All cash collections are reconciled."
+                      ? "All cash payments have been confirmed."
                       : "Try clearing search or filters."}
                   </p>
                 </div>
@@ -1343,7 +1343,7 @@ export default function PaymentsPage() {
                             <p className="text-xs font-semibold text-[#5C5647]">
                               {hasActivePaymentFilters
                                 ? "No online transactions match your search and filter criteria."
-                                : "No online payment records are logged in the ledger yet."}
+                                : "No online payment records found yet."}
                             </p>
                           </div>
 
