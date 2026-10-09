@@ -70,16 +70,6 @@ export default function LoginPage() {
         {/* Brand Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-[12px] bg-[#FFD84D] border-2 border-[#1A1A1A] flex items-center justify-center shrink-0 shadow-[3px_3px_0px_0px_#1A1A1A] overflow-hidden">
-              <Image
-                src="/purety-logo.png"
-                alt="Puretyfarm Logo"
-                width={44}
-                height={44}
-                className="h-full w-full object-cover"
-                priority
-              />
-            </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] leading-none">

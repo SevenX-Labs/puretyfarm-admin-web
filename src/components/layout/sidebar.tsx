@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Users,
@@ -85,16 +84,6 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
           onClick={() => isMobile && onCloseMobile?.()}
           className="flex items-center gap-3 group"
         >
-          <div className="h-10 w-10 rounded-[10px] bg-[#FFD84D] border-2 border-[#1A1A1A] flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_#1A1A1A] overflow-hidden group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-[1px_1px_0px_0px_#1A1A1A] transition-all">
-            <Image
-              src="/purety-logo.png"
-              alt="Puretyfarm Logo"
-              width={40}
-              height={40}
-              className="h-full w-full object-cover"
-              priority
-            />
-          </div>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-base font-black uppercase tracking-tight text-[#1A1A1A] leading-none">
