@@ -30,13 +30,11 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  ArrowRight,
   CheckCircle2,
   AlertTriangle,
   XCircle,
   Copy,
   Check,
-  CheckCheck,
   Calendar,
   Clock,
   Building2,
@@ -90,12 +88,12 @@ export default function PaymentsPage() {
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [isPaymentFiltersOpen, setIsPaymentFiltersOpen] = useState<boolean>(false);
 
-  // Payments Pagination
+  // Payment Pagination
   const [paymentPage, setPaymentPage] = useState<number>(1);
   const [paymentTotalPages, setPaymentTotalPages] = useState<number>(1);
   const [paymentTotalCount, setPaymentTotalCount] = useState<number>(0);
 
-  // Payments Filters
+  // Payment Filters
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentTransactionStatus | "ALL">("ALL");
   const [paymentSearch, setPaymentSearch] = useState<string>("");
   const [debouncedPaymentSearch, setDebouncedPaymentSearch] = useState<string>("");
@@ -106,26 +104,25 @@ export default function PaymentsPage() {
   const [paymentStartDate, setPaymentStartDate] = useState<string>("");
   const [paymentEndDate, setPaymentEndDate] = useState<string>("");
 
-  // Payment Inspection Drawer
+  // Payment Inspection Sheet
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
-  const [isPaymentSheetOpen, setIsPaymentSheetOpen] = useState(false);
+  const [isPaymentSheetOpen, setIsPaymentSheetOpen] = useState<boolean>(false);
 
-  // Global Notice & Copy feedback
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // Notice & Feedback Banner
   const [notice, setNotice] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [copiedTxnId, setCopiedTxnId] = useState<string | null>(null);
 
   const showNotice = (message: string, type: "success" | "error" = "success") => {
     setNotice({ message, type });
-    setTimeout(() => setNotice(null), 4000);
+    setTimeout(() => {
+      setNotice(null);
+    }, 4000);
   };
 
-  const handleCopy = (e: React.MouseEvent, text: string, key: string) => {
-    e.stopPropagation();
+  const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => {
-      setCopiedKey((current) => (current === key ? null : current));
-    }, 2000);
+    setCopiedTxnId(id);
+    setTimeout(() => setCopiedTxnId(null), 2000);
   };
 
   // =========================================================================
@@ -133,38 +130,40 @@ export default function PaymentsPage() {
   // =========================================================================
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedCashSearch(cashSearch.trim());
+      setDebouncedCashSearch(cashSearch);
     }, 350);
     return () => clearTimeout(handler);
   }, [cashSearch]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedPaymentSearch(paymentSearch.trim());
+      setDebouncedPaymentSearch(paymentSearch);
     }, 350);
     return () => clearTimeout(handler);
   }, [paymentSearch]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedTxnIdSearch(transactionIdSearch.trim());
+      setDebouncedTxnIdSearch(transactionIdSearch);
     }, 350);
     return () => clearTimeout(handler);
   }, [transactionIdSearch]);
 
   // =========================================================================
-  // DATA LOADERS
+  // DATA FETCHING: PHYSICAL CASH HUB
   // =========================================================================
-
-  // Load Cash Collections
   const loadCashCollections = useCallback(
-    async (pageToLoad = 1, forceRefresh = false) => {
-      if (forceRefresh) setIsCashRefreshing(true);
+    async (targetPage = 1, forceRefresh = false) => {
+      if (forceRefresh) {
+        setIsCashRefreshing(true);
+      } else {
+        setIsCashLoading(true);
+      }
       setCashError(null);
 
       const params: CashCollectionQueryParams = {
-        page: pageToLoad,
-        limit: 20,
+        page: targetPage,
+        limit: 10,
       };
 
       if (cashStatusFilter !== "ALL") params.status = cashStatusFilter;
@@ -202,15 +201,21 @@ export default function PaymentsPage() {
     [cashStatusFilter, debouncedCashSearch, cashStartDate, cashEndDate]
   );
 
-  // Load Online Payments
+  // =========================================================================
+  // DATA FETCHING: ONLINE PAYMENTS AUDIT
+  // =========================================================================
   const loadPayments = useCallback(
-    async (pageToLoad = 1, forceRefresh = false) => {
-      if (forceRefresh) setIsPaymentsRefreshing(true);
+    async (targetPage = 1, forceRefresh = false) => {
+      if (forceRefresh) {
+        setIsPaymentsRefreshing(true);
+      } else {
+        setIsPaymentsLoading(true);
+      }
       setPaymentsError(null);
 
       const params: PaymentQueryParams = {
-        page: pageToLoad,
-        limit: 20,
+        page: targetPage,
+        limit: 10,
       };
 
       if (paymentStatusFilter !== "ALL") params.status = paymentStatusFilter;
@@ -349,7 +354,7 @@ export default function PaymentsPage() {
     setCashCollections((prev) =>
       prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
     );
-    showNotice(`Cash collection ${updated.status.toLowerCase()} successfully!`);
+    showNotice("Cash collection " + updated.status.toLowerCase() + " successfully!");
     loadCashCollections(cashPage, true);
   };
 
@@ -433,21 +438,59 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* ========================================================= */}
-      {/* 1. TOP HEADER & PRIMARY SYNC                              */}
+      {/* 1. TOP HEADER & UNIFIED CONTROLS (TABS + SYNC ON ONE ROW) */}
       {/* ========================================================= */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#1A1A1A] leading-tight">
-            Payments & Cash Collection
+            PAYMENTS & CASH COLLECTION
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-[#5C5647] mt-0.5">
-            Track and confirm cash payments, view online transactions, and handle refunds.
+            Reconcile physical depot cash floats, audit PayU gateway logs, and manage refunds.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        {/* Aligned Top-Right Control Group: Segmented Tabs + Sync Live on ONE Row */}
+        <div className="flex flex-wrap items-center gap-2 self-stretch lg:self-auto justify-between lg:justify-end">
+          {/* Segmented Tab Control */}
+          <div className="inline-flex items-center bg-[#FAF7EC] p-1 rounded-[12px] border-2 border-black shadow-[2px_2px_0px_0px_#000000] flex-1 sm:flex-initial">
+            <button
+              type="button"
+              onClick={() => setActiveTab("CASH_COLLECTIONS")}
+              aria-selected={activeTab === "CASH_COLLECTIONS"}
+              className={"flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[8px] text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[36px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black " + (
+                activeTab === "CASH_COLLECTIONS"
+                  ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]"
+                  : "bg-transparent text-[#5C5647] hover:text-[#1A1A1A] hover:bg-black/5 border border-transparent"
+              )}
+            >
+              <Banknote className="h-4 w-4 stroke-[2.5]" />
+              <span>Physical Cash Hub</span>
+              {cashMetrics.pendingCount > 0 && (
+                <span className="ml-0.5 rounded-full bg-black text-[#FFDF58] px-1.5 py-0.2 text-[10px] font-mono font-black">
+                  {cashMetrics.pendingCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("ONLINE_PAYMENTS")}
+              aria-selected={activeTab === "ONLINE_PAYMENTS"}
+              className={"flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[8px] text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[36px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black " + (
+                activeTab === "ONLINE_PAYMENTS"
+                  ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]"
+                  : "bg-transparent text-[#5C5647] hover:text-[#1A1A1A] hover:bg-black/5 border border-transparent"
+              )}
+            >
+              <CreditCard className="h-4 w-4 stroke-[2.5]" />
+              <span>PayU Audit Ledger</span>
+            </button>
+          </div>
+
+          {/* Sync Live Button (Lighter secondary button beside the tabs) */}
           <button
             type="button"
             onClick={() => {
@@ -458,28 +501,30 @@ export default function PaymentsPage() {
               }
             }}
             disabled={isCashRefreshing || isPaymentsRefreshing}
-            aria-label="Sync payment data from server"
-            className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black min-h-[40px]"
+            aria-label="Sync live payment data"
+            className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center gap-1.5 min-h-[38px] sm:min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black shrink-0"
           >
             <RefreshCw
-              className={`h-3.5 w-3.5 stroke-[2.5] ${
+              className={"h-3.5 w-3.5 stroke-[2.5] " + (
                 isCashRefreshing || isPaymentsRefreshing ? "animate-spin" : ""
-              }`}
+              )}
             />
-            {isCashRefreshing || isPaymentsRefreshing ? "Syncing..." : "Sync"}
+            <span>
+              {isCashRefreshing || isPaymentsRefreshing ? "Syncing..." : "Sync Live"}
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Notice Banner */}
+      {/* Notice Feedback Banner */}
       {notice && (
         <div
           role="alert"
-          className={`flex items-center gap-2.5 rounded-[12px] border-2 border-black p-3.5 text-xs font-black shadow-[3px_3px_0px_0px_#1A1A1A] animate-in fade-in duration-200 ${
+          className={"flex items-center gap-2.5 rounded-[12px] border-2 border-black p-3 text-xs font-black shadow-[2.5px_2.5px_0px_0px_#1A1A1A] animate-in fade-in duration-200 " + (
             notice.type === "success"
               ? "bg-[#B9E8B4] text-[#14532D]"
               : "bg-[#FFD9D0] text-[#7F1D1D]"
-          }`}
+          )}
         >
           {notice.type === "success" ? (
             <CheckCircle2 className="h-4 w-4 stroke-[3] shrink-0" />
@@ -491,67 +536,26 @@ export default function PaymentsPage() {
       )}
 
       {/* ========================================================= */}
-      {/* 2. SEGMENTED TABS (Physical Cash vs PayU Ledger)          */}
-      {/* ========================================================= */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[#FAF7EC] p-1.5 rounded-[14px] border-2 border-black shadow-[3px_3px_0px_0px_#000000]">
-        <button
-          type="button"
-          onClick={() => setActiveTab("CASH_COLLECTIONS")}
-          aria-selected={activeTab === "CASH_COLLECTIONS"}
-          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
-            activeTab === "CASH_COLLECTIONS"
-              ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
-              : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
-          }`}
-        >
-          <Banknote className="h-4 w-4 stroke-[2.5]" />
-          <span>Cash Payments</span>
-          {cashMetrics.pendingCount > 0 && (
-            <span className="ml-1 rounded-full bg-black text-[#FFDF58] px-2 py-0.5 text-[11px] font-mono font-black">
-              {cashMetrics.pendingCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("ONLINE_PAYMENTS")}
-          aria-selected={activeTab === "ONLINE_PAYMENTS"}
-          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
-            activeTab === "ONLINE_PAYMENTS"
-              ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
-              : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
-          }`}
-        >
-          <CreditCard className="h-4 w-4 stroke-[2.5]" />
-          <span>Online Payments (PayU)</span>
-        </button>
-      </div>
-
-      {/* ========================================================= */}
       {/* TAB 1: PHYSICAL CASH RECONCILIATION HUB                  */}
       {/* ========================================================= */}
       {activeTab === "CASH_COLLECTIONS" && (
         <div className="space-y-4">
-          {/* Top Stat Cards: Pending Emphasized */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Stat 1: Pending Collections (EMPHASIZED TO-DO) */}
-            <div className="rounded-[14px] bg-[#FFDF58] border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000000] flex items-center justify-between">
+          {/* Top Stat Cards: Equal height, clean alignment */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-stretch">
+            {/* Stat 1: Pending Collections */}
+            <div className="rounded-[14px] bg-[#FFDF58] border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-black text-[#FFDF58] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#FFDF58] animate-pulse" />
-                    Pending Collections
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="font-mono text-3xl font-black text-[#1A1A1A] tabular-nums">
+                <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
+                  Pending Collections
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="font-mono text-3xl font-black text-[#1A1A1A] tabular-nums leading-none">
                     {cashMetrics.pendingCount}
                   </span>
                   <span className="text-xs font-bold text-[#1A1A1A]">collections</span>
                 </div>
-                <p className="text-[11px] font-bold text-[#423918] mt-0.5">
-                  Cash collected by drivers waiting for approval
+                <p className="text-xs font-semibold text-[#423918] mt-1">
+                  Depot deliveries awaiting confirmation
                 </p>
               </div>
 
@@ -560,38 +564,38 @@ export default function PaymentsPage() {
               </div>
             </div>
 
-            {/* Stat 2: Total Pending Cash to Confirm */}
-            <div className="rounded-[14px] bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_#000000] flex items-center justify-between">
+            {/* Stat 2: Total Unreconciled Cash Float */}
+            <div className="rounded-[14px] bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-[#14532D] bg-[#B8E8B8] border border-black/30 px-2 py-0.5 rounded-md inline-block">
-                  Unreconciled Cash Float
+                <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
+                  Total Unreconciled Cash Float
                 </span>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="font-mono text-3xl font-black text-[#1A1A1A] tabular-nums">
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="font-mono text-3xl font-black text-[#1A1A1A] tabular-nums leading-none">
                     {formatCurrency(cashMetrics.unreconciledFloat)}
                   </span>
                 </div>
-                <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
-                  Cash collected by drivers waiting to be approved
+                <p className="text-xs font-semibold text-[#5C5647] mt-1">
+                  Physical currency pending wallet ledger credit
                 </p>
               </div>
 
-              <div className="rounded-[10px] border-2 border-black bg-[#FAF7EC] p-2.5 shadow-[2px_2px_0px_0px_#000000] shrink-0">
-                <Building2 className="h-6 w-6 text-[#1A1A1A] stroke-[2.5]" />
+              <div className="rounded-[10px] border-2 border-black bg-[#B8E8B8] p-2.5 shadow-[2px_2px_0px_0px_#000000] shrink-0">
+                <Building2 className="h-6 w-6 text-[#14532D] stroke-[2.5]" />
               </div>
             </div>
           </div>
 
           {cashError && (
-            <div className="flex items-center gap-2.5 rounded-[12px] border-2 border-black bg-[#FFD9D0] p-3.5 text-xs font-black text-[#7F1D1D] shadow-[3px_3px_0px_0px_#1A1A1A]">
+            <div className="flex items-center gap-2.5 rounded-[12px] border-2 border-black bg-[#FFD9D0] p-3 text-xs font-black text-[#7F1D1D] shadow-[2.5px_2.5px_0px_0px_#1A1A1A]">
               <AlertTriangle className="h-4 w-4 stroke-[3] shrink-0" />
               <span>{cashError}</span>
             </div>
           )}
 
           {/* Cash Filter Bar */}
-          <div className="bg-white border-2 border-black p-3.5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white border-2 border-black p-3 rounded-[14px] shadow-[3px_3px_0px_0px_#000000] space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               {/* Status Chips */}
               <div className="flex flex-wrap items-center gap-1.5">
                 {(
@@ -608,17 +612,17 @@ export default function PaymentsPage() {
                       key={tab.key}
                       type="button"
                       onClick={() => setCashStatusFilter(tab.key)}
-                      className={`rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[38px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+                      className={"rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black " + (
                         isActive
-                          ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                          ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
                           : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
-                      }`}
+                      )}
                     >
                       {tab.key === "PENDING" && (
                         <span
-                          className={`h-2 w-2 rounded-full ${
+                          className={"h-2 w-2 rounded-full " + (
                             isActive ? "bg-black" : "bg-[#FFDF58]"
-                          }`}
+                          )}
                         />
                       )}
                       {tab.label}
@@ -627,7 +631,7 @@ export default function PaymentsPage() {
                 })}
               </div>
 
-              {/* Search & Extra Filters on right */}
+              {/* Search, Date toggle & Quiet Reset */}
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
@@ -655,11 +659,11 @@ export default function PaymentsPage() {
                   onClick={() => setIsCashFiltersOpen(!isCashFiltersOpen)}
                   aria-expanded={isCashFiltersOpen}
                   aria-label="Toggle date filters"
-                  className={`h-9 px-3 rounded-[8px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0 ${
+                  className={"h-9 px-3 rounded-[8px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0 " + (
                     cashStartDate || cashEndDate || isCashFiltersOpen
                       ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
                       : "bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A]"
-                  }`}
+                  )}
                 >
                   <Calendar className="h-3.5 w-3.5 stroke-[2.5]" />
                   <span className="hidden sm:inline">Dates</span>
@@ -670,15 +674,17 @@ export default function PaymentsPage() {
                   )}
                 </button>
 
+                {/* Quiet Reset Filters button (only shown when filters applied) */}
                 {hasActiveCashFilters && (
                   <button
                     type="button"
                     onClick={handleResetCashFilters}
                     aria-label="Reset all cash filters"
                     title="Reset filters"
-                    className="h-9 px-2.5 rounded-[8px] border-2 border-black/30 hover:border-black bg-[#FAF7EC] hover:bg-stone-200 text-[#1A1A1A] text-xs font-black transition-all cursor-pointer inline-flex items-center gap-1 shrink-0"
+                    className="h-9 px-3 rounded-[8px] border-2 border-black/30 hover:border-black bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0"
                   >
-                    <RotateCcw className="h-3 w-3 stroke-[2.5]" />
+                    <RotateCcw className="h-3.5 w-3.5 stroke-[2.5]" />
+                    <span className="hidden sm:inline">Reset</span>
                   </button>
                 )}
               </div>
@@ -716,17 +722,17 @@ export default function PaymentsPage() {
           {/* ======================================================= */}
           {/* CASH HUB: DESKTOP TABLE VIEW                            */}
           {/* ======================================================= */}
-          <div className="hidden md:block border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
+          <div className="hidden md:block border-2 border-black bg-white rounded-[14px] shadow-[3px_3px_0px_0px_#000000] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm border-collapse">
                 <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black">
                   <tr>
-                    <th className="py-3.5 px-4 border-r-2 border-black w-48">Customer</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black text-right w-36">Amount (₹)</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black">Purpose</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black text-center w-36">Status</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black w-44">Collection Date</th>
-                    <th className="py-3.5 px-4 text-center w-48">Actions</th>
+                    <th className="py-3 px-4 border-r-2 border-black w-48">Customer</th>
+                    <th className="py-3 px-4 border-r-2 border-black text-right w-36">Amount (₹)</th>
+                    <th className="py-3 px-4 border-r-2 border-black">Purpose</th>
+                    <th className="py-3 px-4 border-r-2 border-black text-center w-36">Status</th>
+                    <th className="py-3 px-4 border-r-2 border-black w-44">Collection Date</th>
+                    <th className="py-3 px-4 text-center w-48">Actions</th>
                   </tr>
                 </thead>
 
@@ -735,64 +741,51 @@ export default function PaymentsPage() {
                     // Skeleton State
                     Array.from({ length: 5 }).map((_, idx) => (
                       <tr key={idx} className="animate-pulse">
-                        <td className="py-4 px-4 border-r-2 border-black">
+                        <td className="py-3.5 px-4 border-r-2 border-black">
                           <div className="h-4 bg-[#E5E0D8] rounded w-28 mb-1.5" />
                           <div className="h-3 bg-[#E5E0D8]/60 rounded w-20" />
                         </td>
-                        <td className="py-4 px-4 border-r-2 border-black text-right">
+                        <td className="py-3.5 px-4 border-r-2 border-black text-right">
                           <div className="h-5 bg-[#E5E0D8] rounded w-20 ml-auto" />
                         </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
+                        <td className="py-3.5 px-4 border-r-2 border-black">
                           <div className="h-5 bg-[#E5E0D8] rounded-full w-24" />
                         </td>
-                        <td className="py-4 px-4 border-r-2 border-black text-center">
+                        <td className="py-3.5 px-4 border-r-2 border-black text-center">
                           <div className="h-6 bg-[#E5E0D8] rounded-full w-24 mx-auto" />
                         </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
+                        <td className="py-3.5 px-4 border-r-2 border-black">
                           <div className="h-4 bg-[#E5E0D8] rounded w-24" />
                         </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="h-7 bg-[#E5E0D8] rounded-[8px] w-32 mx-auto" />
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="h-8 bg-[#E5E0D8] rounded-lg w-28 mx-auto" />
                         </td>
                       </tr>
                     ))
                   ) : cashCollections.length === 0 ? (
+                    // Empty State
                     <tr>
-                      <td colSpan={6} className="py-14 px-4 text-center">
-                        <div className="max-w-md mx-auto space-y-3">
-                          <div className="flex justify-center">
-                            {cashStatusFilter === "PENDING" ? (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#B8E8B8] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-                                <CheckCircle2 className="h-6 w-6 text-[#14532D] stroke-[3]" />
-                              </div>
-                            ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FAF7EC] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-                                <Banknote className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
-                              </div>
-                            )}
+                      <td colSpan={6} className="py-12 text-center">
+                        <div className="max-w-sm mx-auto space-y-2">
+                          <div className="w-12 h-12 rounded-full bg-[#FAF7EC] border-2 border-black flex items-center justify-center mx-auto">
+                            <Banknote className="h-6 w-6 text-[#5C5647]" />
                           </div>
-
-                          <div className="space-y-1">
-                            <h3 className="text-sm font-black uppercase tracking-tight text-[#1A1A1A]">
-                              {cashStatusFilter === "PENDING" && !hasActiveCashFilters
-                                ? "No pending cash collections"
-                                : "No cash collections match this filter"}
-                            </h3>
-                            <p className="text-xs font-semibold text-[#5C5647]">
-                              {cashStatusFilter === "PENDING" && !hasActiveCashFilters
-                                ? "All cash payments have been checked and confirmed."
-                                : "Try adjusting your search terms or status filter."}
-                            </p>
-                          </div>
-
+                          <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
+                            No Cash Collections Found
+                          </h3>
+                          <p className="text-xs font-semibold text-[#5C5647]">
+                            {hasActiveCashFilters
+                              ? "No cash collections match your filter criteria."
+                              : "No pending or historical cash collections are recorded."}
+                          </p>
                           {hasActiveCashFilters && (
                             <button
                               type="button"
                               onClick={handleResetCashFilters}
-                              className="rounded-[8px] border-2 border-black bg-[#FFDF58] px-4 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1.5"
+                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs font-bold text-[#1A1A1A] cursor-pointer"
                             >
-                              <RotateCcw className="h-3 w-3 stroke-[2.5]" />
-                              Clear Filters
+                              <RotateCcw className="h-3 w-3" />
+                              Reset Filters
                             </button>
                           )}
                         </div>
@@ -807,65 +800,60 @@ export default function PaymentsPage() {
                       return (
                         <tr
                           key={item.id}
-                          className="hover:bg-[#FAF7EC]/80 transition-colors group"
+                          className="hover:bg-[#FFFDF8] transition-colors"
                         >
                           {/* Customer */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                            <div className="font-black text-[#1A1A1A] text-xs">
-                              {item.customer?.name || "Customer"}
-                            </div>
-                            <div className="text-[11px] font-mono font-medium text-[#5C5647]">
+                          <td className="py-3 px-4 border-r-2 border-black">
+                            <span className="font-black text-[#1A1A1A] block">
+                              {item.customer?.name || "Unknown Customer"}
+                            </span>
+                            <span className="font-mono text-xs text-[#5C5647]">
                               {item.customer?.mobile || "No phone"}
-                            </div>
-                          </td>
-
-                          {/* Amount (₹) */}
-                          <td className="py-3.5 px-4 border-r-2 border-black text-right align-middle">
-                            <span className="text-base font-mono font-black tabular-nums text-[#1A1A1A]">
-                              {formatCurrency(item.amountPaise / 100)}
                             </span>
                           </td>
 
+                          {/* Amount */}
+                          <td className="py-3 px-4 border-r-2 border-black text-right font-mono font-black text-[#1A1A1A] tabular-nums">
+                            {formatCurrency((item.amountPaise || 0) / 100)}
+                          </td>
+
                           {/* Purpose */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                            {item.purpose === "WALLET_TOPUP" ? (
-                              <span className="rounded-md border border-black px-2 py-0.5 text-[11px] font-mono font-bold bg-[#D8CEF6] text-[#4C1D95]">
-                                Wallet Top-up
-                              </span>
-                            ) : (
-                              <span className="rounded-md border border-black px-2 py-0.5 text-[11px] font-mono font-bold bg-[#FFDF58] text-[#713F12]">
-                                Order / Plan
-                              </span>
-                            )}
+                          <td className="py-3 px-4 border-r-2 border-black">
+                            <div className="flex flex-col gap-1">
+                              {item.purpose ? (
+                                <span className="inline-block max-w-[200px] truncate rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-bold text-[#1A1A1A]">
+                                  {item.purpose}
+                                </span>
+                              ) : (
+                                <span className="inline-block rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-bold text-[#1A1A1A]">
+                                  Order / Plan
+                                </span>
+                              )}
+                              {item.adminNote && (
+                                <span className="text-[10px] text-[#5C5647] truncate max-w-[200px]">
+                                  Note: {item.adminNote}
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Status */}
-                          <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
+                          <td className="py-3 px-4 border-r-2 border-black text-center">
                             <span
-                              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-black uppercase tracking-wider ${statusBadge.className}`}
+                              className={"inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider " + statusBadge.className}
                             >
                               {statusBadge.icon}
                               {statusBadge.label}
                             </span>
                           </td>
 
-                          {/* Collection Date */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                            <div className="font-mono text-xs font-bold text-[#1A1A1A]">
-                              {formatDate(item.collectedAt || item.createdAt)}
-                            </div>
-                            {item.adminNote && (
-                              <div
-                                className="text-[10px] font-mono font-medium text-[#5C5647] break-words max-w-[200px] mt-0.5"
-                                title={item.adminNote}
-                              >
-                                Note: {item.adminNote}
-                              </div>
-                            )}
+                          {/* Date */}
+                          <td className="py-3 px-4 border-r-2 border-black font-mono text-xs text-[#5C5647]">
+                            {formatDate(item.collectedAt || item.createdAt)}
                           </td>
 
                           {/* Actions */}
-                          <td className="py-3.5 px-4 text-center align-middle">
+                          <td className="py-3 px-4 text-center">
                             {isPending ? (
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
@@ -874,11 +862,10 @@ export default function PaymentsPage() {
                                     setConfirmItem(item);
                                     setIsConfirmOpen(true);
                                   }}
-                                  aria-label={`Confirm cash collection for ${item.customer?.name}`}
-                                  className="rounded-[8px] bg-[#B8E8B8] hover:bg-[#9fe09f] border-2 border-black font-black text-xs px-3 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer text-[#14532D] inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                                  className="cursor-pointer rounded-[8px] border-2 border-black bg-[#FFDF58] hover:bg-[#fcd033] px-3 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 min-h-[34px]"
                                 >
-                                  <Check className="h-3 w-3 stroke-[3]" />
-                                  Confirm Cash
+                                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                  Confirm
                                 </button>
                                 <button
                                   type="button"
@@ -886,21 +873,16 @@ export default function PaymentsPage() {
                                     setCancelItem(item);
                                     setIsCancelOpen(true);
                                   }}
-                                  aria-label={`Cancel cash collection for ${item.customer?.name}`}
-                                  className="rounded-[8px] bg-white hover:bg-[#FFD9D0] border-2 border-black font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer text-[#7F1D1D] inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                                  className="cursor-pointer rounded-[8px] border-2 border-black/30 hover:border-black bg-white hover:bg-[#FFD9D0] px-2.5 py-1.5 text-xs font-bold uppercase text-[#7F1D1D] transition-all flex items-center gap-1 min-h-[34px]"
                                 >
-                                  <X className="h-3 w-3 stroke-[3]" />
+                                  <X className="h-3.5 w-3.5 stroke-[2.5]" />
                                   Cancel
                                 </button>
                               </div>
                             ) : (
-                              <div className="text-[11px] font-mono text-[#5C5647]">
-                                {item.status === "CONFIRMED" && item.confirmedAt ? (
-                                  <span>Confirmed: {formatDate(item.confirmedAt)}</span>
-                                ) : (
-                                  <span>Resolved</span>
-                                )}
-                              </div>
+                              <span className="text-xs font-bold text-[#5C5647]">
+                                No Action Needed
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -911,14 +893,14 @@ export default function PaymentsPage() {
               </table>
             </div>
 
-            {/* Cash Pagination */}
-            <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-3">
-              <span>
-                Showing <strong className="font-mono">{cashCollections.length}</strong> of{" "}
-                <strong className="font-mono">{cashTotalCount}</strong> cash records
-              </span>
+            {/* Desktop Table Pagination */}
+            <div className="p-3 bg-[#FAF7EC] border-t-2 border-black flex items-center justify-between text-xs font-bold text-[#1A1A1A]">
+              <div>
+                Showing page <span className="font-black">{cashPage}</span> of{" "}
+                <span className="font-black">{cashTotalPages || 1}</span> ({cashTotalCount} total records)
+              </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   disabled={cashPage <= 1 || isCashLoading}
@@ -927,16 +909,11 @@ export default function PaymentsPage() {
                     setCashPage(prev);
                     loadCashCollections(prev, false);
                   }}
-                  aria-label="Previous cash page"
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] font-black text-xs disabled:opacity-40 disabled:cursor-not-allowed shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1 cursor-pointer"
                 >
-                  <ChevronLeft className="h-3 w-3 stroke-[3]" />
+                  <ChevronLeft className="h-3.5 w-3.5 stroke-[3]" />
                   Prev
                 </button>
-
-                <span className="font-mono text-xs font-black px-2">
-                  Page {cashPage} of {cashTotalPages || 1}
-                </span>
 
                 <button
                   type="button"
@@ -946,58 +923,51 @@ export default function PaymentsPage() {
                     setCashPage(next);
                     loadCashCollections(next, false);
                   }}
-                  aria-label="Next cash page"
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] font-black text-xs disabled:opacity-40 disabled:cursor-not-allowed shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1 cursor-pointer"
                 >
                   Next
-                  <ChevronRight className="h-3 w-3 stroke-[3]" />
+                  <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />
                 </button>
               </div>
             </div>
           </div>
 
           {/* ======================================================= */}
-          {/* CASH HUB: MOBILE CARDS VIEW (Visible below md)          */}
+          {/* CASH HUB: MOBILE CARD LIST (< 768px)                    */}
           {/* ======================================================= */}
-          <div className="block md:hidden space-y-3">
+          <div className="md:hidden space-y-3">
             {isCashLoading && cashCollections.length === 0 ? (
               Array.from({ length: 3 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[3px_3px_0px_0px_#000000] animate-pulse space-y-3"
+                  className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[2.5px_2.5px_0px_0px_#000000] animate-pulse space-y-3"
                 >
                   <div className="flex justify-between">
-                    <div className="h-4 bg-[#E5E0D8] rounded w-32" />
-                    <div className="h-5 bg-[#E5E0D8] rounded w-20" />
+                    <div className="h-4 bg-[#E5E0D8] rounded w-28" />
+                    <div className="h-5 bg-[#E5E0D8] rounded w-16" />
                   </div>
-                  <div className="h-8 bg-[#E5E0D8]/60 rounded" />
+                  <div className="h-6 bg-[#E5E0D8]/60 rounded" />
                   <div className="h-10 bg-[#E5E0D8] rounded w-full" />
                 </div>
               ))
             ) : cashCollections.length === 0 ? (
-              <div className="border-2 border-black bg-white rounded-[14px] p-6 text-center space-y-3 shadow-[3px_3px_0px_0px_#000000]">
+              <div className="border-2 border-black bg-white rounded-[14px] p-6 text-center space-y-2.5 shadow-[2.5px_2.5px_0px_0px_#000000]">
                 <div className="flex justify-center">
                   <Banknote className="h-8 w-8 text-[#5C5647]" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
-                    {cashStatusFilter === "PENDING"
-                      ? "No pending cash collections"
-                      : "No cash collections match filter"}
-                  </h3>
-                  <p className="text-xs font-semibold text-[#5C5647]">
-                    {cashStatusFilter === "PENDING"
-                      ? "All cash payments have been confirmed."
-                      : "Try clearing search or filters."}
-                  </p>
-                </div>
+                <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
+                  No cash collections
+                </h3>
+                <p className="text-xs font-semibold text-[#5C5647]">
+                  Try clearing search or changing filters.
+                </p>
                 {hasActiveCashFilters && (
                   <button
                     type="button"
                     onClick={handleResetCashFilters}
-                    className="w-full py-2.5 rounded-[8px] border-2 border-black bg-[#FFDF58] text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
+                    className="w-full py-2.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs font-bold uppercase text-[#1A1A1A]"
                   >
-                    Clear Filters
+                    Reset Filters
                   </button>
                 )}
               </div>
@@ -1010,77 +980,64 @@ export default function PaymentsPage() {
                 return (
                   <div
                     key={item.id}
-                    className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[3px_3px_0px_0px_#000000] space-y-3"
+                    className="border-2 border-black bg-white rounded-[14px] p-3.5 shadow-[2.5px_2.5px_0px_0px_#000000] space-y-2.5"
                   >
-                    {/* Top Row: Customer + Status Pill */}
+                    {/* Top Row: Customer & Status */}
                     <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-2">
                       <div>
-                        <div className="font-black text-sm text-[#1A1A1A]">
-                          {item.customer?.name || "Customer"}
-                        </div>
-                        <div className="text-xs font-mono font-medium text-[#5C5647]">
+                        <span className="font-black text-sm text-[#1A1A1A] block">
+                          {item.customer?.name || "Unknown Customer"}
+                        </span>
+                        <span className="font-mono text-xs text-[#5C5647]">
                           {item.customer?.mobile || "No phone"}
-                        </div>
+                        </span>
                       </div>
 
                       <span
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-mono font-bold uppercase ${statusBadge.className}`}
+                        className={"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider " + statusBadge.className}
                       >
                         {statusBadge.icon}
                         {statusBadge.label}
                       </span>
                     </div>
 
-                    {/* Amount & Purpose Block */}
-                    <div className="flex items-center justify-between bg-[#FAF7EC] p-3 rounded-[10px] border border-black/20">
+                    {/* Amount & Purpose */}
+                    <div className="flex items-center justify-between bg-[#FAF7EC] p-2.5 rounded-[10px] border border-black/20">
                       <div>
                         <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
-                          Collection Amount
+                          Amount
                         </span>
-                        <span className="font-mono text-2xl font-black text-[#1A1A1A]">
-                          {formatCurrency(item.amountPaise / 100)}
+                        <span className="font-mono text-xl font-black text-[#1A1A1A]">
+                          {formatCurrency((item.amountPaise || 0) / 100)}
                         </span>
                       </div>
 
-                      <div>
-                        {item.purpose === "WALLET_TOPUP" ? (
-                          <span className="rounded-md border border-black px-2 py-0.5 text-[10px] font-mono font-bold bg-[#D8CEF6] text-[#4C1D95]">
-                            Wallet Top-up
-                          </span>
-                        ) : (
-                          <span className="rounded-md border border-black px-2 py-0.5 text-[10px] font-mono font-bold bg-[#FFDF58] text-[#713F12]">
-                            Order / Plan
-                          </span>
-                        )}
+                      <div className="text-right">
+                        <span className="rounded-md border border-black/30 bg-white px-2 py-0.5 text-[10px] font-bold text-[#1A1A1A]">
+                          {item.purpose || "Order / Plan"}
+                        </span>
                       </div>
                     </div>
 
                     {/* Date and Note */}
-                    <div className="text-[11px] font-mono text-[#5C5647] space-y-0.5">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 stroke-[2]" />
-                        Collected: {formatDate(item.collectedAt || item.createdAt)}
-                      </div>
-                      {item.adminNote && (
-                        <div className="text-[10px] text-[#1A1A1A] font-medium bg-stone-100 p-1.5 rounded border border-black/20 break-words">
-                          Note: {item.adminNote}
-                        </div>
-                      )}
+                    <div className="text-[11px] font-mono text-[#5C5647] flex items-center gap-1">
+                      <Clock className="h-3 w-3 stroke-[2]" />
+                      Date: {formatDate(item.collectedAt || item.createdAt)}
                     </div>
 
-                    {/* Action Buttons (Min 44px) */}
+                    {/* Actions (Min 44px) */}
                     {isPending ? (
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-black/10">
+                      <div className="grid grid-cols-2 gap-2 pt-1">
                         <button
                           type="button"
                           onClick={() => {
                             setConfirmItem(item);
                             setIsConfirmOpen(true);
                           }}
-                          className="min-h-[44px] rounded-[10px] border-2 border-black bg-[#B8E8B8] active:bg-[#9fe09f] font-black text-xs uppercase text-[#14532D] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="min-h-[44px] rounded-[8px] border-2 border-black bg-[#FFDF58] active:bg-[#fcd033] font-black text-xs uppercase text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1 cursor-pointer"
                         >
                           <Check className="h-3.5 w-3.5 stroke-[3]" />
-                          Confirm Cash
+                          Confirm
                         </button>
                         <button
                           type="button"
@@ -1088,9 +1045,9 @@ export default function PaymentsPage() {
                             setCancelItem(item);
                             setIsCancelOpen(true);
                           }}
-                          className="min-h-[44px] rounded-[10px] border-2 border-black bg-white active:bg-[#FFD9D0] font-black text-xs uppercase text-[#7F1D1D] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="min-h-[44px] rounded-[8px] border-2 border-black/30 bg-white active:bg-[#FFD9D0] font-bold text-xs uppercase text-[#7F1D1D] flex items-center justify-center gap-1 cursor-pointer"
                         >
-                          <X className="h-3.5 w-3.5 stroke-[3]" />
+                          <X className="h-3.5 w-3.5 stroke-[2.5]" />
                           Cancel
                         </button>
                       </div>
@@ -1101,7 +1058,7 @@ export default function PaymentsPage() {
             )}
 
             {/* Mobile Pagination */}
-            <div className="p-3.5 bg-[#FAF7EC] border-2 border-black rounded-[14px] shadow-[2px_2px_0px_0px_#000000] text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-2">
+            <div className="p-3 bg-[#FAF7EC] border-2 border-black rounded-[14px] shadow-[2px_2px_0px_0px_#000000] text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-2">
               <button
                 type="button"
                 disabled={cashPage <= 1 || isCashLoading}
@@ -1110,7 +1067,7 @@ export default function PaymentsPage() {
                   setCashPage(prev);
                   loadCashCollections(prev, false);
                 }}
-                className="min-h-[44px] px-3 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1"
+                className="min-h-[44px] px-3.5 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1px_1px_0px_0px_#000000] flex items-center gap-1"
               >
                 <ChevronLeft className="h-3.5 w-3.5 stroke-[3]" />
                 Prev
@@ -1128,7 +1085,7 @@ export default function PaymentsPage() {
                   setCashPage(next);
                   loadCashCollections(next, false);
                 }}
-                className="min-h-[44px] px-3 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1"
+                className="min-h-[44px] px-3.5 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1px_1px_0px_0px_#000000] flex items-center gap-1"
               >
                 Next
                 <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />
@@ -1144,15 +1101,15 @@ export default function PaymentsPage() {
       {activeTab === "ONLINE_PAYMENTS" && (
         <div className="space-y-4">
           {paymentsError && (
-            <div className="flex items-center gap-2.5 rounded-[12px] border-2 border-black bg-[#FFD9D0] p-3.5 text-xs font-black text-[#7F1D1D] shadow-[3px_3px_0px_0px_#1A1A1A]">
+            <div className="flex items-center gap-2.5 rounded-[12px] border-2 border-black bg-[#FFD9D0] p-3 text-xs font-black text-[#7F1D1D] shadow-[2.5px_2.5px_0px_0px_#1A1A1A]">
               <AlertTriangle className="h-4 w-4 stroke-[3] shrink-0" />
               <span>{paymentsError}</span>
             </div>
           )}
 
           {/* Payments Filter Card */}
-          <div className="bg-white border-2 border-black p-3.5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white border-2 border-black p-3 rounded-[14px] shadow-[3px_3px_0px_0px_#000000] space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               {/* Status Pills */}
               <div className="flex flex-wrap items-center gap-1.5">
                 {(
@@ -1171,11 +1128,11 @@ export default function PaymentsPage() {
                       key={tab.key}
                       type="button"
                       onClick={() => setPaymentStatusFilter(tab.key)}
-                      className={`rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[38px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+                      className={"rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black " + (
                         isActive
-                          ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                          ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
                           : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
-                      }`}
+                      )}
                     >
                       {tab.label}
                     </button>
@@ -1183,7 +1140,7 @@ export default function PaymentsPage() {
                 })}
               </div>
 
-              {/* Search & Extra Filters on right */}
+              {/* Search, Filter Toggle & Quiet Reset */}
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
@@ -1210,11 +1167,11 @@ export default function PaymentsPage() {
                   onClick={() => setIsPaymentFiltersOpen(!isPaymentFiltersOpen)}
                   aria-expanded={isPaymentFiltersOpen}
                   aria-label="Toggle extra payment filters"
-                  className={`h-9 px-3 rounded-[8px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0 ${
+                  className={"h-9 px-3 rounded-[8px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0 " + (
                     transactionIdSearch || paymentStartDate || paymentEndDate || isPaymentFiltersOpen
                       ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
                       : "bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A]"
-                  }`}
+                  )}
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5 stroke-[2.5]" />
                   <span className="hidden sm:inline">Filters</span>
@@ -1225,15 +1182,17 @@ export default function PaymentsPage() {
                   )}
                 </button>
 
+                {/* Quiet Reset Filters button */}
                 {hasActivePaymentFilters && (
                   <button
                     type="button"
                     onClick={handleResetPaymentFilters}
                     aria-label="Reset all payment filters"
                     title="Reset filters"
-                    className="h-9 px-2.5 rounded-[8px] border-2 border-black/30 hover:border-black bg-[#FAF7EC] hover:bg-stone-200 text-[#1A1A1A] text-xs font-black transition-all cursor-pointer inline-flex items-center gap-1 shrink-0"
+                    className="h-9 px-3 rounded-[8px] border-2 border-black/30 hover:border-black bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0"
                   >
-                    <RotateCcw className="h-3 w-3 stroke-[2.5]" />
+                    <RotateCcw className="h-3.5 w-3.5 stroke-[2.5]" />
+                    <span className="hidden sm:inline">Reset</span>
                   </button>
                 )}
               </div>
@@ -1241,7 +1200,7 @@ export default function PaymentsPage() {
 
             {/* Collapsible Secondary Payment Filters */}
             {isPaymentFiltersOpen && (
-              <div className="pt-3 border-t border-black/10 grid grid-cols-1 sm:grid-cols-3 gap-2.5 animate-in fade-in duration-150">
+              <div className="pt-2.5 border-t border-black/10 grid grid-cols-1 sm:grid-cols-3 gap-2.5 animate-in fade-in duration-150">
                 <div className="relative">
                   <Receipt className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
                   <Input
@@ -1282,79 +1241,75 @@ export default function PaymentsPage() {
           {/* ======================================================= */}
           {/* ONLINE PAYMENTS: DESKTOP TABLE VIEW                     */}
           {/* ======================================================= */}
-          <div className="hidden md:block border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
+          <div className="hidden md:block border-2 border-black bg-white rounded-[14px] shadow-[3px_3px_0px_0px_#000000] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm border-collapse">
                 <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black">
                   <tr>
-                    <th className="py-3.5 px-4 border-r-2 border-black w-44">Transaction ID</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black">Customer</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black text-right w-36">Amount (₹)</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black w-40">Method / Provider</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black text-center w-40">Gateway Status</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black w-36">Date</th>
-                    <th className="py-3.5 px-4 text-center w-36">Actions</th>
+                    <th className="py-3 px-4 border-r-2 border-black w-44">Transaction ID</th>
+                    <th className="py-3 px-4 border-r-2 border-black">Customer</th>
+                    <th className="py-3 px-4 border-r-2 border-black text-right w-36">Amount (₹)</th>
+                    <th className="py-3 px-4 border-r-2 border-black w-40">Method / Provider</th>
+                    <th className="py-3 px-4 border-r-2 border-black text-center w-40">Gateway Status</th>
+                    <th className="py-3 px-4 border-r-2 border-black w-36">Date</th>
+                    <th className="py-3 px-4 text-center w-36">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y-2 divide-black bg-white">
                   {isPaymentsLoading && payments.length === 0 ? (
-                    // Skeleton
-                    Array.from({ length: 6 }).map((_, idx) => (
+                    // Skeleton State
+                    Array.from({ length: 5 }).map((_, idx) => (
                       <tr key={idx} className="animate-pulse">
-                        <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-5 bg-[#E5E0D8] rounded w-28" />
-                        </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
+                        <td className="py-3.5 px-4 border-r-2 border-black">
                           <div className="h-4 bg-[#E5E0D8] rounded w-24 mb-1" />
                           <div className="h-3 bg-[#E5E0D8]/60 rounded w-16" />
                         </td>
-                        <td className="py-4 px-4 border-r-2 border-black text-right">
-                          <div className="h-5 bg-[#E5E0D8] rounded w-16 ml-auto" />
+                        <td className="py-3.5 px-4 border-r-2 border-black">
+                          <div className="h-4 bg-[#E5E0D8] rounded w-28 mb-1" />
+                          <div className="h-3 bg-[#E5E0D8]/60 rounded w-20" />
                         </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-5 bg-[#E5E0D8] rounded w-20" />
+                        <td className="py-3.5 px-4 border-r-2 border-black text-right">
+                          <div className="h-5 bg-[#E5E0D8] rounded w-20 ml-auto" />
                         </td>
-                        <td className="py-4 px-4 border-r-2 border-black text-center">
-                          <div className="h-5 bg-[#E5E0D8] rounded-full w-20 mx-auto" />
+                        <td className="py-3.5 px-4 border-r-2 border-black">
+                          <div className="h-5 bg-[#E5E0D8] rounded w-24" />
                         </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-20" />
+                        <td className="py-3.5 px-4 border-r-2 border-black text-center">
+                          <div className="h-6 bg-[#E5E0D8] rounded-full w-24 mx-auto" />
                         </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="h-7 bg-[#E5E0D8] rounded-[8px] w-24 mx-auto" />
+                        <td className="py-3.5 px-4 border-r-2 border-black">
+                          <div className="h-4 bg-[#E5E0D8] rounded w-24" />
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="h-8 bg-[#E5E0D8] rounded-lg w-20 mx-auto" />
                         </td>
                       </tr>
                     ))
                   ) : payments.length === 0 ? (
+                    // Empty State
                     <tr>
-                      <td colSpan={7} className="py-14 px-4 text-center">
-                        <div className="max-w-md mx-auto space-y-3">
-                          <div className="flex justify-center">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FAF7EC] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-                              <CreditCard className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
-                            </div>
+                      <td colSpan={7} className="py-12 text-center">
+                        <div className="max-w-sm mx-auto space-y-2">
+                          <div className="w-12 h-12 rounded-full bg-[#FAF7EC] border-2 border-black flex items-center justify-center mx-auto">
+                            <CreditCard className="h-6 w-6 text-[#5C5647]" />
                           </div>
-
-                          <div className="space-y-1">
-                            <h3 className="text-sm font-black uppercase tracking-tight text-[#1A1A1A]">
-                              No payment transactions found
-                            </h3>
-                            <p className="text-xs font-semibold text-[#5C5647]">
-                              {hasActivePaymentFilters
-                                ? "No online transactions match your search and filter criteria."
-                                : "No online payment records found yet."}
-                            </p>
-                          </div>
-
+                          <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
+                            No Online Payments Found
+                          </h3>
+                          <p className="text-xs font-semibold text-[#5C5647]">
+                            {hasActivePaymentFilters
+                              ? "No payment records match your filter criteria."
+                              : "No payment gateway transactions have been recorded yet."}
+                          </p>
                           {hasActivePaymentFilters && (
                             <button
                               type="button"
                               onClick={handleResetPaymentFilters}
-                              className="rounded-[8px] border-2 border-black bg-[#FFDF58] px-4 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1.5"
+                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs font-bold text-[#1A1A1A] cursor-pointer"
                             >
-                              <RotateCcw className="h-3 w-3 stroke-[2.5]" />
-                              Clear Filters
+                              <RotateCcw className="h-3 w-3" />
+                              Reset Filters
                             </button>
                           )}
                         </div>
@@ -1362,74 +1317,65 @@ export default function PaymentsPage() {
                     </tr>
                   ) : (
                     payments.map((p) => {
-                      const isCopied = copiedKey === p.id;
                       const statusBadge = getPaymentStatusBadge(p.status);
 
                       return (
                         <tr
                           key={p.id}
-                          className="hover:bg-[#FAF7EC]/80 transition-colors group"
+                          className="hover:bg-[#FFFDF8] transition-colors"
                         >
                           {/* Transaction ID */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
+                          <td className="py-3 px-4 border-r-2 border-black">
                             <div className="flex items-center gap-1.5">
-                              <span
-                                className="rounded-[6px] border border-black bg-[#FAF7EC] px-2 py-0.5 text-xs font-mono font-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
-                                title={`TXN ID: ${p.transactionId}`}
-                              >
-                                {p.transactionId.length > 12
-                                  ? `${p.transactionId.substring(0, 10)}...`
-                                  : p.transactionId}
+                              <span className="font-mono text-xs font-black text-[#1A1A1A]">
+                                {p.transactionId}
                               </span>
                               <button
                                 type="button"
-                                onClick={(e) => handleCopy(e, p.transactionId, p.id)}
-                                title="Copy Transaction ID"
-                                aria-label={`Copy transaction ID ${p.transactionId}`}
-                                className="p-1 rounded text-[#5C5647] hover:text-[#1A1A1A] hover:bg-stone-200 cursor-pointer transition-colors"
+                                onClick={() => copyToClipboard(p.transactionId, p.id)}
+                                title="Copy TXN ID"
+                                className="text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer"
                               >
-                                {isCopied ? (
-                                  <CheckCheck className="h-3.5 w-3.5 text-green-700 stroke-[3]" />
+                                {copiedTxnId === p.id ? (
+                                  <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />
                                 ) : (
-                                  <Copy className="h-3.5 w-3.5 stroke-[2]" />
+                                  <Copy className="h-3 w-3" />
                                 )}
                               </button>
                             </div>
                             {p.providerPaymentId && (
-                              <div className="text-[10px] font-mono text-[#5C5647] mt-0.5">
-                                Ref: {p.providerPaymentId}
-                              </div>
+                              <span className="font-mono text-[10px] text-[#5C5647] block truncate max-w-[140px]">
+                                PG: {p.providerPaymentId}
+                              </span>
                             )}
                           </td>
 
                           {/* Customer */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                            <div className="font-black text-[#1A1A1A] text-xs">
-                              {p.customer?.name || "Customer"}
-                            </div>
-                            <div className="text-[11px] font-mono font-medium text-[#5C5647]">
+                          <td className="py-3 px-4 border-r-2 border-black">
+                            <span className="font-black text-[#1A1A1A] block">
+                              {p.customer?.name || "Anonymous User"}
+                            </span>
+                            <span className="font-mono text-xs text-[#5C5647]">
                               {p.customer?.mobile || "No phone"}
-                            </div>
-                          </td>
-
-                          {/* Amount (₹) */}
-                          <td className="py-3.5 px-4 border-r-2 border-black text-right align-middle">
-                            <span className="font-mono font-black text-sm tabular-nums text-[#1A1A1A]">
-                              {formatCurrency(p.amountPaise / 100)}
                             </span>
                           </td>
 
+                          {/* Amount */}
+                          <td className="py-3 px-4 border-r-2 border-black text-right font-mono font-black text-[#1A1A1A] tabular-nums">
+                            {formatCurrency(p.amountPaise / 100)}
+                          </td>
+
                           {/* Method / Provider */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                            <span className="rounded-md border border-black bg-[#FAF7EC] px-2 py-0.5 text-[10px] font-mono font-bold text-[#1A1A1A]">
+                          <td className="py-3 px-4 border-r-2 border-black">
+                            <span className="inline-block rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-bold text-[#1A1A1A]">
                               {p.paymentMethod} • {p.provider}
                             </span>
                           </td>
 
-                          {/* Gateway Status */}
-                          <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
+                          {/* Status */}
+                          <td className="py-3 px-4 border-r-2 border-black text-center">
                             <span
-                              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-black uppercase tracking-wider ${statusBadge.className}`}
+                              className={"inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider " + statusBadge.className}
                             >
                               {statusBadge.icon}
                               {statusBadge.label}
@@ -1437,23 +1383,22 @@ export default function PaymentsPage() {
                           </td>
 
                           {/* Date */}
-                          <td className="py-3.5 px-4 border-r-2 border-black font-mono font-bold text-xs text-[#1A1A1A] align-middle">
+                          <td className="py-3 px-4 border-r-2 border-black font-mono text-xs text-[#5C5647]">
                             {formatDate(p.createdAt)}
                           </td>
 
                           {/* Actions */}
-                          <td className="py-3.5 px-4 text-center align-middle">
+                          <td className="py-3 px-4 text-center">
                             <button
                               type="button"
                               onClick={() => {
                                 setSelectedPaymentId(p.id);
                                 setIsPaymentSheetOpen(true);
                               }}
-                              aria-label={`Inspect details for transaction ${p.transactionId}`}
-                              className="rounded-[8px] bg-white hover:bg-[#FFDF58] font-black text-xs px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#1A1A1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                              className="cursor-pointer rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-3 py-1.5 text-xs font-bold uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all inline-flex items-center gap-1 min-h-[34px]"
                             >
-                              <Eye className="h-3 w-3 stroke-[2.5]" />
-                              <span>Details</span>
+                              <Eye className="h-3.5 w-3.5 stroke-[2.5]" />
+                              Inspect
                             </button>
                           </td>
                         </tr>
@@ -1464,14 +1409,14 @@ export default function PaymentsPage() {
               </table>
             </div>
 
-            {/* Payments Pagination */}
-            <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-3">
-              <span>
-                Showing <strong className="font-mono">{payments.length}</strong> of{" "}
-                <strong className="font-mono">{paymentTotalCount}</strong> gateway transactions
-              </span>
+            {/* Desktop Table Pagination */}
+            <div className="p-3 bg-[#FAF7EC] border-t-2 border-black flex items-center justify-between text-xs font-bold text-[#1A1A1A]">
+              <div>
+                Showing page <span className="font-black">{paymentPage}</span> of{" "}
+                <span className="font-black">{paymentTotalPages || 1}</span> ({paymentTotalCount} total payments)
+              </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   disabled={paymentPage <= 1 || isPaymentsLoading}
@@ -1480,16 +1425,11 @@ export default function PaymentsPage() {
                     setPaymentPage(prev);
                     loadPayments(prev, false);
                   }}
-                  aria-label="Previous payment page"
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] font-black text-xs disabled:opacity-40 disabled:cursor-not-allowed shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1 cursor-pointer"
                 >
-                  <ChevronLeft className="h-3 w-3 stroke-[3]" />
+                  <ChevronLeft className="h-3.5 w-3.5 stroke-[3]" />
                   Prev
                 </button>
-
-                <span className="font-mono text-xs font-black px-2">
-                  Page {paymentPage} of {paymentTotalPages || 1}
-                </span>
 
                 <button
                   type="button"
@@ -1499,25 +1439,24 @@ export default function PaymentsPage() {
                     setPaymentPage(next);
                     loadPayments(next, false);
                   }}
-                  aria-label="Next payment page"
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] font-black text-xs disabled:opacity-40 disabled:cursor-not-allowed shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1 cursor-pointer"
                 >
                   Next
-                  <ChevronRight className="h-3 w-3 stroke-[3]" />
+                  <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />
                 </button>
               </div>
             </div>
           </div>
 
           {/* ======================================================= */}
-          {/* ONLINE PAYMENTS: MOBILE CARDS VIEW                      */}
+          {/* ONLINE PAYMENTS: MOBILE CARD LIST (< 768px)             */}
           {/* ======================================================= */}
-          <div className="block md:hidden space-y-3">
+          <div className="md:hidden space-y-3">
             {isPaymentsLoading && payments.length === 0 ? (
               Array.from({ length: 3 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[3px_3px_0px_0px_#000000] animate-pulse space-y-3"
+                  className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[2.5px_2.5px_0px_0px_#000000] animate-pulse space-y-3"
                 >
                   <div className="flex justify-between">
                     <div className="h-4 bg-[#E5E0D8] rounded w-32" />
@@ -1528,25 +1467,23 @@ export default function PaymentsPage() {
                 </div>
               ))
             ) : payments.length === 0 ? (
-              <div className="border-2 border-black bg-white rounded-[14px] p-6 text-center space-y-3 shadow-[3px_3px_0px_0px_#000000]">
+              <div className="border-2 border-black bg-white rounded-[14px] p-6 text-center space-y-2.5 shadow-[2.5px_2.5px_0px_0px_#000000]">
                 <div className="flex justify-center">
                   <CreditCard className="h-8 w-8 text-[#5C5647]" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
-                    No payment records
-                  </h3>
-                  <p className="text-xs font-semibold text-[#5C5647]">
-                    Try clearing search or filters.
-                  </p>
-                </div>
+                <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
+                  No payment records
+                </h3>
+                <p className="text-xs font-semibold text-[#5C5647]">
+                  Try clearing search or filters.
+                </p>
                 {hasActivePaymentFilters && (
                   <button
                     type="button"
                     onClick={handleResetPaymentFilters}
-                    className="w-full py-2.5 rounded-[8px] border-2 border-black bg-[#FFDF58] text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
+                    className="w-full py-2.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs font-bold uppercase text-[#1A1A1A]"
                   >
-                    Clear Filters
+                    Reset Filters
                   </button>
                 )}
               </div>
@@ -1557,7 +1494,7 @@ export default function PaymentsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[3px_3px_0px_0px_#000000] space-y-3"
+                    className="border-2 border-black bg-white rounded-[14px] p-3.5 shadow-[2.5px_2.5px_0px_0px_#000000] space-y-2.5"
                   >
                     {/* Top Row: TXN ID + Status Badge */}
                     <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-2">
@@ -1571,7 +1508,7 @@ export default function PaymentsPage() {
                       </div>
 
                       <span
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-mono font-bold uppercase ${statusBadge.className}`}
+                        className={"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase " + statusBadge.className}
                       >
                         {statusBadge.icon}
                         {statusBadge.label}
@@ -1579,18 +1516,18 @@ export default function PaymentsPage() {
                     </div>
 
                     {/* Amount & Method */}
-                    <div className="flex items-center justify-between bg-[#FAF7EC] p-3 rounded-[10px] border border-black/20">
+                    <div className="flex items-center justify-between bg-[#FAF7EC] p-2.5 rounded-[10px] border border-black/20">
                       <div>
                         <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
                           Amount Paid
                         </span>
-                        <span className="font-mono text-2xl font-black text-[#1A1A1A]">
+                        <span className="font-mono text-xl font-black text-[#1A1A1A]">
                           {formatCurrency(p.amountPaise / 100)}
                         </span>
                       </div>
 
                       <div className="text-right">
-                        <span className="rounded-md border border-black bg-white px-2 py-0.5 text-[10px] font-mono font-bold text-[#1A1A1A]">
+                        <span className="rounded-md border border-black/30 bg-white px-2 py-0.5 text-[10px] font-bold text-[#1A1A1A]">
                           {p.paymentMethod} • {p.provider}
                         </span>
                       </div>
@@ -1609,7 +1546,7 @@ export default function PaymentsPage() {
                         setSelectedPaymentId(p.id);
                         setIsPaymentSheetOpen(true);
                       }}
-                      className="w-full min-h-[44px] rounded-[10px] border-2 border-black bg-[#FFDF58] active:bg-[#fcd033] font-black text-xs uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full min-h-[44px] rounded-[8px] border-2 border-black bg-white active:bg-[#FAF7EC] font-bold text-xs uppercase text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Eye className="h-3.5 w-3.5 stroke-[2.5]" />
                       Inspect Payment Details
@@ -1620,7 +1557,7 @@ export default function PaymentsPage() {
             )}
 
             {/* Mobile Pagination */}
-            <div className="p-3.5 bg-[#FAF7EC] border-2 border-black rounded-[14px] shadow-[2px_2px_0px_0px_#000000] text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-2">
+            <div className="p-3 bg-[#FAF7EC] border-2 border-black rounded-[14px] shadow-[2px_2px_0px_0px_#000000] text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-2">
               <button
                 type="button"
                 disabled={paymentPage <= 1 || isPaymentsLoading}
@@ -1629,7 +1566,7 @@ export default function PaymentsPage() {
                   setPaymentPage(prev);
                   loadPayments(prev, false);
                 }}
-                className="min-h-[44px] px-3 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1"
+                className="min-h-[44px] px-3.5 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1px_1px_0px_0px_#000000] flex items-center gap-1"
               >
                 <ChevronLeft className="h-3.5 w-3.5 stroke-[3]" />
                 Prev
@@ -1647,7 +1584,7 @@ export default function PaymentsPage() {
                   setPaymentPage(next);
                   loadPayments(next, false);
                 }}
-                className="min-h-[44px] px-3 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1"
+                className="min-h-[44px] px-3.5 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1px_1px_0px_0px_#000000] flex items-center gap-1"
               >
                 Next
                 <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />
