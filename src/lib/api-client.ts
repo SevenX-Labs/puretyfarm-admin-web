@@ -19,17 +19,72 @@ const BASE_URL =
 export interface RequestOptions extends RequestInit {
   skipAuth?: boolean;
   skipAuthRedirect?: boolean;
+  _retry?: boolean;
+}
+
+// In-flight refresh token promise so concurrent requests share a single refresh call
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const isBrowser = typeof window !== "undefined";
+  if (!isBrowser) return null;
+
+  const refreshToken =
+    getCookie("admin_refresh_token") ||
+    localStorage.getItem("admin_refresh_token");
+
+  if (!refreshToken) return null;
+
+  try {
+    const refreshEndpoints = ["/auth/admin/refresh", "/auth/customer/refresh"];
+    let newAccessToken: string | null = null;
+    let newRefreshToken: string | null = null;
+
+    for (const ep of refreshEndpoints) {
+      try {
+        const res = await fetch(`${BASE_URL}${ep}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (res.ok) {
+          const body = await res.json();
+          if (body && body.accessToken) {
+            newAccessToken = body.accessToken;
+            newRefreshToken = body.refreshToken || refreshToken;
+            break;
+          }
+        }
+      } catch {
+        // try next endpoint
+      }
+    }
+
+    if (newAccessToken) {
+      setCookie("admin_access_token", newAccessToken, 30);
+      localStorage.setItem("admin_access_token", newAccessToken);
+      if (newRefreshToken) {
+        setCookie("admin_refresh_token", newRefreshToken, 60);
+        localStorage.setItem("admin_refresh_token", newRefreshToken);
+      }
+      return newAccessToken;
+    }
+  } catch {
+    // refresh failed
+  }
+
+  return null;
 }
 
 /**
  * Centralized API client for Puretyfarm Admin.
- * Handles JWT bearer authentication, error normalization, and safe session handling.
+ * Handles JWT bearer authentication, transparent token renewal, error normalization, and safe session handling.
  */
 export async function apiClient<T = unknown>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { skipAuth = false, skipAuthRedirect = false, headers = {}, ...rest } = options;
+  const { skipAuth = false, skipAuthRedirect = false, _retry = false, headers = {}, ...rest } = options;
 
   const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const url = `${BASE_URL}${normalizedEndpoint}`;
@@ -63,6 +118,35 @@ export async function apiClient<T = unknown>(
 
     // Check for 401 Unauthorized
     if (response.status === 401) {
+      const isBrowser = typeof window !== "undefined";
+
+      // If we haven't already retried this request and it was authenticated, attempt silent token refresh
+      if (!_retry && !skipAuth && isBrowser) {
+        const refreshToken =
+          getCookie("admin_refresh_token") ||
+          localStorage.getItem("admin_refresh_token");
+
+        if (refreshToken) {
+          if (!refreshPromise) {
+            refreshPromise = refreshAccessToken().finally(() => {
+              refreshPromise = null;
+            });
+          }
+
+          const freshToken = await refreshPromise;
+          if (freshToken) {
+            // Retry the request with the fresh token
+            const retryHeaders = new Headers(requestHeaders);
+            retryHeaders.set("Authorization", `Bearer ${freshToken}`);
+            return apiClient<T>(endpoint, {
+              ...options,
+              _retry: true,
+              headers: retryHeaders,
+            });
+          }
+        }
+      }
+
       let errorMsg = "Unauthorized session.";
       let errorBody: unknown = null;
       try {
@@ -78,10 +162,7 @@ export async function apiClient<T = unknown>(
       }
 
       // Only redirect to /login when the request was authenticated AND the
-      // caller didn't opt out. For login/refresh/bootstrap paths that pass
-      // skipAuth or skipAuthRedirect, let the caller surface the error
-      // instead of nuking the session on a transient 401.
-      const isBrowser = typeof window !== "undefined";
+      // caller didn't opt out.
       const hadToken =
         isBrowser &&
         Boolean(
