@@ -49,8 +49,7 @@ export default function WalletPage() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [showGuide, setShowGuide] = useState<boolean>(true);
-
+  
   const [notice, setNotice] = useState<{
     type: "success" | "error" | "info";
     message: string;
@@ -558,70 +557,7 @@ export default function WalletPage() {
         </button>
       </div>
 
-      {/* ========================================================= */}
-      {/* 2b. PLAIN-LANGUAGE HOW-IT-WORKS GUIDE (Collapsible/Clean) */}
-      {/* ========================================================= */}
-      <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[3px_3px_0px_0px_#000000]">
-        <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowGuide(!showGuide)}>
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#FAF7EC] border border-black text-[#1A1A1A]">
-              <HelpCircle className="h-3.5 w-3.5 stroke-[2.5]" />
-            </div>
-            <h2 className="text-xs font-black uppercase tracking-wider text-[#1A1A1A]">
-              How wallet approvals work
-            </h2>
-          </div>
-          <button
-            type="button"
-            aria-label={showGuide ? "Hide guide" : "Show guide"}
-            className="text-[11px] font-bold text-[#5C5647] hover:text-[#1A1A1A] underline cursor-pointer"
-          >
-            {showGuide ? "Hide tips" : "Show tips"}
-          </button>
-        </div>
-
-        {showGuide && (
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-3 border-t border-black/10 text-xs">
-            <div className="flex items-start gap-2 bg-[#FAF7EC] p-2.5 rounded-[8px] border border-black/20">
-              <span className="font-mono font-black text-xs bg-[#FFDF58] h-5 w-5 rounded flex items-center justify-center border border-black shrink-0 mt-0.5">
-                1
-              </span>
-              <div>
-                <span className="font-black text-[#1A1A1A] block">First-time top-ups</span>
-                <span className="text-[11px] font-medium text-[#5C5647]">
-                  Require your approval once to verify payment and unlock automatic future credits.
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2 bg-[#FAF7EC] p-2.5 rounded-[8px] border border-black/20">
-              <span className="font-mono font-black text-xs bg-[#FFDF58] h-5 w-5 rounded flex items-center justify-center border border-black shrink-0 mt-0.5">
-                2
-              </span>
-              <div>
-                <span className="font-black text-[#1A1A1A] block">Cash top-ups</span>
-                <span className="text-[11px] font-medium text-[#5C5647]">
-                  Physical cash collections always require manual confirmation before funds are added.
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2 bg-[#FAF7EC] p-2.5 rounded-[8px] border border-black/20">
-              <span className="font-mono font-black text-xs bg-[#FFDF58] h-5 w-5 rounded flex items-center justify-center border border-black shrink-0 mt-0.5">
-                3
-              </span>
-              <div>
-                <span className="font-black text-[#1A1A1A] block">Auto-refund on rejection</span>
-                <span className="text-[11px] font-medium text-[#5C5647]">
-                  Rejecting an online payment automatically initiates a full refund back to the customer.
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ========================================================= */}
+            {/* ========================================================= */}
       {/* 3. STATUS TABS & FILTER BAR                               */}
       {/* ========================================================= */}
       <div className="bg-white border-2 border-black p-4 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3.5">

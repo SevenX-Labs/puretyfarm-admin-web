@@ -37,6 +37,15 @@ import {
   CalendarDays,
   ShieldAlert,
   RotateCcw,
+  PauseCircle,
+  PlayCircle,
+  SkipForward,
+  Scale,
+  CalendarRange,
+  XCircle,
+  User,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
@@ -70,6 +79,7 @@ export default function PlansAndDeliveryPage() {
   const [typeFilter, setTypeFilter] = useState<RequestType | "ALL">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isMoreFiltersOpen, setIsMoreFiltersOpen] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalRequests, setTotalRequests] = useState<number>(0);
@@ -203,6 +213,14 @@ export default function PlansAndDeliveryPage() {
     return requests.filter((r) => r.status === "PENDING").length;
   }, [requests]);
 
+  const hasActiveFilters = useMemo(() => {
+    return (
+      statusFilter !== "PENDING" ||
+      typeFilter !== "ALL" ||
+      debouncedSearch.length > 0
+    );
+  }, [statusFilter, typeFilter, debouncedSearch]);
+
   // ==========================================
   // HANDLERS: CHANGE REQUEST APPROVAL
   // ==========================================
@@ -225,15 +243,15 @@ export default function PlansAndDeliveryPage() {
       );
 
       showNotice(
-        `Successfully approved ${request.requestType.replace(/_/g, " ")} request for ${
-          request.customer?.name || "customer"
+        `Approved ${request.requestType.replace(/_/g, " ")} request for ${
+          request.customer?.name || "Customer"
         }.`,
         "success"
       );
     } catch (err: unknown) {
       if (err instanceof ApiError && err.statusCode === 409) {
         showNotice(
-          "Conflict: This request has already been reviewed or status changed.",
+          "Conflict: This request has already been reviewed or its status changed.",
           "error"
         );
       } else {
@@ -280,6 +298,14 @@ export default function PlansAndDeliveryPage() {
     }
   };
 
+  const handleResetFilters = () => {
+    setStatusFilter("PENDING");
+    setTypeFilter("ALL");
+    setSearchQuery("");
+    setDebouncedSearch("");
+    setCurrentPage(1);
+  };
+
   // ==========================================
   // CONFIGURATION DISPLAY FORMATTER
   // ==========================================
@@ -314,7 +340,7 @@ export default function PlansAndDeliveryPage() {
       const effective = config.effectiveDate || config.startDate;
       return {
         main: qty ? `${qty} Litre${Number(qty) > 1 ? "s" : ""}` : "Adjust Volume",
-        meta: effective ? `Eff: ${effective}` : undefined,
+        meta: effective ? `Effective: ${effective}` : undefined,
       };
     }
 
@@ -326,153 +352,344 @@ export default function PlansAndDeliveryPage() {
       return {
         main: freq ? `${String(freq).replace(/_/g, " ")}` : "Schedule Shift",
         meta: time
-          ? `${time}${effective ? ` • Eff: ${effective}` : ""}`
+          ? `${time}${effective ? ` • Effective: ${effective}` : ""}`
           : effective
-          ? `Eff: ${effective}`
+          ? `Effective: ${effective}`
           : undefined,
       };
     }
 
     // Fallback display
     const parts = Object.entries(config)
-      .slice(0, 2)
+      .slice(0, 3)
       .map(([k, v]) => `${k}: ${v}`);
     return { main: parts.join(" • ") || "Configured" };
   };
 
-  // Helper for type badge colors
-  const getTypeBadgeClass = (type: RequestType) => {
+  // Helper for type badge colors and icons
+  const getRequestTypeBadge = (type: RequestType) => {
     switch (type) {
       case "PAUSE":
-      case "SKIP":
-        return "bg-[#FF8E72] text-[#1A1A1A] border border-black font-mono font-bold text-xs";
+        return {
+          className: "bg-[#FFE7E1] border border-black text-[#991B1B]",
+          icon: <PauseCircle className="h-3 w-3 stroke-[2.5]" />,
+          label: "Pause",
+        };
       case "RESUME":
-        return "bg-[#B8E8B8] text-[#1A1A1A] border border-black font-mono font-bold text-xs";
+        return {
+          className: "bg-[#D5F2D5] border border-black text-[#14532D]",
+          icon: <PlayCircle className="h-3 w-3 stroke-[2.5]" />,
+          label: "Resume",
+        };
+      case "SKIP":
+        return {
+          className: "bg-[#FFF9D6] border border-black text-[#854D0E]",
+          icon: <SkipForward className="h-3 w-3 stroke-[2.5]" />,
+          label: "Skip Day",
+        };
       case "CHANGE_QUANTITY":
+        return {
+          className: "bg-[#E0F2FE] border border-black text-[#075985]",
+          icon: <Scale className="h-3 w-3 stroke-[2.5]" />,
+          label: "Qty Change",
+        };
       case "CHANGE_SCHEDULE":
-        return "bg-[#D8CEF6] text-[#1A1A1A] border border-black font-mono font-bold text-xs";
+        return {
+          className: "bg-[#F3E8FF] border border-black text-[#581C87]",
+          icon: <CalendarRange className="h-3 w-3 stroke-[2.5]" />,
+          label: "Schedule Change",
+        };
       default:
-        return "bg-white text-[#1A1A1A] border border-black font-mono text-xs";
+        return {
+          className: "bg-white border border-black text-[#1A1A1A]",
+          icon: <Calendar className="h-3 w-3 stroke-[2]" />,
+          label: type,
+        };
+    }
+  };
+
+  const getStatusBadge = (status: RequestStatus) => {
+    switch (status) {
+      case "PENDING":
+        return {
+          className: "bg-[#FFDF58] border-2 border-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <Clock className="h-3 w-3 stroke-[3]" />,
+          label: "Pending",
+        };
+      case "APPROVED":
+        return {
+          className: "bg-[#B8E8B8] border-2 border-black text-[#14532D] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <CheckCircle2 className="h-3 w-3 stroke-[3]" />,
+          label: "Approved",
+        };
+      case "REJECTED":
+        return {
+          className: "bg-[#FFD9D0] border-2 border-black text-[#7F1D1D] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <XCircle className="h-3 w-3 stroke-[2.5]" />,
+          label: "Rejected",
+        };
+      case "CANCELLED":
+        return {
+          className: "bg-stone-200 border-2 border-black text-stone-700 shadow-[1px_1px_0px_0px_#000000]",
+          icon: <X className="h-3 w-3 stroke-[2.5]" />,
+          label: "Cancelled",
+        };
+      default:
+        return {
+          className: "bg-white border border-black text-black",
+          icon: null,
+          label: status,
+        };
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* ========================================================= */}
-      {/* 1. TOP HEADER & MAIN TAB BAR                              */}
+      {/* 1. TOP HEADER & PRIMARY SYNC                              */}
       {/* ========================================================= */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-black uppercase tracking-tight text-[#1A1A1A] leading-tight">
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#1A1A1A] leading-tight">
             Plans & Subscriptions
           </h1>
-          <p className="text-xs font-bold text-[#5C5647]">
-            Configure operational plan rules, pricing & manage live customer delivery modification requests.
+          <p className="text-xs sm:text-sm font-semibold text-[#5C5647] mt-0.5">
+            Review customer delivery modifications and manage fixed subscription catalogs across Raipur.
           </p>
         </div>
 
-        {/* Tab Switcher Buttons */}
-        <div className="flex items-center gap-2 bg-[#FAF7EC] p-1.5 rounded-[12px] border-2 border-black shadow-[3px_3px_0px_0px_#1A1A1A]">
-          <button
-            type="button"
-            onClick={() => setActiveTab("REQUESTS")}
-            className={`rounded-[8px] px-4 py-2 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === "REQUESTS"
-                ? "bg-[#FFD84D] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#1A1A1A] translate-x-[-1px] translate-y-[-1px]"
-                : "bg-white text-[#5C5647] border border-transparent hover:text-[#1A1A1A] hover:bg-white/80"
-            }`}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 stroke-[2.5]" />
-            <span>Customer Change Requests</span>
-            {pendingRequestsCount > 0 && (
-              <span className="rounded-full bg-[#1A1A1A] px-2 py-0.5 text-[10px] font-mono font-black text-[#FFD84D]">
-                {pendingRequestsCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("PLANS")}
-            className={`rounded-[8px] px-4 py-2 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === "PLANS"
-                ? "bg-[#FFD84D] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#1A1A1A] translate-x-[-1px] translate-y-[-1px]"
-                : "bg-white text-[#5C5647] border border-transparent hover:text-[#1A1A1A] hover:bg-white/80"
-            }`}
-          >
-            <CalendarDays className="h-3.5 w-3.5 stroke-[2.5]" />
-            <span>Plan Pricing & Configuration</span>
-          </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {activeTab === "REQUESTS" ? (
+            <button
+              type="button"
+              onClick={() => fetchRequestsData(currentPage, true)}
+              disabled={isRefreshingRequests}
+              aria-label="Sync change requests from server"
+              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black min-h-[40px]"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 stroke-[2.5] ${
+                  isRefreshingRequests ? "animate-spin" : ""
+                }`}
+              />
+              {isRefreshingRequests ? "Syncing..." : "Sync Requests"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fetchPlansData(true)}
+              disabled={isRefreshingPlans}
+              aria-label="Sync plan catalog from server"
+              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black min-h-[40px]"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 stroke-[2.5] ${
+                  isRefreshingPlans ? "animate-spin" : ""
+                }`}
+              />
+              {isRefreshingPlans ? "Syncing..." : "Sync Plans"}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Global Notification Toast */}
       {notice && (
         <div
-          className={`flex items-center gap-2 rounded-[10px] border-2 border-black p-3.5 text-xs font-black shadow-[3px_3px_0px_0px_#1A1A1A] ${
+          role="alert"
+          className={`flex items-center gap-2.5 rounded-[12px] border-2 border-black p-3.5 text-xs font-black shadow-[3px_3px_0px_0px_#1A1A1A] animate-in fade-in duration-200 ${
             notice.type === "success"
-              ? "bg-[#B9E8B4] text-[#1A1A1A]"
+              ? "bg-[#B9E8B4] text-[#14532D]"
               : notice.type === "error"
-              ? "bg-[#FFD9D0] text-[#1A1A1A]"
+              ? "bg-[#FFD9D0] text-[#7F1D1D]"
               : "bg-[#FFDF58] text-[#1A1A1A]"
           }`}
         >
-          {notice.type === "success" && <CheckCircle2 className="h-4 w-4 stroke-[3]" />}
-          {notice.type === "error" && <AlertTriangle className="h-4 w-4 stroke-[3]" />}
-          {notice.type === "info" && <Info className="h-4 w-4 stroke-[3]" />}
+          {notice.type === "success" && <CheckCircle2 className="h-4 w-4 stroke-[3] shrink-0" />}
+          {notice.type === "error" && <AlertTriangle className="h-4 w-4 stroke-[3] shrink-0" />}
+          {notice.type === "info" && <Info className="h-4 w-4 stroke-[3] shrink-0" />}
           <span>{notice.message}</span>
         </div>
       )}
 
-      {/* Operational Top Notice Card */}
-      <div className="bg-[#FFFDF7] border-2 border-black p-3.5 rounded-[12px] shadow-[3px_3px_0px_0px_#000000] mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#1A1A1A]">
-          <span className="text-base">ℹ️</span>
-          <span>
-            <strong>PREPAID PLAN ARCHITECTURE:</strong> All subscriptions are paid via customer wallet balance or confirmed cash. Approving delivery changes adjusts shipment schedules only with no monetary charge.
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="bg-[#FFDF58] border border-black font-mono font-bold text-xs px-2.5 py-1 rounded-[6px] shadow-[1px_1px_0px_0px_#000000]">
-            {pendingRequestsCount} Pending Requests
-          </span>
-        </div>
+      {/* ========================================================= */}
+      {/* 2. SEGMENTED TABS (Customer Requests vs Plan Config)      */}
+      {/* ========================================================= */}
+      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[#FAF7EC] p-1.5 rounded-[14px] border-2 border-black shadow-[3px_3px_0px_0px_#000000]">
+        <button
+          type="button"
+          onClick={() => setActiveTab("REQUESTS")}
+          aria-selected={activeTab === "REQUESTS"}
+          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+            activeTab === "REQUESTS"
+              ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
+              : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
+          }`}
+        >
+          <Clock className="h-4 w-4 stroke-[2.5]" />
+          <span>Customer Change Requests</span>
+          {pendingRequestsCount > 0 && (
+            <span className="ml-1 rounded-full bg-black text-[#FFDF58] px-2 py-0.5 text-[11px] font-mono font-black">
+              {pendingRequestsCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("PLANS")}
+          aria-selected={activeTab === "PLANS"}
+          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+            activeTab === "PLANS"
+              ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
+              : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
+          }`}
+        >
+          <CalendarDays className="h-4 w-4 stroke-[2.5]" />
+          <span>Plan Pricing & Configuration</span>
+        </button>
       </div>
+
+      {/* ========================================================= */}
+      {/* 3. PLAIN-LANGUAGE HOW THIS WORKS BANNER                   */}
+      {/* ========================================================= */}
+      {activeTab === "REQUESTS" && (
+        <div className="bg-white border-2 border-black p-3.5 rounded-[12px] shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-2.5 text-xs text-[#1A1A1A]">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#FAF7EC] border border-black shrink-0 mt-0.5 sm:mt-0 font-mono font-black text-[10px]">
+              ℹ️
+            </div>
+            <p className="font-semibold text-[#5C5647] leading-relaxed">
+              <strong className="text-[#1A1A1A]">How it works:</strong> Plans are prepaid from customer wallet or confirmed cash. Approving a delivery change only reschedules shipments — no charge is deducted.
+            </p>
+          </div>
+
+          {pendingRequestsCount > 0 && (
+            <div className="inline-flex items-center gap-1.5 self-start sm:self-auto shrink-0 bg-[#FFDF58] border-2 border-black px-2.5 py-1 rounded-[8px] shadow-[1.5px_1.5px_0px_0px_#000000] font-mono text-xs font-black text-[#1A1A1A]">
+              <span className="h-2 w-2 rounded-full bg-black animate-pulse" />
+              {pendingRequestsCount} Pending Review
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* TAB 1: CUSTOMER DELIVERY CHANGE REQUESTS                  */}
       {/* ========================================================= */}
       {activeTab === "REQUESTS" && (
-        <div className="space-y-6">
-          {/* Filter Bar */}
-          <div className="bg-white border-2 border-black rounded-[14px] p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-              {/* Status Pills */}
+        <div className="space-y-4">
+          {/* Filter Bar (Clean & Collapsible) */}
+          <div className="bg-white border-2 border-black rounded-[14px] p-3.5 shadow-[4px_4px_0px_0px_#000000] space-y-3">
+            {/* Primary Row: Status Chips + Search + More Toggle */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Status Chips */}
               <div className="flex flex-wrap items-center gap-1.5">
-                {(["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const).map(
-                  (st) => (
+                {(
+                  [
+                    { key: "PENDING", label: "Pending" },
+                    { key: "ALL", label: "All" },
+                    { key: "APPROVED", label: "Approved" },
+                    { key: "REJECTED", label: "Rejected" },
+                    { key: "CANCELLED", label: "Cancelled" },
+                  ] as const
+                ).map((tab) => {
+                  const isActive = statusFilter === tab.key;
+                  return (
                     <button
-                      key={st}
+                      key={tab.key}
                       type="button"
-                      onClick={() => setStatusFilter(st)}
-                      className={`rounded-[8px] border-2 border-black px-3.5 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        statusFilter === st
-                          ? "bg-[#FFDF58] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
-                          : "bg-white text-[#1A1A1A] hover:bg-[#FAF7EC]"
+                      onClick={() => setStatusFilter(tab.key)}
+                      className={`rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[38px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+                        isActive
+                          ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                          : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
                       }`}
                     >
-                      {st === "ALL" ? "All Statuses" : st}
+                      {tab.key === "PENDING" && (
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            isActive ? "bg-black" : "bg-[#FFDF58]"
+                          }`}
+                        />
+                      )}
+                      {tab.label}
                     </button>
-                  )
-                )}
+                  );
+                })}
               </div>
 
-              {/* Request Type Dropdown & Search */}
-              <div className="flex flex-wrap items-center gap-2">
+              {/* Search & Extra Filters on right */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
+                  <Input
+                    placeholder="Search name, phone..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-8 h-9 text-xs font-bold border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] placeholder:text-[#5C5647]/70"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      aria-label="Clear search input"
+                      className="absolute right-2.5 top-2.5 text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5 stroke-[2.5]" />
+                    </button>
+                  )}
+                </div>
+
+                {/* More Filters Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsMoreFiltersOpen(!isMoreFiltersOpen)}
+                  aria-expanded={isMoreFiltersOpen}
+                  aria-label="Toggle request type filter"
+                  className={`h-9 px-3 rounded-[8px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0 ${
+                    typeFilter !== "ALL" || isMoreFiltersOpen
+                      ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
+                      : "bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A]"
+                  }`}
+                >
+                  <SlidersHorizontal className="h-3 w-3 stroke-[2.5]" />
+                  <span className="hidden sm:inline">Type</span>
+                  {typeFilter !== "ALL" && (
+                    <span className="h-4 w-4 rounded-full bg-black text-[#FFDF58] text-[10px] font-mono font-black flex items-center justify-center">
+                      1
+                    </span>
+                  )}
+                  {isMoreFiltersOpen ? (
+                    <ChevronUp className="h-3 w-3 stroke-[3]" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 stroke-[3]" />
+                  )}
+                </button>
+
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    aria-label="Reset all filters"
+                    title="Reset filters"
+                    className="h-9 px-2.5 rounded-[8px] border-2 border-black/30 hover:border-black bg-[#FAF7EC] hover:bg-stone-200 text-[#1A1A1A] text-xs font-black transition-all cursor-pointer inline-flex items-center gap-1 shrink-0"
+                  >
+                    <RotateCcw className="h-3 w-3 stroke-[2.5]" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Collapsible Secondary Filter: Request Type */}
+            {isMoreFiltersOpen && (
+              <div className="pt-2.5 border-t border-black/10 flex flex-wrap items-center gap-2 animate-in fade-in duration-150">
+                <span className="text-[11px] font-black uppercase text-[#5C5647]">
+                  Filter by Request Type:
+                </span>
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as RequestType | "ALL")}
-                  className="rounded-[8px] border-2 border-black bg-white px-3 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] focus:outline-none cursor-pointer h-9"
+                  className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black uppercase text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] focus:outline-none cursor-pointer h-8"
                 >
                   <option value="ALL">All Request Types</option>
                   <option value="PAUSE">PAUSE</option>
@@ -481,82 +698,93 @@ export default function PlansAndDeliveryPage() {
                   <option value="CHANGE_QUANTITY">CHANGE QUANTITY</option>
                   <option value="CHANGE_SCHEDULE">CHANGE SCHEDULE</option>
                 </select>
-
-                <div className="relative w-full sm:w-60">
-                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#1A1A1A] stroke-[2.5]" />
-                  <Input
-                    placeholder="Search name, phone..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-9 text-xs font-bold border-2 border-black rounded-[8px]"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter("PENDING");
-                    setTypeFilter("ALL");
-                    setSearchQuery("");
-                  }}
-                  className="rounded-[8px] border-2 border-black bg-[#FF8E72] hover:bg-[#ff7b5a] text-[#1A1A1A] font-black text-xs px-3 h-9 shadow-[2px_2px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1"
-                  title="Reset Filters"
-                >
-                  <RotateCcw className="h-3 w-3 stroke-[2.5]" />
-                  Reset
-                </button>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* High-Contrast Requests Table */}
-          <div className="border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
+          {/* ======================================================= */}
+          {/* DESKTOP TABLE VIEW (Visible md and up)                  */}
+          {/* ======================================================= */}
+          <div className="hidden md:block border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm border-collapse">
                 <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black">
                   <tr>
-                    <th className="py-3.5 px-4 border-r-2 border-black">Customer</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black">Request Type</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black w-48">Customer</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black w-36">Request Type</th>
                     <th className="py-3.5 px-4 border-r-2 border-black">Current Configuration</th>
                     <th className="py-3.5 px-4 border-r-2 border-black">Requested Change</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black">Submitted</th>
-                    <th className="py-3.5 px-4 text-center">Actions</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black w-32">Submitted</th>
+                    <th className="py-3.5 px-4 text-center w-40">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y-2 divide-black bg-white">
                   {requestsLoading && requests.length === 0 ? (
-                    // Skeleton pulse
+                    // Skeleton
                     Array.from({ length: 5 }).map((_, idx) => (
                       <tr key={idx} className="animate-pulse">
                         <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-28 mb-1" />
+                          <div className="h-4 bg-[#E5E0D8] rounded w-28 mb-1.5" />
                           <div className="h-3 bg-[#E5E0D8]/60 rounded w-20" />
                         </td>
                         <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-5 bg-[#E5E0D8] rounded w-24" />
+                          <div className="h-5 bg-[#E5E0D8] rounded-full w-24" />
                         </td>
                         <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-32" />
+                          <div className="h-4 bg-[#E5E0D8] rounded w-full max-w-[200px]" />
                         </td>
                         <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-32" />
+                          <div className="h-4 bg-[#E5E0D8] rounded w-full max-w-[200px]" />
                         </td>
                         <td className="py-4 px-4 border-r-2 border-black">
                           <div className="h-4 bg-[#E5E0D8] rounded w-20" />
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <div className="h-7 bg-[#E5E0D8] rounded w-28 mx-auto" />
+                          <div className="h-7 bg-[#E5E0D8] rounded-[8px] w-28 mx-auto" />
                         </td>
                       </tr>
                     ))
                   ) : filteredRequests.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={6}
-                        className="py-14 text-center font-bold text-xs uppercase text-[#5C5647]"
-                      >
-                        No delivery change requests match this filter.
+                      <td colSpan={6} className="py-14 px-4 text-center">
+                        <div className="max-w-md mx-auto space-y-3">
+                          <div className="flex justify-center">
+                            {statusFilter === "PENDING" ? (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#B8E8B8] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
+                                <CheckCircle2 className="h-6 w-6 text-[#14532D] stroke-[3]" />
+                              </div>
+                            ) : (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FAF7EC] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
+                                <CalendarDays className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <h3 className="text-sm font-black uppercase tracking-tight text-[#1A1A1A]">
+                              {statusFilter === "PENDING" && !hasActiveFilters
+                                ? "No pending change requests"
+                                : "No delivery change requests match this filter"}
+                            </h3>
+                            <p className="text-xs font-semibold text-[#5C5647]">
+                              {statusFilter === "PENDING" && !hasActiveFilters
+                                ? "All incoming customer delivery schedule changes have been reviewed."
+                                : "Try adjusting your search terms or status selection."}
+                            </p>
+                          </div>
+
+                          {hasActiveFilters && (
+                            <button
+                              type="button"
+                              onClick={handleResetFilters}
+                              className="rounded-[8px] border-2 border-black bg-[#FFDF58] px-4 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1.5"
+                            >
+                              <RotateCcw className="h-3 w-3 stroke-[2.5]" />
+                              Clear Filters
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -570,18 +798,20 @@ export default function PlansAndDeliveryPage() {
                         req.requestedConfiguration,
                         req.requestType
                       );
+                      const typeBadge = getRequestTypeBadge(req.requestType);
+                      const statusBadge = getStatusBadge(req.status);
 
                       return (
                         <tr
                           key={req.id}
-                          className="hover:bg-[#FAF7EC]/80 transition-colors"
+                          className="hover:bg-[#FAF7EC]/80 transition-colors group"
                         >
                           {/* Customer */}
                           <td className="py-3.5 px-4 border-r-2 border-black align-middle">
                             <div className="font-black text-[#1A1A1A] text-xs">
                               {req.customer?.name || "Customer"}
                             </div>
-                            <div className="text-xs font-mono text-[#5C5647]">
+                            <div className="text-[11px] font-mono font-medium text-[#5C5647]">
                               {req.customer?.mobile || "No phone"}
                             </div>
                           </td>
@@ -589,37 +819,46 @@ export default function PlansAndDeliveryPage() {
                           {/* Request Type */}
                           <td className="py-3.5 px-4 border-r-2 border-black align-middle">
                             <span
-                              className={`inline-block rounded-[6px] px-2.5 py-0.5 uppercase tracking-wider ${getTypeBadgeClass(
-                                req.requestType
-                              )}`}
+                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-mono font-bold uppercase ${typeBadge.className}`}
                             >
-                              {req.requestType.replace(/_/g, " ")}
+                              {typeBadge.icon}
+                              {typeBadge.label}
                             </span>
                           </td>
 
-                          {/* Current Configuration */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle text-xs">
-                            <div className="font-bold text-[#1A1A1A]">
-                              {currentParsed.main}
+                          {/* Current Configuration (Muted From) */}
+                          <td className="py-3.5 px-4 border-r-2 border-black align-middle text-xs break-words">
+                            <div className="inline-block rounded-[6px] bg-stone-100 border border-black/20 px-2.5 py-1 text-xs text-[#5C5647]">
+                              <span className="font-mono text-[10px] uppercase font-bold text-[#78716C] block">
+                                Current
+                              </span>
+                              <span className="font-semibold text-[#1A1A1A] whitespace-normal">
+                                {currentParsed.main}
+                              </span>
+                              {currentParsed.meta && (
+                                <div className="text-[10px] font-mono text-[#78716C] mt-0.5">
+                                  {currentParsed.meta}
+                                </div>
+                              )}
                             </div>
-                            {currentParsed.meta && (
-                              <div className="text-[10px] font-mono text-[#5C5647] mt-0.5">
-                                {currentParsed.meta}
-                              </div>
-                            )}
                           </td>
 
-                          {/* Requested Change */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle text-xs">
-                            <div className="font-black text-[#1A1A1A] flex items-center gap-1">
-                              <ArrowRight className="h-3 w-3 shrink-0 stroke-[2.5]" />
-                              <span>{requestedParsed.main}</span>
+                          {/* Requested Change (Emphasized To) */}
+                          <td className="py-3.5 px-4 border-r-2 border-black align-middle text-xs break-words">
+                            <div className="inline-block rounded-[6px] bg-[#FFF9D6] border-2 border-black px-2.5 py-1 text-xs text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]">
+                              <span className="font-mono text-[10px] uppercase font-black text-[#854D0E] flex items-center gap-1">
+                                <ArrowRight className="h-2.5 w-2.5 stroke-[3]" />
+                                Requested
+                              </span>
+                              <span className="font-black text-[#1A1A1A] whitespace-normal">
+                                {requestedParsed.main}
+                              </span>
+                              {requestedParsed.meta && (
+                                <div className="text-[10px] font-mono text-[#5C5647] mt-0.5">
+                                  {requestedParsed.meta}
+                                </div>
+                              )}
                             </div>
-                            {requestedParsed.meta && (
-                              <div className="text-[10px] font-mono text-[#5C5647] mt-0.5 pl-4">
-                                {requestedParsed.meta}
-                              </div>
-                            )}
                           </td>
 
                           {/* Submitted */}
@@ -638,7 +877,8 @@ export default function PlansAndDeliveryPage() {
                                   type="button"
                                   disabled={approvingId === req.id}
                                   onClick={() => handleApprove(req)}
-                                  className="rounded-[8px] border-2 border-black bg-[#B8E8B8] hover:bg-[#9fe09f] font-black text-xs px-3 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#1A1A1A]"
+                                  aria-label={`Approve ${req.requestType} for ${req.customer?.name}`}
+                                  className="rounded-[8px] border-2 border-black bg-[#B8E8B8] hover:bg-[#9fe09f] font-black text-xs px-3 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#14532D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-50"
                                 >
                                   {approvingId === req.id ? (
                                     <RefreshCw className="h-3 w-3 animate-spin stroke-[2.5]" />
@@ -652,41 +892,27 @@ export default function PlansAndDeliveryPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleOpenRejectModal(req)}
-                                  className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FF8E72] font-black text-xs px-3 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#1A1A1A]"
+                                  aria-label={`Reject ${req.requestType} for ${req.customer?.name}`}
+                                  className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FFD9D0] font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#7F1D1D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                                 >
                                   <X className="h-3 w-3 stroke-[3]" />
                                   Reject
                                 </button>
                               </div>
-                            ) : req.status === "APPROVED" ? (
-                              <div className="inline-flex flex-col items-center">
-                                <span className="rounded-[6px] border border-black bg-[#B8E8B8] px-2.5 py-0.5 text-[10px] font-mono font-black text-[#1A1A1A]">
-                                  APPROVED
+                            ) : (
+                              <div className="inline-flex flex-col items-center gap-1">
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10px] font-mono font-black uppercase ${statusBadge.className}`}
+                                >
+                                  {statusBadge.icon}
+                                  {statusBadge.label}
                                 </span>
                                 {req.reviewedAt && (
-                                  <span className="text-[9px] font-mono text-[#5C5647] mt-1">
+                                  <span className="text-[9px] font-mono text-[#5C5647]">
                                     {formatDate(req.reviewedAt)}
                                   </span>
                                 )}
                               </div>
-                            ) : req.status === "REJECTED" ? (
-                              <div className="inline-flex flex-col items-center">
-                                <span className="rounded-[6px] border border-black bg-[#FF8E72] px-2.5 py-0.5 text-[10px] font-mono font-black text-[#1A1A1A]">
-                                  REJECTED
-                                </span>
-                                {req.adminNote && (
-                                  <div
-                                    className="max-w-[170px] truncate text-[10px] font-bold text-[#1A1A1A] bg-[#FAF7EC] px-1.5 py-0.5 rounded border border-black/40 mt-1"
-                                    title={req.adminNote}
-                                  >
-                                    Note: {req.adminNote}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="rounded-[6px] border border-black bg-[#E5E0D8] px-2 py-0.5 text-[10px] font-mono font-bold text-[#1A1A1A]">
-                                {req.status}
-                              </span>
                             )}
                           </td>
                         </tr>
@@ -697,8 +923,8 @@ export default function PlansAndDeliveryPage() {
               </table>
             </div>
 
-            {/* Pagination Strip */}
-            <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Pagination Strip (Desktop) */}
+            <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-3">
               <span>
                 Showing <strong className="font-mono">{filteredRequests.length}</strong> of{" "}
                 <strong className="font-mono">{totalRequests || filteredRequests.length}</strong>{" "}
@@ -714,14 +940,15 @@ export default function PlansAndDeliveryPage() {
                     setCurrentPage(prev);
                     fetchRequestsData(prev, false);
                   }}
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1"
+                  aria-label="Previous page"
+                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                 >
                   <ChevronLeft className="h-3 w-3 stroke-[3]" />
                   Prev
                 </button>
 
                 <span className="font-mono text-xs font-black px-2">
-                  {currentPage} / {totalPages || 1}
+                  Page {currentPage} of {totalPages || 1}
                 </span>
 
                 <button
@@ -732,12 +959,215 @@ export default function PlansAndDeliveryPage() {
                     setCurrentPage(next);
                     fetchRequestsData(next, false);
                   }}
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1"
+                  aria-label="Next page"
+                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                 >
                   Next
                   <ChevronRight className="h-3 w-3 stroke-[3]" />
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* ======================================================= */}
+          {/* MOBILE CARDS VIEW (Visible below md)                    */}
+          {/* ======================================================= */}
+          <div className="block md:hidden space-y-3">
+            {requestsLoading && requests.length === 0 ? (
+              Array.from({ length: 3 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[3px_3px_0px_0px_#000000] animate-pulse space-y-3"
+                >
+                  <div className="flex justify-between">
+                    <div className="h-4 bg-[#E5E0D8] rounded w-32" />
+                    <div className="h-5 bg-[#E5E0D8] rounded w-20" />
+                  </div>
+                  <div className="h-12 bg-[#E5E0D8]/60 rounded" />
+                  <div className="h-10 bg-[#E5E0D8] rounded w-full" />
+                </div>
+              ))
+            ) : filteredRequests.length === 0 ? (
+              <div className="border-2 border-black bg-white rounded-[14px] p-6 text-center space-y-3 shadow-[3px_3px_0px_0px_#000000]">
+                <div className="flex justify-center">
+                  <CalendarDays className="h-8 w-8 text-[#5C5647]" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
+                    {statusFilter === "PENDING"
+                      ? "No pending change requests"
+                      : "No change requests match filter"}
+                  </h3>
+                  <p className="text-xs font-semibold text-[#5C5647]">
+                    {statusFilter === "PENDING"
+                      ? "All requests have been reviewed."
+                      : "Try clearing search or filters."}
+                  </p>
+                </div>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="w-full py-2.5 rounded-[8px] border-2 border-black bg-[#FFDF58] text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              filteredRequests.map((req) => {
+                const isPending = req.status === "PENDING";
+                const currentParsed = formatConfiguration(
+                  req.currentConfiguration,
+                  req.requestType
+                );
+                const requestedParsed = formatConfiguration(
+                  req.requestedConfiguration,
+                  req.requestType
+                );
+                const typeBadge = getRequestTypeBadge(req.requestType);
+                const statusBadge = getStatusBadge(req.status);
+
+                return (
+                  <div
+                    key={req.id}
+                    className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[3px_3px_0px_0px_#000000] space-y-3"
+                  >
+                    {/* Top Row: Customer + Status/Type Pills */}
+                    <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-2.5">
+                      <div>
+                        <div className="font-black text-sm text-[#1A1A1A]">
+                          {req.customer?.name || "Customer"}
+                        </div>
+                        <div className="text-xs font-mono font-medium text-[#5C5647]">
+                          {req.customer?.mobile || "No phone"}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-mono font-bold uppercase ${typeBadge.className}`}
+                        >
+                          {typeBadge.icon}
+                          {typeBadge.label}
+                        </span>
+                        {!isPending && (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] font-mono font-black uppercase ${statusBadge.className}`}
+                          >
+                            {statusBadge.label}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Change Comparison Block: From -> To */}
+                    <div className="space-y-2">
+                      {/* Current Configuration */}
+                      <div className="rounded-[8px] bg-stone-100 border border-black/20 p-2.5 text-xs text-[#5C5647]">
+                        <span className="font-mono text-[10px] uppercase font-bold text-[#78716C] block mb-0.5">
+                          Current Setting
+                        </span>
+                        <span className="font-semibold text-[#1A1A1A] block">
+                          {currentParsed.main}
+                        </span>
+                        {currentParsed.meta && (
+                          <span className="text-[10px] font-mono text-[#78716C] block mt-0.5">
+                            {currentParsed.meta}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Requested Change */}
+                      <div className="rounded-[8px] bg-[#FFF9D6] border-2 border-black p-2.5 text-xs text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]">
+                        <span className="font-mono text-[10px] uppercase font-black text-[#854D0E] flex items-center gap-1 mb-0.5">
+                          <ArrowRight className="h-3 w-3 stroke-[3]" />
+                          Requested Change
+                        </span>
+                        <span className="font-black text-[#1A1A1A] block">
+                          {requestedParsed.main}
+                        </span>
+                        {requestedParsed.meta && (
+                          <span className="text-[10px] font-mono text-[#5C5647] block mt-0.5">
+                            {requestedParsed.meta}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Date Info */}
+                    <div className="flex items-center justify-between text-[11px] font-mono text-[#5C5647] pt-1">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 stroke-[2]" />
+                        Submitted: {formatDate(req.createdAt)}
+                      </span>
+                    </div>
+
+                    {/* Action Buttons (Min 44px Tap Target) */}
+                    {isPending ? (
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-black/10">
+                        <button
+                          type="button"
+                          disabled={approvingId === req.id}
+                          onClick={() => handleApprove(req)}
+                          className="min-h-[44px] rounded-[10px] border-2 border-black bg-[#B8E8B8] active:bg-[#9fe09f] font-black text-xs uppercase text-[#14532D] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          {approvingId === req.id ? (
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin stroke-[3]" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5 stroke-[3]" />
+                          )}
+                          Approve
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenRejectModal(req)}
+                          className="min-h-[44px] rounded-[10px] border-2 border-black bg-white active:bg-[#FFD9D0] font-black text-xs uppercase text-[#7F1D1D] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <X className="h-3.5 w-3.5 stroke-[3]" />
+                          Reject
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })
+            )}
+
+            {/* Pagination Controls (Mobile) */}
+            <div className="p-3.5 bg-[#FAF7EC] border-2 border-black rounded-[14px] shadow-[2px_2px_0px_0px_#000000] text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-2">
+              <button
+                type="button"
+                disabled={currentPage <= 1 || requestsLoading}
+                onClick={() => {
+                  const prev = currentPage - 1;
+                  setCurrentPage(prev);
+                  fetchRequestsData(prev, false);
+                }}
+                className="min-h-[44px] px-3 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1"
+              >
+                <ChevronLeft className="h-3.5 w-3.5 stroke-[3]" />
+                Prev
+              </button>
+
+              <span className="font-mono text-xs font-black">
+                {currentPage} / {totalPages || 1}
+              </span>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages || requestsLoading}
+                onClick={() => {
+                  const next = currentPage + 1;
+                  setCurrentPage(next);
+                  fetchRequestsData(next, false);
+                }}
+                className="min-h-[44px] px-3 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1"
+              >
+                Next
+                <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />
+              </button>
             </div>
           </div>
         </div>
@@ -747,43 +1177,29 @@ export default function PlansAndDeliveryPage() {
       {/* TAB 2: PLAN CATALOG & PRICING CONFIGURATION              */}
       {/* ========================================================= */}
       {activeTab === "PLANS" && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-xl font-black uppercase tracking-tight text-[#1A1A1A]">
-                Fixed System Plans Catalog
+              <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-[#1A1A1A]">
+                Subscription Plans Catalog
               </h2>
-              <p className="text-xs font-bold text-[#5C5647]">
+              <p className="text-xs font-semibold text-[#5C5647]">
                 Live delivery pricing, litre thresholds, and active schedule toggles across Raipur.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => fetchPlansData(true)}
-              disabled={isRefreshingPlans}
-              className="cursor-pointer px-3 py-1.5 bg-white text-[#1A1A1A] hover:bg-[#FAF7EC] rounded-[10px] border-2 border-black shadow-[2px_2px_0px_0px_#000000] text-xs font-black uppercase flex items-center gap-1.5 transition-all"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 stroke-[2.5] ${
-                  isRefreshingPlans ? "animate-spin" : ""
-                }`}
-              />
-              Sync Plans
-            </button>
           </div>
 
           {/* 3-Column Plan Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             {plansLoading && plans.length === 0 ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
-                  className="border-2 border-black bg-white rounded-[14px] p-6 shadow-[4px_4px_0px_0px_#000000] animate-pulse space-y-4"
+                  className="border-2 border-black bg-white rounded-[14px] p-5 sm:p-6 shadow-[4px_4px_0px_0px_#000000] animate-pulse space-y-4"
                 >
                   <div className="h-6 bg-[#E5E0D8] rounded w-32" />
                   <div className="h-10 bg-[#E5E0D8] rounded w-24" />
                   <div className="space-y-2">
-                    <div className="h-4 bg-[#E5E0D8]/60 rounded" />
                     <div className="h-4 bg-[#E5E0D8]/60 rounded" />
                     <div className="h-4 bg-[#E5E0D8]/60 rounded" />
                   </div>
@@ -811,7 +1227,7 @@ export default function PlansAndDeliveryPage() {
                 return (
                   <div
                     key={plan.type}
-                    className={`border-2 border-black rounded-[14px] p-6 shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between transition-all ${
+                    className={`border-2 border-black rounded-[14px] p-5 sm:p-6 shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between transition-all ${
                       plan.isActive ? "bg-white" : "bg-[#FAF7EC]/60 opacity-80"
                     }`}
                   >
@@ -828,10 +1244,11 @@ export default function PlansAndDeliveryPage() {
                         <button
                           type="button"
                           onClick={() => handleTogglePlanActive(plan)}
+                          aria-label={`Toggle active state for ${plan.type}`}
                           className={`cursor-pointer rounded-full border-2 border-black px-2.5 py-0.5 text-[10px] font-mono font-black transition-all ${
                             plan.isActive
-                              ? "bg-[#B8E8B8] text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
-                              : "bg-[#FFD9D0] text-[#1A1A1A]"
+                              ? "bg-[#B8E8B8] text-[#14532D] shadow-[1px_1px_0px_0px_#000000]"
+                              : "bg-[#FFD9D0] text-[#7F1D1D]"
                           }`}
                         >
                           {plan.isActive ? "ACTIVE" : "INACTIVE"}
@@ -839,7 +1256,7 @@ export default function PlansAndDeliveryPage() {
                       </div>
 
                       {/* Pricing Display */}
-                      <div className="border-b-2 border-black pb-4 mb-4">
+                      <div className="border-b-2 border-black/15 pb-4 mb-4">
                         <div className="flex items-baseline gap-2">
                           <span className="text-3xl font-black font-mono text-[#1A1A1A]">
                             ₹{Math.round(plan.sellingPricePerLitre / 100)}
@@ -847,19 +1264,19 @@ export default function PlansAndDeliveryPage() {
                           <span className="text-xs font-bold text-[#5C5647]">/ Litre</span>
                         </div>
                         <div className="text-[11px] font-mono text-[#5C5647] line-through mt-0.5">
-                          Base actual: ₹{Math.round(plan.actualPricePerLitre / 100)}/L
+                          Base price: ₹{Math.round(plan.actualPricePerLitre / 100)}/L
                         </div>
                       </div>
 
                       {/* Allowed Litres & Delivery Window */}
-                      <div className="space-y-2.5 text-xs font-bold text-[#1A1A1A] mb-5">
+                      <div className="space-y-2 text-xs font-bold text-[#1A1A1A] mb-5">
                         <div className="flex items-center justify-between border-b border-black/10 pb-1.5">
                           <span className="text-[#5C5647] flex items-center gap-1">
                             <SlidersHorizontal className="h-3 w-3 stroke-[2.5]" />
                             Volume Limits:
                           </span>
                           <span className="font-mono font-black">
-                            Min: {plan.quantityMin}L • Max: {plan.quantityMax}L
+                            {plan.quantityMin}L - {plan.quantityMax}L
                           </span>
                         </div>
 
@@ -887,7 +1304,7 @@ export default function PlansAndDeliveryPage() {
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[#5C5647]">Max Usages:</span>
                             <span className="font-mono font-black bg-[#FFDF58] px-2 py-0.5 rounded border border-black">
-                              {plan.maxUsages || 3} orders per customer
+                              {plan.maxUsages || 3} orders max
                             </span>
                           </div>
                         )}
@@ -896,7 +1313,7 @@ export default function PlansAndDeliveryPage() {
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[#5C5647]">Parameters:</span>
                             <span className="font-mono font-black bg-[#D8CEF6] px-2 py-0.5 rounded border border-black">
-                              Duration: 7 Days | Max Usages: 1 (Fixed)
+                              7 Days (1x order)
                             </span>
                           </div>
                         )}
@@ -905,13 +1322,13 @@ export default function PlansAndDeliveryPage() {
                           <div className="pt-2 space-y-2">
                             <div>
                               <span className="text-[11px] font-black uppercase text-[#5C5647] block mb-1">
-                                Allowed Frequencies:
+                                Delivery Cadence:
                               </span>
                               <div className="flex flex-wrap gap-1.5">
                                 <span
                                   className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
                                     plan.dailyEnabled !== false
-                                      ? "bg-[#B8E8B8]"
+                                      ? "bg-[#B8E8B8] text-[#14532D]"
                                       : "bg-gray-100 line-through text-gray-400"
                                   }`}
                                 >
@@ -920,7 +1337,7 @@ export default function PlansAndDeliveryPage() {
                                 <span
                                   className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
                                     plan.alternateDaysEnabled !== false
-                                      ? "bg-[#B8E8B8]"
+                                      ? "bg-[#B8E8B8] text-[#14532D]"
                                       : "bg-gray-100 line-through text-gray-400"
                                   }`}
                                 >
@@ -931,26 +1348,26 @@ export default function PlansAndDeliveryPage() {
 
                             <div className="pt-1">
                               <span className="text-[11px] font-black uppercase text-[#5C5647] block mb-1">
-                                Allowed Quantity Modes:
+                                Quantity Modes:
                               </span>
                               <div className="flex flex-wrap gap-1.5">
                                 <span
                                   className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
                                     plan.fixedQuantityEnabled !== false
-                                      ? "bg-[#D8CEF6]"
+                                      ? "bg-[#D8CEF6] text-[#4C1D95]"
                                       : "bg-gray-100 line-through text-gray-400"
                                   }`}
                                 >
-                                  Fixed Quantity
+                                  Fixed Qty
                                 </span>
                                 <span
                                   className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
                                     plan.alternatingQuantityEnabled !== false
-                                      ? "bg-[#D8CEF6]"
+                                      ? "bg-[#D8CEF6] text-[#4C1D95]"
                                       : "bg-gray-100 line-through text-gray-400"
                                   }`}
                                 >
-                                  Alternating (Qty A / Qty B)
+                                  Alternating
                                 </span>
                               </div>
                             </div>
@@ -963,7 +1380,8 @@ export default function PlansAndDeliveryPage() {
                     <button
                       type="button"
                       onClick={() => handleOpenEditPlanModal(plan)}
-                      className="w-full mt-4 rounded-[10px] border-2 border-black bg-[#FFD84D] hover:bg-[#fcd033] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      aria-label={`Edit configuration for ${plan.type}`}
+                      className="w-full mt-4 rounded-[10px] border-2 border-black bg-[#FFD84D] hover:bg-[#fcd033] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                     >
                       <Edit2 className="h-3.5 w-3.5 stroke-[2.5]" />
                       Edit Configuration
