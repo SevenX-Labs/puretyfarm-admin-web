@@ -40,7 +40,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
+  RotateCcw,
 } from "lucide-react";
+import { StatCardSkeleton } from "@/components/ui/stat-card-skeleton";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatCurrency } from "@/lib/utils";
 
 type DatePreset = "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "THIS_MONTH" | "CUSTOM";
 
@@ -52,9 +57,10 @@ const formatDateISO = (d: Date): string => {
 };
 
 export default function DashboardOverviewPage() {
-  const [data, setData] = useState<DashboardOverviewResponse>(DEFAULT_DASHBOARD_DATA);
+  const [data, setData] = useState<DashboardOverviewResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
   // Date range state
@@ -70,6 +76,7 @@ export default function DashboardOverviewPage() {
   const loadDashboardData = useCallback(
     async (from: string, to: string, forceRefresh = false) => {
       if (forceRefresh) setIsRefreshing(true);
+      setError(null);
 
       try {
         const res = await fetchDashboardOverview(
@@ -90,6 +97,8 @@ export default function DashboardOverviewPage() {
         }
       } catch (err: unknown) {
         console.error("Failed to load dashboard overview:", err);
+        const msg = err instanceof Error ? err.message : "Failed to load dashboard overview.";
+        setError(msg);
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -121,13 +130,13 @@ export default function DashboardOverviewPage() {
       start = yStr;
       end = yStr;
     } else if (preset === "LAST_7_DAYS") {
-      const s = new Date();
-      s.setDate(s.getDate() - 6);
-      start = formatDateISO(s);
+      const d7 = new Date();
+      d7.setDate(d7.getDate() - 6);
+      start = formatDateISO(d7);
       end = todayStr;
     } else if (preset === "THIS_MONTH") {
-      const first = new Date(now.getFullYear(), now.getMonth(), 1);
-      start = formatDateISO(first);
+      const mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      start = formatDateISO(mStart);
       end = todayStr;
     }
 
@@ -135,536 +144,384 @@ export default function DashboardOverviewPage() {
     setToDate(end);
   };
 
-  // Safe destructuring of live data
-  const {
-    customers,
-    orders,
-    sales,
-    revenue,
-    plans,
-    deliveries,
-    wallet,
-    profit,
-    alerts,
-    comparison,
-    trend,
-  } = data;
+  const revenue = data?.revenue;
+  const customers = data?.customers;
+  const deliveries = data?.deliveries;
+  const orders = data?.orders;
+  const plans = data?.plans;
+  const comparison = data?.comparison;
 
-  // Transform trend data for Recharts chart
-  const chartData = useMemo(() => {
-    if (!trend?.daily || trend.daily.length === 0) {
-      return [
-        {
-          date: fromDate || "Today",
-          sales: Math.round((sales?.totalPaise || 0) / 100),
-          revenue: Math.round((revenue?.collectedPaise || 0) / 100),
-          orders: orders?.total || 0,
-        },
-      ];
-    }
-
-    return trend.daily.map((item) => {
-      // Format short date (e.g. "05 Oct")
-      let displayDate = item.date;
-      try {
-        const d = new Date(item.date);
-        displayDate = d.toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "short",
-        });
-      } catch {
-        // Fallback
-      }
-
-      return {
-        date: displayDate,
-        sales: Math.round(item.salesPaise / 100),
-        revenue: Math.round(item.revenueCollectedPaise / 100),
-        orders: item.orders,
-      };
-    });
-  }, [trend, sales, revenue, orders, fromDate]);
-
-  // Order status percentages for segmented bar
-  const totalOrdersCount = orders.total || 1;
-  const confirmedPct = Math.round(((orders.confirmed || 0) / totalOrdersCount) * 100);
-  const processingPct = Math.round(((orders.processing || 0) / totalOrdersCount) * 100);
-  const outForDeliveryPct = Math.round(((orders.outForDelivery || 0) / totalOrdersCount) * 100);
-  const deliveredPct = Math.round(((orders.delivered || 0) / totalOrdersCount) * 100);
-  const failedPct = Math.round((((orders.failed || 0) + (orders.cancelled || 0)) / totalOrdersCount) * 100);
+  const trends = useMemo(() => {
+    return (data?.trend?.daily || []).map((t) => ({
+      date: t.date,
+      deliveries: t.deliveries || 0,
+      revenueRupees: Math.round((t.revenueCollectedPaise || 0) / 100),
+      salesRupees: Math.round((t.salesPaise || 0) / 100),
+    }));
+  }, [data]);
 
   return (
     <div className="space-y-6">
       {/* ========================================================= */}
-      {/* 1. TOP HEADER & OPERATIONAL DATE FILTER BAR               */}
+      {/* 1. TOP HEADER & DATE RANGE FILTER BAR                     */}
       {/* ========================================================= */}
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000]">
         <div>
-          <h1 className="text-3xl font-black uppercase tracking-tight text-black leading-tight">
-            Raipur Dispatch Command
-          </h1>
-          <p className="text-xs font-bold text-[#5C5647]">
-            Real-time dairy dispatch oversight, sales volume, contribution margins, and delivery tracking.
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#1A1A1A]">
+              Operations Command
+            </h1>
+            <span className="bg-[#B8E8B8] border-2 border-black font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] shadow-[1px_1px_0px_0px_#000000]">
+              Raipur Hub
+            </span>
+          </div>
+          <p className="text-xs font-bold text-[#5C5647] mt-1">
+            Real-time fulfillment, morning dispatch routes, and customer subscriptions.
           </p>
         </div>
 
-        {/* Date Filter Bar */}
+        {/* Date Filter Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Preset Buttons */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-[#FAF7EC] p-1.5 rounded-[12px] border-2 border-black shadow-[3px_3px_0px_0px_#1A1A1A]">
-            {(
-              [
-                { id: "TODAY", label: "Today" },
-                { id: "YESTERDAY", label: "Yesterday" },
-                { id: "LAST_7_DAYS", label: "Last 7 Days" },
-                { id: "THIS_MONTH", label: "This Month" },
-              ] as const
-            ).map((btn) => (
-              <button
-                key={btn.id}
-                type="button"
-                onClick={() => handleSelectPreset(btn.id)}
-                className={`rounded-[8px] px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  activePreset === btn.id
-                    ? "bg-[#FFD84D] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#1A1A1A] translate-x-[-1px] translate-y-[-1px]"
-                    : "bg-white text-[#5C5647] border border-transparent hover:text-[#1A1A1A] hover:bg-white/80"
-                }`}
-              >
-                {btn.label}
-              </button>
-            ))}
+          <div className="inline-flex rounded-[10px] border-2 border-black p-0.5 bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#000000]">
+            {(["TODAY", "YESTERDAY", "LAST_7_DAYS", "THIS_MONTH"] as DatePreset[]).map((p) => {
+              const label =
+                p === "TODAY"
+                  ? "Today"
+                  : p === "YESTERDAY"
+                  ? "Yesterday"
+                  : p === "LAST_7_DAYS"
+                  ? "7 Days"
+                  : "This Month";
+
+              const isActive = activePreset === p;
+
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => handleSelectPreset(p)}
+                  className={`px-3 py-1 text-xs font-black uppercase tracking-wider rounded-[6px] transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1px_1px_0px_0px_#000000]"
+                      : "text-[#5C5647] hover:text-[#1A1A1A] hover:bg-white"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Custom Date Inputs */}
-          <div className="flex items-center gap-1.5 bg-white p-1 rounded-[10px] border-2 border-black shadow-[2px_2px_0px_0px_#1A1A1A]">
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => {
-                setActivePreset("CUSTOM");
-                setFromDate(e.target.value);
-              }}
-              className="text-xs font-bold font-mono text-[#1A1A1A] px-2 py-1 outline-none bg-transparent"
-              title="From Date"
-            />
-            <span className="text-xs font-bold text-[#5C5647]">-</span>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => {
-                setActivePreset("CUSTOM");
-                setToDate(e.target.value);
-              }}
-              className="text-xs font-bold font-mono text-[#1A1A1A] px-2 py-1 outline-none bg-transparent"
-              title="To Date"
-            />
-          </div>
-
-          {/* Refresh Action */}
+          {/* Refresh Button */}
           <button
             type="button"
             onClick={() => loadDashboardData(fromDate, toDate, true)}
-            disabled={isRefreshing}
-            className="cursor-pointer rounded-[10px] border-2 border-black bg-[#FFD84D] hover:bg-[#fcd033] px-3.5 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5"
-            title="Refresh Live Metrics"
+            disabled={isRefreshing || isLoading}
+            aria-label="Refresh dashboard data"
+            className="h-9 px-3 bg-white hover:bg-[#FAF7EC] text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[10px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className={`h-3.5 w-3.5 stroke-[2.5] ${isRefreshing ? "animate-spin" : ""}`} />
-            <span>Sync</span>
+            <RotateCcw
+              className={`h-3.5 w-3.5 stroke-[2.5] ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            <span className="hidden sm:inline">Sync</span>
           </button>
         </div>
       </div>
 
+      {/* Error / Session Expired State */}
+      {error && (
+        <ErrorState
+          error={error}
+          onRetry={() => loadDashboardData(fromDate, toDate, true)}
+        />
+      )}
+
       {/* ========================================================= */}
-      {/* 2. ACTIONABLE OPERATIONAL ALERTS BAR                      */}
+      {/* 2. ROW 1: CORE METRIC KPI STAT CARDS                      */}
       {/* ========================================================= */}
-      <div className="space-y-2.5">
-        {/* Pending Wallet Approvals */}
-        {alerts?.pendingWalletApprovals > 0 && (
-          <div className="rounded-[10px] bg-[#FFDF58] border-2 border-black p-3.5 shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-base">⚠️</span>
-              <span className="text-xs font-black uppercase tracking-wider text-[#1A1A1A]">
-                {alerts.pendingWalletApprovals} Wallet Credit Requests Require Verification
-              </span>
-            </div>
-            <Link
-              href="/wallet?status=PENDING"
-              className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] inline-flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-            >
-              <span>Review in Wallet</span>
-              <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
-            </Link>
-          </div>
-        )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-busy={isLoading}>
+        {isLoading || !data ? (
+          <StatCardSkeleton count={4} />
+        ) : (
+          <>
+            {/* Card 1: Revenue */}
+            <div className="bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                  Total Revenue
+                </span>
+                <div className="w-8 h-8 rounded-[8px] bg-[#B8E8B8] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                  <DollarSign className="h-4 w-4 stroke-[2.5]" />
+                </div>
+              </div>
 
-        {/* Pending Delivery Change Requests */}
-        {alerts?.pendingDeliveryChangeRequests > 0 && (
-          <div className="rounded-[10px] bg-[#D8CEF6] border-2 border-black p-3.5 shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-base">📅</span>
-              <span className="text-xs font-black uppercase tracking-wider text-[#1A1A1A]">
-                {alerts.pendingDeliveryChangeRequests} Subscription Pause / Quantity Changes Pending
-              </span>
+              <div className="mt-4">
+                <div className="font-mono text-3xl font-black text-[#1A1A1A] tracking-tight">
+                  ₹{Math.round((revenue?.collectedPaise || 0) / 100).toLocaleString("en-IN")}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
+                  {comparison?.revenueChangePercent !== undefined && comparison.revenueChangePercent !== 0 && (
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-black ${
+                        comparison.revenueChangePercent >= 0
+                          ? "bg-[#B8E8B8] text-[#14532D]"
+                          : "bg-[#FFD9D0] text-[#7F1D1D]"
+                      }`}
+                    >
+                      {comparison.revenueChangePercent >= 0 ? "+" : ""}
+                      {comparison.revenueChangePercent.toFixed(1)}%
+                    </span>
+                  )}
+                  <span>vs prev period</span>
+                </div>
+              </div>
             </div>
-            <Link
-              href="/plans"
-              className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] inline-flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-            >
-              <span>Manage in Plans</span>
-              <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
-            </Link>
-          </div>
-        )}
 
-        {/* Failed Orders Alert */}
-        {alerts?.failedOrders > 0 && (
-          <div className="rounded-[10px] bg-[#FF8E72] border-2 border-black p-3.5 shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🚨</span>
-              <span className="text-xs font-black uppercase tracking-wider text-[#1A1A1A]">
-                {alerts.failedOrders} Failed Orders Detected
-              </span>
-            </div>
-            <Link
-              href="/orders"
-              className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] inline-flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-            >
-              <span>Investigate in Orders</span>
-              <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
-            </Link>
-          </div>
-        )}
+            {/* Card 2: Milk Volume (Litres) */}
+            <div className="bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                  Volume Delivered
+                </span>
+                <div className="w-8 h-8 rounded-[8px] bg-[#FFDF58] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                  <Package className="h-4 w-4 stroke-[2.5]" />
+                </div>
+              </div>
 
-        {/* Pending Cash Collections */}
-        {alerts?.pendingCashCollections > 0 && (
-          <div className="rounded-[10px] bg-[#FFFDF7] border-2 border-black p-3.5 shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-base">💵</span>
-              <span className="text-xs font-black uppercase tracking-wider text-[#1A1A1A]">
-                {alerts.pendingCashCollections} Pending Cash Collections
-              </span>
+              <div className="mt-4">
+                <div className="font-mono text-3xl font-black text-[#1A1A1A] tracking-tight">
+                  {orders?.total || 0} <span className="text-lg font-black text-[#5C5647]">Orders</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
+                  {comparison?.ordersChangePercent !== undefined && comparison.ordersChangePercent !== 0 && (
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-black ${
+                        comparison.ordersChangePercent >= 0
+                          ? "bg-[#B8E8B8] text-[#14532D]"
+                          : "bg-[#FFD9D0] text-[#7F1D1D]"
+                      }`}
+                    >
+                      {comparison.ordersChangePercent >= 0 ? "+" : ""}
+                      {comparison.ordersChangePercent.toFixed(1)}%
+                    </span>
+                  )}
+                  <span>vs prev period</span>
+                </div>
+              </div>
             </div>
-            <Link
-              href="/orders"
-              className="rounded-[8px] border-2 border-black bg-[#B8E8B8] hover:bg-[#9fe09f] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] inline-flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-            >
-              <span>Reconcile</span>
-              <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
-            </Link>
-          </div>
+
+            {/* Card 3: Deliveries */}
+            <div className="bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                  Deliveries
+                </span>
+                <div className="w-8 h-8 rounded-[8px] bg-[#D8CEF6] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                  <Truck className="h-4 w-4 stroke-[2.5]" />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="font-mono text-3xl font-black text-[#1A1A1A] tracking-tight">
+                  {deliveries?.delivered || 0} <span className="text-sm font-bold text-[#5C5647]">/ {((deliveries?.scheduled || 0) + (deliveries?.delivered || 0) + (deliveries?.skipped || 0)) || 0}</span>
+                </div>
+                <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
+                  {(deliveries?.completionPercent || 0).toFixed(0)}% Completion Rate
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Active Customers */}
+            <div className="bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                  Active Customers
+                </span>
+                <div className="w-8 h-8 rounded-[8px] bg-[#FAF7EC] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                  <Users className="h-4 w-4 stroke-[2.5]" />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="font-mono text-3xl font-black text-[#1A1A1A] tracking-tight">
+                  {customers?.active || 0}
+                </div>
+                <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
+                  {customers?.new ? `+${customers.new} new accounts` : "Across Raipur zones"}
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
       {/* ========================================================= */}
-      {/* 3. ROW 1: PRIMARY METRIC CARDS (4 COLUMNS)                */}
-      {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* 1. Total Sales Value */}
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 rounded-[14px] flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
-                Total Sales Value
-              </span>
-              {comparison?.salesChangePercent !== undefined && (
-                <span
-                  className={`rounded-[6px] border border-black px-2 py-0.5 text-[10px] font-mono font-black ${
-                    comparison.salesChangePercent >= 0
-                      ? "bg-[#B8E8B8] text-[#1A1A1A]"
-                      : "bg-[#FF8E72] text-[#1A1A1A]"
-                  }`}
-                >
-                  {comparison.salesChangePercent >= 0 ? "+" : ""}
-                  {comparison.salesChangePercent}% vs prev
-                </span>
-              )}
-            </div>
-
-            <div className="mt-2.5 font-mono text-3xl font-black text-[#1A1A1A] tabular-nums">
-              ₹{Math.round((sales?.totalPaise || 0) / 100).toLocaleString("en-IN")}
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t-2 border-black/10 text-[11px] font-mono font-bold text-[#5C5647]">
-            Monthly: ₹{Math.round((sales?.monthlyPaise || 0) / 100).toLocaleString("en-IN")} | Trial: ₹{Math.round((sales?.trialPaise || 0) / 100).toLocaleString("en-IN")} | Buy Once: ₹{Math.round((sales?.buyOncePaise || 0) / 100).toLocaleString("en-IN")}
-          </div>
-        </div>
-
-        {/* 2. Net Revenue Collected */}
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 rounded-[14px] flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
-                Net Revenue Collected
-              </span>
-              {comparison?.revenueChangePercent !== undefined && (
-                <span
-                  className={`rounded-[6px] border border-black px-2 py-0.5 text-[10px] font-mono font-black ${
-                    comparison.revenueChangePercent >= 0
-                      ? "bg-[#B8E8B8] text-[#1A1A1A]"
-                      : "bg-[#FF8E72] text-[#1A1A1A]"
-                  }`}
-                >
-                  {comparison.revenueChangePercent >= 0 ? "+" : ""}
-                  {comparison.revenueChangePercent}% vs prev
-                </span>
-              )}
-            </div>
-
-            <div className="mt-2.5 font-mono text-3xl font-black text-[#1A1A1A] tabular-nums">
-              ₹{Math.round((revenue?.collectedPaise || 0) / 100).toLocaleString("en-IN")}
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t-2 border-black/10 text-[11px] font-mono font-bold text-[#5C5647] space-y-0.5">
-            <div>
-              Wallet: ₹{Math.round((revenue?.walletPaise || 0) / 100).toLocaleString("en-IN")} | Cash: ₹{Math.round((revenue?.cashPaise || 0) / 100).toLocaleString("en-IN")}
-            </div>
-            <div className="text-[10px] text-amber-800">
-              Customer Wallet Liability: ₹{Math.round((wallet?.totalCustomerBalancePaise || 0) / 100).toLocaleString("en-IN")}
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Delivery Completion Rate */}
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 rounded-[14px] flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
-                Delivery Completion Rate
-              </span>
-              <span className="rounded-[4px] border border-black bg-[#B8E8B8] text-black font-mono font-bold text-xs px-2 py-0.5">
-                {deliveries?.delivered || 0} Delivered
-              </span>
-            </div>
-
-            <div className="mt-2.5 font-mono text-3xl font-black text-[#1A1A1A] tabular-nums">
-              {(deliveries?.completionPercent || 0).toFixed(1)}%
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t-2 border-black/10 text-[11px] font-mono font-bold text-[#5C5647]">
-            {deliveries?.delivered || 0} Delivered / {deliveries?.scheduled || 0} Scheduled ({deliveries?.skipped || 0} Skipped)
-          </div>
-        </div>
-
-        {/* 4. Active Customer Base */}
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 rounded-[14px] flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
-                Active Customer Base
-              </span>
-              {comparison?.customersNewChangePercent !== undefined && (
-                <span
-                  className={`rounded-[6px] border border-black px-2 py-0.5 text-[10px] font-mono font-black ${
-                    comparison.customersNewChangePercent >= 0
-                      ? "bg-[#B8E8B8] text-[#1A1A1A]"
-                      : "bg-[#FF8E72] text-[#1A1A1A]"
-                  }`}
-                >
-                  {comparison.customersNewChangePercent >= 0 ? "+" : ""}
-                  {comparison.customersNewChangePercent}% new cust
-                </span>
-              )}
-            </div>
-
-            <div className="mt-2.5 font-mono text-3xl font-black text-[#1A1A1A] tabular-nums">
-              {customers?.active || 0}
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t-2 border-black/10 text-[11px] font-mono font-bold text-[#5C5647]">
-            {customers?.withActivePlan || 0} active plans | +{customers?.new || 0} new registrations
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* 4. ROW 2: ANALYTICS SPLIT (CHARTS & CONTRIBUTION MARGIN)  */}
+      {/* 3. ROW 2: 7-DAY DELIVERY & REVENUE TREND CHART + CUTOFF   */}
       {/* ========================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left (7 Columns): Daily Revenue & Sales Trend */}
-        <div className="lg:col-span-7 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-6 rounded-[14px] flex flex-col justify-between">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b-2 border-black/10 pb-3">
+        {/* Left: Trend Chart (8 Cols) */}
+        <div className="lg:col-span-8 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-6 rounded-[14px] flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b-2 border-black/10 pb-3 mb-4">
             <div>
               <h2 className="text-base font-black uppercase tracking-tight text-[#1A1A1A]">
-                Sales & Revenue Inflow Trend
+                Fulfillment & Volume Trajectory
               </h2>
               <p className="text-xs font-bold text-[#5C5647]">
-                Purchases vs Money Collected across selected period.
+                Daily milk litres dispatched vs total daily revenue in Raipur.
               </p>
             </div>
-
-            {/* Custom Legend */}
-            <div className="flex items-center gap-3 text-xs font-mono font-bold">
-              <div className="flex items-center gap-1.5">
-                <span className="w-3.5 h-3.5 bg-[#FFDF58] border border-black rounded-[2px]" />
-                <span>Sales (₹)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3.5 h-1.5 bg-[#4A1513] rounded-[1px]" />
-                <span>Revenue (₹)</span>
-              </div>
+            <div className="flex items-center gap-2 text-xs font-mono font-bold">
+              <span className="inline-flex items-center gap-1.5 bg-[#FFDF58] px-2 py-0.5 rounded border border-black">
+                <span className="w-2 h-2 rounded-full bg-[#1A1A1A]" /> Litres (L)
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-[#B8E8B8] px-2 py-0.5 rounded border border-black">
+                <span className="w-2 h-2 rounded-full bg-[#14532D]" /> Rev (₹)
+              </span>
             </div>
           </div>
 
-          {/* Recharts Composed Chart */}
-          <div className="h-[300px] w-full">
-            {isMounted ? (
+          <div className="h-64 w-full min-h-[256px]">
+            {isLoading || !data ? (
+              <div className="h-full w-full flex items-center justify-center bg-[#FAF7EC]/50 border-2 border-dashed border-black/20 rounded-[10px] animate-pulse">
+                <span className="font-mono text-xs font-bold text-[#5C5647]">Loading trajectory metrics...</span>
+              </div>
+            ) : trends.length === 0 ? (
+              <EmptyState title="No trend metrics" description="No dispatch history recorded for selected range." />
+            ) : isMounted ? (
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D8" vertical={false} />
+                <ComposedChart data={trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
                   <XAxis
                     dataKey="date"
-                    stroke="#1A1A1A"
-                    fontSize={11}
-                    fontFamily="monospace"
-                    tickLine={false}
+                    tick={{ fontSize: 11, fontFamily: "monospace", fill: "#5C5647" }}
+                    tickFormatter={(val) => {
+                      try {
+                        const d = new Date(val);
+                        return `${d.getDate()}/${d.getMonth() + 1}`;
+                      } catch {
+                        return val;
+                      }
+                    }}
                   />
                   <YAxis
-                    stroke="#1A1A1A"
-                    fontSize={11}
-                    fontFamily="monospace"
-                    tickLine={false}
+                    yAxisId="left"
+                    tick={{ fontSize: 11, fontFamily: "monospace", fill: "#5C5647" }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 11, fontFamily: "monospace", fill: "#5C5647" }}
                     tickFormatter={(v) => `₹${v}`}
                   />
                   <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="rounded-[8px] border-2 border-black bg-[#FBF8EE] p-3 shadow-[3px_3px_0px_0px_#1A1A1A] font-mono text-xs space-y-1">
-                            <div className="font-black text-black border-b border-black/20 pb-1">
-                              {label}
-                            </div>
-                            <div className="text-[#1A1A1A] flex justify-between gap-4">
-                              <span>Sales:</span>
-                              <strong>₹{payload[0]?.value?.toLocaleString("en-IN")}</strong>
-                            </div>
-                            <div className="text-[#4A1513] flex justify-between gap-4">
-                              <span>Revenue:</span>
-                              <strong>₹{payload[1]?.value?.toLocaleString("en-IN")}</strong>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
+                    contentStyle={{
+                      backgroundColor: "#FFFDF7",
+                      border: "2px solid #000000",
+                      borderRadius: "8px",
+                      boxShadow: "3px 3px 0px 0px #000000",
+                      fontFamily: "monospace",
+                      fontWeight: "bold",
+                      fontSize: "12px",
                     }}
                   />
                   <Bar
-                    dataKey="sales"
+                    yAxisId="left"
+                    dataKey="deliveries"
                     fill="#FFDF58"
-                    stroke="#1A1A1A"
-                    strokeWidth={2}
+                    stroke="#000000"
+                    strokeWidth={1.5}
                     radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
+                    name="Deliveries"
                   />
                   <Line
+                    yAxisId="right"
                     type="monotone"
-                    dataKey="revenue"
-                    stroke="#4A1513"
-                    strokeWidth={3}
-                    dot={{ fill: "#4A1513", r: 4, stroke: "#1A1A1A", strokeWidth: 1 }}
-                    activeDot={{ r: 6, fill: "#FFDF58", stroke: "#1A1A1A", strokeWidth: 2 }}
+                    dataKey="revenueRupees"
+                    stroke="#14532D"
+                    strokeWidth={2.5}
+                    dot={{ fill: "#B8E8B8", stroke: "#000000", strokeWidth: 1.5, r: 4 }}
+                    name="Revenue (₹)"
                   />
                 </ComposedChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full w-full bg-[#FAF7EC] animate-pulse rounded-[8px]" />
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* Right (5 Columns): Contribution Margin & Order Pipeline */}
-        <div className="lg:col-span-5 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-6 rounded-[14px] flex flex-col justify-between">
-          <div>
-            <div className="border-b-2 border-black/10 pb-3 mb-4">
-              <h2 className="text-base font-black uppercase tracking-tight text-[#1A1A1A]">
-                Contribution Margin Breakdown
-              </h2>
-              <p className="text-xs font-bold text-[#5C5647]">
-                Gross profit analysis and operational fulfillment pipeline.
-              </p>
+        {/* Right: Operational Status & Engine Cutoff Status (4 Cols) */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          {/* Engine Cutoff & Next Run Card */}
+          <div className="bg-[#FAF7EC] border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 rounded-[14px] space-y-3">
+            <div className="flex items-center justify-between border-b-2 border-black/10 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
+                <span className="text-xs font-black uppercase text-[#1A1A1A] tracking-tight">
+                  10 PM Engine Lock
+                </span>
+              </div>
+              <span className="bg-[#B8E8B8] border border-black font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-[1px_1px_0px_0px_#000000]">
+                Active
+              </span>
             </div>
 
-            {/* Procurement cost disclaimer pill */}
-            <div className="rounded-[8px] bg-amber-100 border-2 border-black p-2.5 text-[11px] font-bold text-amber-900 mb-4 shadow-[2px_2px_0px_0px_#000000]">
-              Notice: Contribution margin only (procurement costs untracked). Value reflects (Sales - Delivery Fees).
+            <p className="text-xs font-bold text-[#5C5647] leading-relaxed">
+              Customer schedule changes, vacation pauses, and quantities lock automatically at{" "}
+              <strong className="text-[#1A1A1A]">10:00 PM</strong> every evening for Raipur route packing.
+            </p>
+
+            <div className="p-3 bg-white border-2 border-black rounded-[8px] flex items-center justify-between text-xs font-mono font-bold">
+              <span>Next Morning Delivery Window:</span>
+              <span className="bg-[#FFDF58] px-2 py-0.5 rounded border border-black text-[#1A1A1A]">
+                06:00 AM – 09:00 AM
+              </span>
+            </div>
+          </div>
+
+          {/* Morning Dispatch Status */}
+          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 rounded-[14px] flex-1 flex flex-col justify-between">
+            <div className="flex items-center justify-between border-b-2 border-black/10 pb-2">
+              <span className="text-xs font-black uppercase text-[#1A1A1A]">
+                Order Breakdown by Status
+              </span>
+              <span className="font-mono text-xs font-black text-[#1A1A1A]">
+                {orders?.total || 0} Total
+              </span>
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-3 gap-2 text-center border-b-2 border-black/10 pb-4 mb-4">
-              <div className="p-2 rounded-[8px] bg-[#FAF7EC] border border-black/30">
-                <span className="text-[10px] font-black uppercase text-[#5C5647] block">
-                  Gross Profit
-                </span>
-                <span className="font-mono text-base font-black text-[#1A1A1A]">
-                  ₹{Math.round((profit?.grossProfitPaise || 0) / 100).toLocaleString("en-IN")}
-                </span>
-              </div>
-
-              <div className="p-2 rounded-[8px] bg-[#FAF7EC] border border-black/30">
-                <span className="text-[10px] font-black uppercase text-[#5C5647] block">
-                  Margin %
-                </span>
-                <span className="font-mono text-base font-black text-emerald-800">
-                  {(profit?.grossMarginPercent || 0).toFixed(1)}%
-                </span>
-              </div>
-
-              <div className="p-2 rounded-[8px] bg-[#FAF7EC] border border-black/30">
-                <span className="text-[10px] font-black uppercase text-[#5C5647] block">
-                  Delivery Cost
-                </span>
-                <span className="font-mono text-base font-black text-[#1A1A1A]">
-                  ₹{Math.round((profit?.deliveryCostPaise || 0) / 100).toLocaleString("en-IN")}
-                </span>
-              </div>
-            </div>
-
-            {/* Order Status Breakdown */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-black uppercase text-[#1A1A1A]">
-                <span>Order Status Breakdown</span>
-                <span className="font-mono">{orders?.total || 0} Orders</span>
-              </div>
-
-              {/* Segmented Bar */}
-              <div className="h-4 w-full rounded-full border-2 border-black overflow-hidden flex bg-gray-100">
-                {confirmedPct > 0 && (
-                  <div
-                    style={{ width: `${confirmedPct}%` }}
-                    className="bg-[#B8E8B8] border-r border-black"
-                    title={`Confirmed: ${orders.confirmed}`}
-                  />
-                )}
-                {processingPct > 0 && (
-                  <div
-                    style={{ width: `${processingPct}%` }}
-                    className="bg-[#FFDF58] border-r border-black"
-                    title={`Processing: ${orders.processing}`}
-                  />
-                )}
-                {outForDeliveryPct > 0 && (
-                  <div
-                    style={{ width: `${outForDeliveryPct}%` }}
-                    className="bg-[#D8CEF6] border-r border-black"
-                    title={`Out for Delivery: ${orders.outForDelivery}`}
-                  />
-                )}
-                {deliveredPct > 0 && (
-                  <div
-                    style={{ width: `${deliveredPct}%` }}
-                    className="bg-[#8FD694] border-r border-black"
-                    title={`Delivered: ${orders.delivered}`}
-                  />
-                )}
-                {failedPct > 0 && (
-                  <div
-                    style={{ width: `${failedPct}%` }}
-                    className="bg-[#FF8E72]"
-                    title={`Failed/Cancelled: ${(orders.failed || 0) + (orders.cancelled || 0)}`}
-                  />
+            <div className="space-y-2 mt-2">
+              {/* Visual Progress Bar */}
+              <div className="h-4 w-full rounded-full border-2 border-black overflow-hidden flex bg-stone-100">
+                {orders?.total && orders.total > 0 ? (
+                  <>
+                    <div
+                      style={{ width: `${((orders.delivered || 0) / orders.total) * 100}%` }}
+                      className="bg-[#8FD694] h-full"
+                      title={`Delivered: ${orders.delivered || 0}`}
+                    />
+                    <div
+                      style={{ width: `${((orders.outForDelivery || 0) / orders.total) * 100}%` }}
+                      className="bg-[#D8CEF6] h-full"
+                      title={`Out for Delivery: ${orders.outForDelivery || 0}`}
+                    />
+                    <div
+                      style={{ width: `${((orders.confirmed || 0) / orders.total) * 100}%` }}
+                      className="bg-[#B8E8B8] h-full"
+                      title={`Confirmed: ${orders.confirmed || 0}`}
+                    />
+                    <div
+                      style={{ width: `${((orders.processing || 0) / orders.total) * 100}%` }}
+                      className="bg-[#FFDF58] h-full"
+                      title={`Processing: ${orders.processing || 0}`}
+                    />
+                    <div
+                      style={{ width: `${(((orders.failed || 0) + (orders.cancelled || 0)) / orders.total) * 100}%` }}
+                      className="bg-[#FF8E72] h-full"
+                      title={`Failed/Cancelled: ${(orders.failed || 0) + (orders.cancelled || 0)}`}
+                    />
+                  </>
+                ) : (
+                  <div className="bg-stone-200 w-full h-full" />
                 )}
               </div>
 
@@ -697,7 +554,7 @@ export default function DashboardOverviewPage() {
       </div>
 
       {/* ========================================================= */}
-      {/* 5. ROW 3: SUBSCRIPTION & OPERATIONAL SUMMARY              */}
+      {/* 4. ROW 3: SUBSCRIPTION & OPERATIONAL SUMMARY              */}
       {/* ========================================================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left: Active Subscriptions Split */}
@@ -717,7 +574,7 @@ export default function DashboardOverviewPage() {
                 Monthly Recurring
               </span>
               <span className="font-mono text-2xl font-black text-[#1A1A1A] mt-1 block">
-                {plans?.activeMonthly || 0}
+                {isLoading ? "-" : plans?.activeMonthly || 0}
               </span>
             </div>
 
@@ -726,7 +583,7 @@ export default function DashboardOverviewPage() {
                 7-Day Trials
               </span>
               <span className="font-mono text-2xl font-black text-[#1A1A1A] mt-1 block">
-                {plans?.activeTrial || 0}
+                {isLoading ? "-" : plans?.activeTrial || 0}
               </span>
             </div>
 
@@ -735,7 +592,7 @@ export default function DashboardOverviewPage() {
                 Buy Once Users
               </span>
               <span className="font-mono text-2xl font-black text-[#1A1A1A] mt-1 block">
-                {plans?.buyOnceCustomers || 0}
+                {isLoading ? "-" : plans?.buyOnceCustomers || 0}
               </span>
             </div>
 
@@ -744,7 +601,7 @@ export default function DashboardOverviewPage() {
                 New Selections
               </span>
               <span className="font-mono text-2xl font-black text-[#1A1A1A] mt-1 block">
-                +{plans?.newSelections || 0}
+                {isLoading ? "-" : `+${plans?.newSelections || 0}`}
               </span>
             </div>
           </div>

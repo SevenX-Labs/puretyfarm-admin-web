@@ -22,6 +22,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { ButtonLoader } from "@/components/ui/button-loader";
+
 import { getCachedData, setCachedData } from "@/lib/cache";
 import {
   StateItem,
@@ -64,6 +68,7 @@ export default function ServiceabilityPage() {
 
   // Loading States
   const [isLoadingStates, setIsLoadingStates] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Filters & Search
@@ -146,6 +151,7 @@ export default function ServiceabilityPage() {
 
   const fetchAllData = useCallback(async (forceRefresh = false) => {
     setIsLoadingStates(true);
+    setLoadError(null);
     try {
       const stateList = await getStates({
         forceRefresh,
@@ -172,10 +178,12 @@ export default function ServiceabilityPage() {
           });
         }
       }
-    } catch {
+    } catch (err) {
       const cached = getCachedData<StateItem[]>("locations:states");
       if (cached && cached.length > 0) {
         setStates(cached);
+      } else {
+        setLoadError(err instanceof Error ? err.message : "Failed to load serviceable locations.");
       }
     } finally {
       setIsLoadingStates(false);

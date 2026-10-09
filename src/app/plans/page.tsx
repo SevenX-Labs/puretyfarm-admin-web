@@ -23,6 +23,10 @@ import { RejectRequestModal } from "@/components/plans/reject-request-modal";
 import { EditPlanModal } from "@/components/plans/edit-plan-modal";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { Input } from "@/components/ui/input";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { ButtonLoader } from "@/components/ui/button-loader";
 import {
   Calendar,
   Clock,
@@ -59,7 +63,7 @@ type TabMode = "SUBSCRIPTIONS" | "REQUESTS" | "PLANS";
 
 export default function PlansAndDeliveryPage() {
   // Navigation tabs
-    const [activeTab, setActiveTab] = useState<TabMode>("SUBSCRIPTIONS");
+  const [activeTab, setActiveTab] = useState<TabMode>("SUBSCRIPTIONS");
 
   // ==========================================
   // TAB 0: CUSTOMER SUBSCRIPTIONS STATE
@@ -67,6 +71,7 @@ export default function PlansAndDeliveryPage() {
   const [subscriptions, setSubscriptions] = useState<CustomerSubscriptionItem[]>([]);
   const [subscriptionsLoading, setSubscriptionsLoading] = useState<boolean>(true);
   const [isRefreshingSubscriptions, setIsRefreshingSubscriptions] = useState<boolean>(false);
+  const [subscriptionsError, setSubscriptionsError] = useState<string | null>(null);
   const [subStatusFilter, setSubStatusFilter] = useState<string>("ALL");
   const [subPlanTypeFilter, setSubPlanTypeFilter] = useState<string>("ALL");
   const [subSearch, setSubSearch] = useState<string>("");
@@ -89,6 +94,7 @@ export default function PlansAndDeliveryPage() {
     async (pageToLoad = 1, forceRefresh = false) => {
       if (forceRefresh) setIsRefreshingSubscriptions(true);
       else setSubscriptionsLoading(true);
+      setSubscriptionsError(null);
 
       try {
         const res = await fetchAdminSubscriptions(
@@ -119,6 +125,8 @@ export default function PlansAndDeliveryPage() {
         }
       } catch (err: unknown) {
         console.error("Failed to fetch subscriptions:", err);
+        const msg = err instanceof Error ? err.message : "Failed to load subscriptions.";
+        setSubscriptionsError(msg);
       } finally {
         setSubscriptionsLoading(false);
         setIsRefreshingSubscriptions(false);
@@ -132,7 +140,6 @@ export default function PlansAndDeliveryPage() {
       fetchSubscriptionsData(subPage, false);
     }
   }, [activeTab, subPage, fetchSubscriptionsData]);
-
 
   // Global Toast / Notice State
   const [notice, setNotice] = useState<{
@@ -153,6 +160,7 @@ export default function PlansAndDeliveryPage() {
   const [requests, setRequests] = useState<ChangeRequestItem[]>([]);
   const [requestsLoading, setRequestsLoading] = useState<boolean>(true);
   const [isRefreshingRequests, setIsRefreshingRequests] = useState<boolean>(false);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "ALL">("PENDING");
   const [typeFilter, setTypeFilter] = useState<RequestType | "ALL">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -176,6 +184,7 @@ export default function PlansAndDeliveryPage() {
   const [plans, setPlans] = useState<PlanConfig[]>(DEFAULT_PLANS);
   const [plansLoading, setPlansLoading] = useState<boolean>(true);
   const [isRefreshingPlans, setIsRefreshingPlans] = useState<boolean>(false);
+  const [plansError, setPlansError] = useState<string | null>(null);
 
   // Edit Plan Modal State
   const [isEditPlanModalOpen, setIsEditPlanModalOpen] = useState(false);
@@ -195,6 +204,8 @@ export default function PlansAndDeliveryPage() {
   const fetchRequestsData = useCallback(
     async (pageToLoad = 1, forceRefresh = false) => {
       if (forceRefresh) setIsRefreshingRequests(true);
+      else setRequestsLoading(true);
+      setRequestsError(null);
 
       try {
         const response: ChangeRequestsApiResponse = await fetchChangeRequests(
@@ -225,7 +236,7 @@ export default function PlansAndDeliveryPage() {
       } catch (err: unknown) {
         console.error("Error fetching change requests:", err);
         const msg = err instanceof Error ? err.message : "Failed to load change requests.";
-        showNotice(msg, "error");
+        setRequestsError(msg);
       } finally {
         setRequestsLoading(false);
         setIsRefreshingRequests(false);
@@ -235,33 +246,37 @@ export default function PlansAndDeliveryPage() {
   );
 
   useEffect(() => {
-    setCurrentPage(1);
-    fetchRequestsData(1, false);
-  }, [fetchRequestsData]);
+    if (activeTab === "REQUESTS") {
+      fetchRequestsData(currentPage, false);
+    }
+  }, [activeTab, currentPage, fetchRequestsData]);
 
   // ==========================================
   // DATA FETCHING: PLAN CONFIGURATIONS
   // ==========================================
   const fetchPlansData = useCallback(async (forceRefresh = false) => {
     if (forceRefresh) setIsRefreshingPlans(true);
+    else setPlansLoading(true);
+    setPlansError(null);
 
     try {
       const data = await getAllPlans({
         forceRefresh,
         onFreshData: (fresh) => {
-          if (Array.isArray(fresh) && fresh.length > 0) {
+          if (fresh && fresh.length > 0) {
             setPlans(fresh);
             setPlansLoading(false);
           }
         },
       });
 
-      if (Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         setPlans(data);
       }
     } catch (err: unknown) {
-      console.error("Error fetching plan configs:", err);
-      showNotice("Using default plan configurations while offline.", "info");
+      console.error("Error fetching plan configurations:", err);
+      const msg = err instanceof Error ? err.message : "Failed to load plan settings.";
+      setPlansError(msg);
     } finally {
       setPlansLoading(false);
       setIsRefreshingPlans(false);
@@ -269,74 +284,31 @@ export default function PlansAndDeliveryPage() {
   }, []);
 
   useEffect(() => {
-    fetchPlansData(false);
-  }, [fetchPlansData]);
-
-  // Filtered requests by debounced search
-  const filteredRequests = useMemo(() => {
-    if (!debouncedSearch) return requests;
-    const q = debouncedSearch.toLowerCase();
-    return requests.filter(
-      (item) =>
-        item.customer?.name?.toLowerCase().includes(q) ||
-        item.customer?.mobile?.toLowerCase().includes(q) ||
-        item.customer?.email?.toLowerCase().includes(q) ||
-        item.requestType?.toLowerCase().includes(q) ||
-        item.id?.toLowerCase().includes(q)
-    );
-  }, [requests, debouncedSearch]);
-
-  // Pending count metric
-  const pendingRequestsCount = useMemo(() => {
-    return requests.filter((r) => r.status === "PENDING").length;
-  }, [requests]);
-
-  const hasActiveFilters = useMemo(() => {
-    return (
-      statusFilter !== "PENDING" ||
-      typeFilter !== "ALL" ||
-      debouncedSearch.length > 0
-    );
-  }, [statusFilter, typeFilter, debouncedSearch]);
+    if (activeTab === "PLANS") {
+      fetchPlansData(false);
+    }
+  }, [activeTab, fetchPlansData]);
 
   // ==========================================
-  // HANDLERS: CHANGE REQUEST APPROVAL
+  // ACTIONS: APPROVE / REJECT / TOGGLE PLAN
   // ==========================================
   const handleApprove = async (request: ChangeRequestItem) => {
     setApprovingId(request.id);
     try {
       await approveChangeRequest(request.id);
-
-      // Optimistic update
+      showNotice(
+        `Successfully approved ${request.requestType} for ${request.customer?.name || "customer"}.`
+      );
       setRequests((prev) =>
         prev.map((r) =>
           r.id === request.id
-            ? {
-                ...r,
-                status: "APPROVED",
-                reviewedAt: new Date().toISOString(),
-              }
+            ? { ...r, status: "APPROVED", reviewedAt: new Date().toISOString() }
             : r
         )
       );
-
-      showNotice(
-        `Approved ${request.requestType.replace(/_/g, " ")} request for ${
-          request.customer?.name || "Customer"
-        }.`,
-        "success"
-      );
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.statusCode === 409) {
-        showNotice(
-          "Conflict: This request has already been reviewed or its status changed.",
-          "error"
-        );
-      } else {
-        const msg = err instanceof Error ? err.message : "Approval failed. Try again.";
-        showNotice(msg, "error");
-      }
-      fetchRequestsData(currentPage, true);
+      const msg = err instanceof Error ? err.message : "Failed to approve request.";
+      showNotice(msg, "error");
     } finally {
       setApprovingId(null);
     }
@@ -347,55 +319,68 @@ export default function PlansAndDeliveryPage() {
     setIsRejectModalOpen(true);
   };
 
-  const handleOpenEditPlanModal = (plan: PlanConfig) => {
-    setSelectedPlanForEdit(plan);
-    setIsEditPlanModalOpen(true);
+  const handleRejectSuccess = (updated: ChangeRequestItem) => {
+    setRequests((prev) =>
+      prev.map((r) => (r.id === updated.id ? updated : r))
+    );
+    showNotice("Change request has been rejected.");
   };
 
   const handleTogglePlanActive = async (plan: PlanConfig) => {
     const nextState = !plan.isActive;
-
-    // Optimistic toggle
-    setPlans((prev) =>
-      prev.map((p) => (p.type === plan.type ? { ...p, isActive: nextState } : p))
-    );
-
     try {
-      await updatePlanConfig(plan.type, { isActive: nextState });
+      const updated = await updatePlanConfig(plan.type, { isActive: nextState });
+      setPlans((prev) => prev.map((p) => (p.type === plan.type ? updated : p)));
       showNotice(
-        `${plan.type.replace(/_/g, " ")} plan is now ${nextState ? "ACTIVE" : "INACTIVE"}.`,
-        "success"
+        `${plan.type.replace(/_/g, " ")} is now ${nextState ? "ACTIVE" : "INACTIVE"}.`
       );
     } catch (err: unknown) {
-      // Rollback
-      setPlans((prev) =>
-        prev.map((p) => (p.type === plan.type ? { ...p, isActive: !nextState } : p))
-      );
       const msg = err instanceof Error ? err.message : "Failed to update plan status.";
       showNotice(msg, "error");
     }
   };
 
+  const handleEditPlan = (plan: PlanConfig) => {
+    setSelectedPlanForEdit(plan);
+    setIsEditPlanModalOpen(true);
+  };
+
+  const handlePlanSaved = (updated: PlanConfig) => {
+    setPlans((prev) => prev.map((p) => (p.type === updated.type ? updated : p)));
+    showNotice("Plan configuration saved successfully.");
+  };
+
+  // Client-side search & filtering for requests
+  const filteredRequests = useMemo(() => {
+    return requests.filter((req) => {
+      if (!debouncedSearch) return true;
+      const term = debouncedSearch.toLowerCase();
+      const name = req.customer?.name?.toLowerCase() || "";
+      const mobile = req.customer?.mobile?.toLowerCase() || "";
+      return name.includes(term) || mobile.includes(term);
+    });
+  }, [requests, debouncedSearch]);
+
+  const pendingRequestsCount = useMemo(() => {
+    return requests.filter((r) => r.status === "PENDING").length;
+  }, [requests]);
+
   const handleResetFilters = () => {
-    setStatusFilter("PENDING");
+    setStatusFilter("ALL");
     setTypeFilter("ALL");
     setSearchQuery("");
     setDebouncedSearch("");
     setCurrentPage(1);
   };
 
-  // ==========================================
-  // CONFIGURATION DISPLAY FORMATTER
-  // ==========================================
-  const formatConfiguration = (
-    config: Record<string, any> | null | undefined,
-    type: RequestType
-  ): { main: string; meta?: string } => {
-    if (!config || Object.keys(config).length === 0) {
-      return { main: "Standard Default" };
-    }
+  const hasActiveFilters = Boolean(
+    searchQuery || statusFilter !== "ALL" || typeFilter !== "ALL"
+  );
 
-    // Pause / Resume
+  // Format configurations readable for human operators
+  const formatConfiguration = (config: any, type: RequestType) => {
+    if (!config || typeof config !== "object") return { main: "—" };
+
     if (type === "PAUSE" || type === "RESUME") {
       const from = config.startDate || config.pauseStartDate || config.from;
       const to = config.endDate || config.pauseEndDate || config.to || config.resumeDate;
@@ -412,7 +397,6 @@ export default function PlansAndDeliveryPage() {
       };
     }
 
-    // Change quantity
     if (type === "CHANGE_QUANTITY") {
       const qty = config.quantity ?? config.liters ?? config.qty;
       const effective = config.effectiveDate || config.startDate;
@@ -422,7 +406,6 @@ export default function PlansAndDeliveryPage() {
       };
     }
 
-    // Change schedule / frequency
     if (type === "CHANGE_SCHEDULE") {
       const freq = config.frequency || config.schedule || config.cadence;
       const time = config.timeWindow || config.deliveryWindow;
@@ -437,14 +420,12 @@ export default function PlansAndDeliveryPage() {
       };
     }
 
-    // Fallback display
     const parts = Object.entries(config)
       .slice(0, 3)
       .map(([k, v]) => `${k}: ${v}`);
     return { main: parts.join(" • ") || "Configured" };
   };
 
-  // Helper for type badge colors and icons
   const getRequestTypeBadge = (type: RequestType) => {
     switch (type) {
       case "PAUSE":
@@ -524,7 +505,7 @@ export default function PlansAndDeliveryPage() {
   return (
     <div className="space-y-5">
       {/* ========================================================= */}
-      {/* 1. TOP HEADER & PRIMARY SYNC                              */}
+      {/* 1. TOP HEADER                                             */}
       {/* ========================================================= */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -541,46 +522,46 @@ export default function PlansAndDeliveryPage() {
             <button
               type="button"
               onClick={() => fetchSubscriptionsData(subPage, true)}
-              disabled={isRefreshingSubscriptions}
+              disabled={isRefreshingSubscriptions || subscriptionsLoading}
               aria-label="Sync customer subscriptions from server"
-              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black min-h-[40px]"
+              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 min-h-[40px] disabled:opacity-50"
             >
-              <RefreshCw
+              <RotateCcw
                 className={`h-3.5 w-3.5 stroke-[2.5] ${
                   isRefreshingSubscriptions ? "animate-spin" : ""
                 }`}
               />
-              {isRefreshingSubscriptions ? "Syncing..." : "Sync Subscriptions"}
+              <span>{isRefreshingSubscriptions ? "Syncing..." : "Sync Subscriptions"}</span>
             </button>
           ) : activeTab === "REQUESTS" ? (
             <button
               type="button"
               onClick={() => fetchRequestsData(currentPage, true)}
-              disabled={isRefreshingRequests}
+              disabled={isRefreshingRequests || requestsLoading}
               aria-label="Sync change requests from server"
-              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black min-h-[40px]"
+              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 min-h-[40px] disabled:opacity-50"
             >
-              <RefreshCw
+              <RotateCcw
                 className={`h-3.5 w-3.5 stroke-[2.5] ${
                   isRefreshingRequests ? "animate-spin" : ""
                 }`}
               />
-              {isRefreshingRequests ? "Syncing..." : "Sync Requests"}
+              <span>{isRefreshingRequests ? "Syncing..." : "Sync Requests"}</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={() => fetchPlansData(true)}
-              disabled={isRefreshingPlans}
+              disabled={isRefreshingPlans || plansLoading}
               aria-label="Sync plan catalog from server"
-              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black min-h-[40px]"
+              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 min-h-[40px] disabled:opacity-50"
             >
-              <RefreshCw
+              <RotateCcw
                 className={`h-3.5 w-3.5 stroke-[2.5] ${
                   isRefreshingPlans ? "animate-spin" : ""
                 }`}
               />
-              {isRefreshingPlans ? "Syncing..." : "Sync Plans"}
+              <span>{isRefreshingPlans ? "Syncing..." : "Sync Plans"}</span>
             </button>
           )}
         </div>
@@ -606,14 +587,14 @@ export default function PlansAndDeliveryPage() {
       )}
 
       {/* ========================================================= */}
-      {/* 2. SEGMENTED TABS (Customer Requests vs Plan Config)      */}
+      {/* 2. SEGMENTED TABS                                         */}
       {/* ========================================================= */}
       <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#FAF7EC] p-1.5 rounded-[14px] border-2 border-black shadow-[3px_3px_0px_0px_#000000]">
         <button
           type="button"
           onClick={() => setActiveTab("SUBSCRIPTIONS")}
           aria-selected={activeTab === "SUBSCRIPTIONS"}
-          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] ${
             activeTab === "SUBSCRIPTIONS"
               ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
               : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
@@ -632,7 +613,7 @@ export default function PlansAndDeliveryPage() {
           type="button"
           onClick={() => setActiveTab("REQUESTS")}
           aria-selected={activeTab === "REQUESTS"}
-          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] ${
             activeTab === "REQUESTS"
               ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
               : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
@@ -651,7 +632,7 @@ export default function PlansAndDeliveryPage() {
           type="button"
           onClick={() => setActiveTab("PLANS")}
           aria-selected={activeTab === "PLANS"}
-          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] ${
             activeTab === "PLANS"
               ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
               : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
@@ -662,7 +643,7 @@ export default function PlansAndDeliveryPage() {
         </button>
       </div>
 
-            {/* ========================================================= */}
+      {/* ========================================================= */}
       {/* TAB 0: CUSTOMER ACTIVE SUBSCRIPTIONS                      */}
       {/* ========================================================= */}
       {activeTab === "SUBSCRIPTIONS" && (
@@ -680,14 +661,11 @@ export default function PlansAndDeliveryPage() {
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() => {
-                    setSubStatusFilter(tab.key);
-                    setSubPage(1);
-                  }}
-                  className={`rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer min-h-[36px] ${
+                  onClick={() => setSubStatusFilter(tab.key)}
+                  className={`px-3 py-1.5 text-xs font-black uppercase rounded-[8px] border-2 border-black transition-all cursor-pointer ${
                     subStatusFilter === tab.key
-                      ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
-                      : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
+                      ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
+                      : "bg-white text-[#5C5647] hover:text-[#1A1A1A]"
                   }`}
                 >
                   {tab.label}
@@ -697,71 +675,73 @@ export default function PlansAndDeliveryPage() {
 
             <div className="flex items-center gap-2">
               <div className="relative flex-1 sm:w-64">
-                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#5C5647]" />
-                <input
-                  type="text"
-                  placeholder="Search customer, phone..."
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
+                <Input
+                  placeholder="Search customer, mobile..."
                   value={subSearch}
                   onChange={(e) => setSubSearch(e.target.value)}
-                  className="w-full h-9 pl-9 pr-3 rounded-[8px] border-2 border-black bg-white text-xs font-bold text-[#1A1A1A] outline-none shadow-[1.5px_1.5px_0px_0px_#000000]"
+                  className="pl-9 pr-8 h-9 text-xs font-bold border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
                 />
+                {subSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setSubSearch("")}
+                    aria-label="Clear subscription search"
+                    className="absolute right-2.5 top-2.5 text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5 stroke-[2.5]" />
+                  </button>
+                )}
               </div>
-
-              <select
-                value={subPlanTypeFilter}
-                onChange={(e) => {
-                  setSubPlanTypeFilter(e.target.value);
-                  setSubPage(1);
-                }}
-                className="h-9 px-3 rounded-[8px] border-2 border-black bg-white text-xs font-black uppercase text-[#1A1A1A] outline-none shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
-              >
-                <option value="ALL">All Types</option>
-                <option value="BUY_ONCE">Buy Once</option>
-                <option value="SEVEN_DAY_TRIAL">7-Day Trial</option>
-                <option value="MONTHLY">Monthly</option>
-              </select>
             </div>
           </div>
 
+          {/* Subscriptions Error Alert */}
+          {subscriptionsError && (
+            <ErrorState
+              error={subscriptionsError}
+              onRetry={() => fetchSubscriptionsData(subPage, true)}
+            />
+          )}
+
           {/* Subscriptions Table */}
-          <div className="bg-white border-2 border-black rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
+          <div className="border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-[#FAF7EC] border-b-2 border-black text-[#1A1A1A] font-black uppercase text-[11px] tracking-wider">
-                    <th className="py-3 px-4 border-r-2 border-black">Customer</th>
-                    <th className="py-3 px-4 border-r-2 border-black">Plan</th>
-                    <th className="py-3 px-4 border-r-2 border-black">Schedule & Volume</th>
-                    <th className="py-3 px-4 border-r-2 border-black">Date Range</th>
-                    <th className="py-3 px-4 border-r-2 border-black text-right">Payment</th>
-                    <th className="py-3 px-4 border-r-2 border-black text-center">Status</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
+              <table className="w-full text-left text-sm border-collapse" aria-busy={subscriptionsLoading}>
+                <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black font-mono">
+                  <tr>
+                    <th className="py-3.5 px-4 border-r-2 border-black">Customer</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black">Plan Type</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black">Quantity & Cadence</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black">Billing Period</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black text-right">Paid Amount</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black text-center">Status</th>
+                    <th className="py-3.5 px-4 text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y-2 divide-black text-xs">
+
+                <tbody className="divide-y-2 divide-black bg-white">
                   {subscriptionsLoading ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-[#5C5647] font-bold">
-                        <div className="flex items-center justify-center gap-2">
-                          <RefreshCw className="h-5 w-5 animate-spin" />
-                          <span>Loading customer subscriptions...</span>
-                        </div>
-                      </td>
-                    </tr>
+                    <TableSkeleton columns={7} rows={5} />
                   ) : subscriptions.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-[#5C5647]">
-                        <div className="max-w-sm mx-auto space-y-2">
-                          <CheckCircle2 className="h-10 w-10 mx-auto text-[#14532D]" />
-                          <p className="font-black text-sm text-[#1A1A1A] uppercase">
-                            No Customer Subscriptions Found
-                          </p>
-                          <p className="text-xs font-semibold">
-                            {debouncedSubSearch || subStatusFilter !== "ALL" || subPlanTypeFilter !== "ALL"
-                              ? "Try adjusting filters or clearing search criteria."
-                              : "No subscription plans are currently recorded."}
-                          </p>
-                        </div>
+                      <td colSpan={7} className="p-0">
+                        <EmptyState
+                          icon={<Milk className="h-6 w-6 stroke-[2.5]" />}
+                          title="No subscriptions found"
+                          description={
+                            debouncedSubSearch || subStatusFilter !== "ALL" || subPlanTypeFilter !== "ALL"
+                              ? "Try adjusting active filters or clearing search criteria."
+                              : "No subscription plans are currently recorded in Raipur database."
+                          }
+                          isFiltered={Boolean(debouncedSubSearch || subStatusFilter !== "ALL" || subPlanTypeFilter !== "ALL")}
+                          onClearFilters={() => {
+                            setSubSearch("");
+                            setDebouncedSubSearch("");
+                            setSubStatusFilter("ALL");
+                            setSubPlanTypeFilter("ALL");
+                          }}
+                        />
                       </td>
                     </tr>
                   ) : (
@@ -769,13 +749,13 @@ export default function PlansAndDeliveryPage() {
                       const isActive = sub.status === "CONFIRMED" || sub.status === "ACTIVE";
                       const isPaused = sub.status === "PAUSED";
                       return (
-                        <tr key={sub.id} className="hover:bg-[#FFFDF7] transition-colors">
+                        <tr key={sub.id} className="hover:bg-[#FAF7EC]/80 transition-colors">
                           <td className="py-3.5 px-4 border-r-2 border-black">
-                            <div className="font-black text-sm text-[#1A1A1A]">
-                              {sub.customer?.name || "Customer"}
+                            <div className="font-black text-xs text-[#1A1A1A] uppercase">
+                              {sub.customer?.name || "Raipur Customer"}
                             </div>
-                            <div className="text-[11px] font-mono font-bold text-[#5C5647]">
-                              {sub.customer?.mobile}
+                            <div className="text-[11px] font-mono text-[#5C5647]">
+                              {sub.customer?.mobile || "—"}
                             </div>
                             {sub.customer?.address?.area && (
                               <div className="text-[10px] font-mono text-[#5C5647] truncate max-w-[180px]">
@@ -792,15 +772,15 @@ export default function PlansAndDeliveryPage() {
 
                           <td className="py-3.5 px-4 border-r-2 border-black font-mono">
                             <div className="font-black text-xs text-[#1A1A1A]">
-                              {sub.quantity ?? 1} Liters ({sub.quantityMode || "FIXED"})
+                              {sub.quantity ?? 1} Litre{Number(sub.quantity ?? 1) > 1 ? "s" : ""} ({sub.quantityMode || "FIXED"})
                             </div>
                             <div className="text-[11px] text-[#5C5647]">
-                              Frequency: <span className="font-bold">{sub.frequency || "DAILY"}</span>
+                              Freq: <span className="font-bold">{sub.frequency || "DAILY"}</span>
                             </div>
                           </td>
 
                           <td className="py-3.5 px-4 border-r-2 border-black font-mono text-xs">
-                            <div>{sub.startDate ? sub.startDate.split("T")[0] : "—"}</div>
+                            <div className="font-bold">{sub.startDate ? sub.startDate.split("T")[0] : "—"}</div>
                             <div className="text-[11px] text-[#5C5647]">
                               to {sub.endDate ? sub.endDate.split("T")[0] : "—"}
                             </div>
@@ -808,7 +788,7 @@ export default function PlansAndDeliveryPage() {
 
                           <td className="py-3.5 px-4 border-r-2 border-black text-right font-mono">
                             <div className="font-black text-xs text-[#1A1A1A]">
-                              {sub.paidAmountPaise ? formatCurrency(sub.paidAmountPaise / 100) : "—"}
+                              {sub.paidAmountPaise ? formatCurrency(sub.paidAmountPaise) : "—"}
                             </div>
                             <div className="text-[10px] text-[#5C5647] uppercase font-bold">
                               {sub.paymentMethod || "PAID"}
@@ -836,7 +816,8 @@ export default function PlansAndDeliveryPage() {
                                 setSelectedCustomerId(sub.userId);
                                 setIsCustomerDetailOpen(true);
                               }}
-                              className="bg-[#FFDF58] hover:bg-[#fcd033] text-[#1A1A1A] font-black text-xs px-3 py-1.5 border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                              aria-label={`View profile for ${sub.customer?.name || "customer"}`}
+                              className="bg-[#FAF7EC] hover:bg-[#FFD84D] text-[#1A1A1A] font-black text-xs px-3 py-1.5 border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
                             >
                               View Profile
                             </button>
@@ -850,7 +831,7 @@ export default function PlansAndDeliveryPage() {
             </div>
 
             {/* Pagination Strip */}
-            <div className="p-3 bg-[#FAF7EC] border-t-2 border-black flex items-center justify-between text-xs font-bold">
+            <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black flex items-center justify-between text-xs font-bold">
               <span>
                 Showing <strong className="font-mono">{subscriptions.length}</strong> of{" "}
                 <strong className="font-mono">{totalSubscriptions}</strong> subscriptions
@@ -861,7 +842,8 @@ export default function PlansAndDeliveryPage() {
                   type="button"
                   disabled={subPage <= 1 || subscriptionsLoading}
                   onClick={() => setSubPage((p) => Math.max(1, p - 1))}
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1px_1px_0px_0px_#000000] cursor-pointer"
+                  aria-label="Previous page"
+                  className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
                 >
                   Prev
                 </button>
@@ -872,7 +854,8 @@ export default function PlansAndDeliveryPage() {
                   type="button"
                   disabled={subPage >= subTotalPages || subscriptionsLoading}
                   onClick={() => setSubPage((p) => Math.min(subTotalPages, p + 1))}
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1px_1px_0px_0px_#000000] cursor-pointer"
+                  aria-label="Next page"
+                  className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
                 >
                   Next
                 </button>
@@ -887,30 +870,25 @@ export default function PlansAndDeliveryPage() {
       {/* ========================================================= */}
       {activeTab === "REQUESTS" && (
         <div className="space-y-4">
-          {/* Filter Bar (Clean & Collapsible) */}
+          {/* Filter Bar */}
           <div className="bg-white border-2 border-black rounded-[14px] p-3.5 shadow-[4px_4px_0px_0px_#000000] space-y-3">
-            {/* Primary Row: Status Chips + Search + More Toggle */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              {/* Status Chips */}
               <div className="flex flex-wrap items-center gap-1.5">
-                {(
-                  [
-                    { key: "PENDING", label: "Pending" },
-                    { key: "ALL", label: "All" },
-                    { key: "APPROVED", label: "Approved" },
-                    { key: "REJECTED", label: "Rejected" },
-                    { key: "CANCELLED", label: "Cancelled" },
-                  ] as const
-                ).map((tab) => {
+                {[
+                  { key: "PENDING", label: "Pending" },
+                  { key: "ALL", label: "All" },
+                  { key: "APPROVED", label: "Approved" },
+                  { key: "REJECTED", label: "Rejected" },
+                ].map((tab) => {
                   const isActive = statusFilter === tab.key;
                   return (
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => setStatusFilter(tab.key)}
-                      className={`rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[38px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+                      onClick={() => setStatusFilter(tab.key as any)}
+                      className={`rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[38px] ${
                         isActive
-                          ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                          ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
                           : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
                       }`}
                     >
@@ -927,7 +905,6 @@ export default function PlansAndDeliveryPage() {
                 })}
               </div>
 
-              {/* Search & Extra Filters on right */}
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
@@ -949,32 +926,6 @@ export default function PlansAndDeliveryPage() {
                   )}
                 </div>
 
-                {/* More Filters Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setIsMoreFiltersOpen(!isMoreFiltersOpen)}
-                  aria-expanded={isMoreFiltersOpen}
-                  aria-label="Toggle request type filter"
-                  className={`h-9 px-3 rounded-[8px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0 ${
-                    typeFilter !== "ALL" || isMoreFiltersOpen
-                      ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
-                      : "bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A]"
-                  }`}
-                >
-                  <SlidersHorizontal className="h-3 w-3 stroke-[2.5]" />
-                  <span className="hidden sm:inline">Type</span>
-                  {typeFilter !== "ALL" && (
-                    <span className="h-4 w-4 rounded-full bg-black text-[#FFDF58] text-[10px] font-mono font-black flex items-center justify-center">
-                      1
-                    </span>
-                  )}
-                  {isMoreFiltersOpen ? (
-                    <ChevronUp className="h-3 w-3 stroke-[3]" />
-                  ) : (
-                    <ChevronDown className="h-3 w-3 stroke-[3]" />
-                  )}
-                </button>
-
                 {hasActiveFilters && (
                   <button
                     type="button"
@@ -988,40 +939,25 @@ export default function PlansAndDeliveryPage() {
                 )}
               </div>
             </div>
-
-            {/* Collapsible Secondary Filter: Request Type */}
-            {isMoreFiltersOpen && (
-              <div className="pt-2.5 border-t border-black/10 flex flex-wrap items-center gap-2 animate-in fade-in duration-150">
-                <span className="text-[11px] font-black uppercase text-[#5C5647]">
-                  Filter by Request Type:
-                </span>
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as RequestType | "ALL")}
-                  className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black uppercase text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] focus:outline-none cursor-pointer h-8"
-                >
-                  <option value="ALL">All Request Types</option>
-                  <option value="PAUSE">PAUSE</option>
-                  <option value="RESUME">RESUME</option>
-                  <option value="SKIP">SKIP SINGLE DAY</option>
-                  <option value="CHANGE_QUANTITY">CHANGE QUANTITY</option>
-                  <option value="CHANGE_SCHEDULE">CHANGE SCHEDULE</option>
-                </select>
-              </div>
-            )}
           </div>
 
-          {/* ======================================================= */}
-          {/* DESKTOP TABLE VIEW (Visible md and up)                  */}
-          {/* ======================================================= */}
-          <div className="hidden md:block border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
+          {/* Requests Error Alert */}
+          {requestsError && (
+            <ErrorState
+              error={requestsError}
+              onRetry={() => fetchRequestsData(currentPage, true)}
+            />
+          )}
+
+          {/* Requests Table */}
+          <div className="border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black">
+              <table className="w-full text-left text-sm border-collapse" aria-busy={requestsLoading}>
+                <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black font-mono">
                   <tr>
                     <th className="py-3.5 px-4 border-r-2 border-black w-48">Customer</th>
                     <th className="py-3.5 px-4 border-r-2 border-black w-36">Request Type</th>
-                    <th className="py-3.5 px-4 border-r-2 border-black">Current Configuration</th>
+                    <th className="py-3.5 px-4 border-r-2 border-black">Current Setting</th>
                     <th className="py-3.5 px-4 border-r-2 border-black">Requested Change</th>
                     <th className="py-3.5 px-4 border-r-2 border-black w-32">Submitted</th>
                     <th className="py-3.5 px-4 text-center w-40">Actions</th>
@@ -1029,199 +965,99 @@ export default function PlansAndDeliveryPage() {
                 </thead>
 
                 <tbody className="divide-y-2 divide-black bg-white">
-                  {requestsLoading && requests.length === 0 ? (
-                    // Skeleton
-                    Array.from({ length: 5 }).map((_, idx) => (
-                      <tr key={idx} className="animate-pulse">
-                        <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-28 mb-1.5" />
-                          <div className="h-3 bg-[#E5E0D8]/60 rounded w-20" />
-                        </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-5 bg-[#E5E0D8] rounded-full w-24" />
-                        </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-full max-w-[200px]" />
-                        </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-full max-w-[200px]" />
-                        </td>
-                        <td className="py-4 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-20" />
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="h-7 bg-[#E5E0D8] rounded-[8px] w-28 mx-auto" />
-                        </td>
-                      </tr>
-                    ))
+                  {requestsLoading ? (
+                    <TableSkeleton columns={6} rows={5} />
                   ) : filteredRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-14 px-4 text-center">
-                        <div className="max-w-md mx-auto space-y-3">
-                          <div className="flex justify-center">
-                            {statusFilter === "PENDING" ? (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#B8E8B8] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-                                <CheckCircle2 className="h-6 w-6 text-[#14532D] stroke-[3]" />
-                              </div>
-                            ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FAF7EC] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-                                <CalendarDays className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="space-y-1">
-                            <h3 className="text-sm font-black uppercase tracking-tight text-[#1A1A1A]">
-                              {statusFilter === "PENDING" && !hasActiveFilters
-                                ? "No pending change requests"
-                                : "No delivery change requests match this filter"}
-                            </h3>
-                            <p className="text-xs font-semibold text-[#5C5647]">
-                              {statusFilter === "PENDING" && !hasActiveFilters
-                                ? "All incoming customer delivery schedule changes have been reviewed."
-                                : "Try adjusting your search terms or status selection."}
-                            </p>
-                          </div>
-
-                          {hasActiveFilters && (
-                            <button
-                              type="button"
-                              onClick={handleResetFilters}
-                              className="rounded-[8px] border-2 border-black bg-[#FFDF58] px-4 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1.5"
-                            >
-                              <RotateCcw className="h-3 w-3 stroke-[2.5]" />
-                              Clear Filters
-                            </button>
-                          )}
-                        </div>
+                      <td colSpan={6} className="p-0">
+                        <EmptyState
+                          icon={<CalendarDays className="h-6 w-6 stroke-[2.5]" />}
+                          title={statusFilter === "PENDING" ? "No pending change requests" : "No change requests found"}
+                          description={
+                            hasActiveFilters
+                              ? "Try adjusting search or status filters."
+                              : statusFilter === "PENDING"
+                              ? "All customer delivery changes have been reviewed and approved."
+                              : "No change requests recorded in this status."
+                          }
+                          isFiltered={hasActiveFilters}
+                          onClearFilters={handleResetFilters}
+                        />
                       </td>
                     </tr>
                   ) : (
                     filteredRequests.map((req) => {
                       const isPending = req.status === "PENDING";
-                      const currentParsed = formatConfiguration(
-                        req.currentConfiguration,
-                        req.requestType
-                      );
-                      const requestedParsed = formatConfiguration(
-                        req.requestedConfiguration,
-                        req.requestType
-                      );
+                      const currentParsed = formatConfiguration(req.currentConfiguration, req.requestType);
+                      const requestedParsed = formatConfiguration(req.requestedConfiguration, req.requestType);
                       const typeBadge = getRequestTypeBadge(req.requestType);
                       const statusBadge = getStatusBadge(req.status);
 
                       return (
-                        <tr
-                          key={req.id}
-                          className="hover:bg-[#FAF7EC]/80 transition-colors group"
-                        >
-                          {/* Customer */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                            <div className="font-black text-[#1A1A1A] text-xs">
-                              {req.customer?.name || "Customer"}
+                        <tr key={req.id} className="hover:bg-[#FAF7EC]/80 transition-colors">
+                          <td className="py-3.5 px-4 border-r-2 border-black">
+                            <div className="font-black text-xs text-[#1A1A1A] uppercase">
+                              {req.customer?.name || "Raipur Customer"}
                             </div>
-                            <div className="text-[11px] font-mono font-medium text-[#5C5647]">
-                              {req.customer?.mobile || "No phone"}
+                            <div className="text-[11px] font-mono text-[#5C5647]">
+                              {req.customer?.mobile || "—"}
                             </div>
                           </td>
 
-                          {/* Request Type */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-mono font-bold uppercase ${typeBadge.className}`}
-                            >
+                          <td className="py-3.5 px-4 border-r-2 border-black">
+                            <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase ${typeBadge.className}`}>
                               {typeBadge.icon}
                               {typeBadge.label}
                             </span>
                           </td>
 
-                          {/* Current Configuration (Muted From) */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle text-xs break-words">
-                            <div className="inline-block rounded-[6px] bg-stone-100 border border-black/20 px-2.5 py-1 text-xs text-[#5C5647]">
-                              <span className="font-mono text-[10px] uppercase font-bold text-[#78716C] block">
-                                Current
-                              </span>
-                              <span className="font-semibold text-[#1A1A1A] whitespace-normal">
-                                {currentParsed.main}
-                              </span>
-                              {currentParsed.meta && (
-                                <div className="text-[10px] font-mono text-[#78716C] mt-0.5">
-                                  {currentParsed.meta}
-                                </div>
-                              )}
-                            </div>
+                          <td className="py-3.5 px-4 border-r-2 border-black text-xs text-[#5C5647]">
+                            <span className="font-semibold text-[#1A1A1A] block">{currentParsed.main}</span>
+                            {currentParsed.meta && (
+                              <span className="text-[10px] font-mono text-[#5C5647] block mt-0.5">{currentParsed.meta}</span>
+                            )}
                           </td>
 
-                          {/* Requested Change (Emphasized To) */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle text-xs break-words">
-                            <div className="inline-block rounded-[6px] bg-[#FFF9D6] border-2 border-black px-2.5 py-1 text-xs text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]">
-                              <span className="font-mono text-[10px] uppercase font-black text-[#854D0E] flex items-center gap-1">
-                                <ArrowRight className="h-2.5 w-2.5 stroke-[3]" />
-                                Requested
-                              </span>
-                              <span className="font-black text-[#1A1A1A] whitespace-normal">
-                                {requestedParsed.main}
-                              </span>
-                              {requestedParsed.meta && (
-                                <div className="text-[10px] font-mono text-[#5C5647] mt-0.5">
-                                  {requestedParsed.meta}
-                                </div>
-                              )}
-                            </div>
+                          <td className="py-3.5 px-4 border-r-2 border-black text-xs">
+                            <span className="font-black text-[#1A1A1A] block">{requestedParsed.main}</span>
+                            {requestedParsed.meta && (
+                              <span className="text-[10px] font-mono text-[#5C5647] block mt-0.5">{requestedParsed.meta}</span>
+                            )}
                           </td>
 
-                          {/* Submitted */}
-                          <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                            <div className="font-mono text-xs font-bold text-[#1A1A1A]">
-                              {formatDate(req.createdAt)}
-                            </div>
+                          <td className="py-3.5 px-4 border-r-2 border-black font-mono text-xs text-[#5C5647]">
+                            {formatDate(req.createdAt)}
                           </td>
 
-                          {/* Actions */}
-                          <td className="py-3.5 px-4 text-center align-middle">
+                          <td className="py-3.5 px-4 text-center">
                             {isPending ? (
                               <div className="flex items-center justify-center gap-1.5">
-                                {/* APPROVE Button */}
                                 <button
                                   type="button"
                                   disabled={approvingId === req.id}
                                   onClick={() => handleApprove(req)}
                                   aria-label={`Approve ${req.requestType} for ${req.customer?.name}`}
-                                  className="rounded-[8px] border-2 border-black bg-[#B8E8B8] hover:bg-[#9fe09f] font-black text-xs px-3 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#14532D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-50"
+                                  className="rounded-[8px] border-2 border-black bg-[#B8E8B8] hover:bg-[#9fe09f] font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#14532D] disabled:opacity-50"
                                 >
-                                  {approvingId === req.id ? (
-                                    <RefreshCw className="h-3 w-3 animate-spin stroke-[2.5]" />
-                                  ) : (
-                                    <Check className="h-3 w-3 stroke-[3]" />
-                                  )}
-                                  Approve
+                                  <ButtonLoader loading={approvingId === req.id} icon={<Check className="h-3 w-3 stroke-[3]" />}>
+                                    Approve
+                                  </ButtonLoader>
                                 </button>
 
-                                {/* REJECT Button */}
                                 <button
                                   type="button"
                                   onClick={() => handleOpenRejectModal(req)}
                                   aria-label={`Reject ${req.requestType} for ${req.customer?.name}`}
-                                  className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FFD9D0] font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#7F1D1D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                                  className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FFD9D0] font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#7F1D1D]"
                                 >
                                   <X className="h-3 w-3 stroke-[3]" />
                                   Reject
                                 </button>
                               </div>
                             ) : (
-                              <div className="inline-flex flex-col items-center gap-1">
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10px] font-mono font-black uppercase ${statusBadge.className}`}
-                                >
-                                  {statusBadge.icon}
-                                  {statusBadge.label}
-                                </span>
-                                {req.reviewedAt && (
-                                  <span className="text-[9px] font-mono text-[#5C5647]">
-                                    {formatDate(req.reviewedAt)}
-                                  </span>
-                                )}
-                              </div>
+                              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-mono font-black uppercase ${statusBadge.className}`}>
+                                {statusBadge.label}
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -1232,12 +1068,10 @@ export default function PlansAndDeliveryPage() {
               </table>
             </div>
 
-            {/* Pagination Strip (Desktop) */}
-            <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-3">
+            {/* Pagination Strip */}
+            <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-3 font-mono">
               <span>
-                Showing <strong className="font-mono">{filteredRequests.length}</strong> of{" "}
-                <strong className="font-mono">{totalRequests || filteredRequests.length}</strong>{" "}
-                change requests
+                Showing <strong>{filteredRequests.length}</strong> of <strong>{totalRequests}</strong> requests
               </span>
 
               <div className="flex items-center gap-2">
@@ -1250,16 +1084,13 @@ export default function PlansAndDeliveryPage() {
                     fetchRequestsData(prev, false);
                   }}
                   aria-label="Previous page"
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
                 >
-                  <ChevronLeft className="h-3 w-3 stroke-[3]" />
                   Prev
                 </button>
-
-                <span className="font-mono text-xs font-black px-2">
+                <span className="font-mono text-xs font-black px-1">
                   Page {currentPage} of {totalPages || 1}
                 </span>
-
                 <button
                   type="button"
                   disabled={currentPage >= totalPages || requestsLoading}
@@ -1269,214 +1100,11 @@ export default function PlansAndDeliveryPage() {
                     fetchRequestsData(next, false);
                   }}
                   aria-label="Next page"
-                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
                 >
                   Next
-                  <ChevronRight className="h-3 w-3 stroke-[3]" />
                 </button>
               </div>
-            </div>
-          </div>
-
-          {/* ======================================================= */}
-          {/* MOBILE CARDS VIEW (Visible below md)                    */}
-          {/* ======================================================= */}
-          <div className="block md:hidden space-y-3">
-            {requestsLoading && requests.length === 0 ? (
-              Array.from({ length: 3 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[3px_3px_0px_0px_#000000] animate-pulse space-y-3"
-                >
-                  <div className="flex justify-between">
-                    <div className="h-4 bg-[#E5E0D8] rounded w-32" />
-                    <div className="h-5 bg-[#E5E0D8] rounded w-20" />
-                  </div>
-                  <div className="h-12 bg-[#E5E0D8]/60 rounded" />
-                  <div className="h-10 bg-[#E5E0D8] rounded w-full" />
-                </div>
-              ))
-            ) : filteredRequests.length === 0 ? (
-              <div className="border-2 border-black bg-white rounded-[14px] p-6 text-center space-y-3 shadow-[3px_3px_0px_0px_#000000]">
-                <div className="flex justify-center">
-                  <CalendarDays className="h-8 w-8 text-[#5C5647]" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
-                    {statusFilter === "PENDING"
-                      ? "No pending change requests"
-                      : "No change requests match filter"}
-                  </h3>
-                  <p className="text-xs font-semibold text-[#5C5647]">
-                    {statusFilter === "PENDING"
-                      ? "All requests have been reviewed."
-                      : "Try clearing search or filters."}
-                  </p>
-                </div>
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    className="w-full py-2.5 rounded-[8px] border-2 border-black bg-[#FFDF58] text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
-                  >
-                    Clear Filters
-                  </button>
-                )}
-              </div>
-            ) : (
-              filteredRequests.map((req) => {
-                const isPending = req.status === "PENDING";
-                const currentParsed = formatConfiguration(
-                  req.currentConfiguration,
-                  req.requestType
-                );
-                const requestedParsed = formatConfiguration(
-                  req.requestedConfiguration,
-                  req.requestType
-                );
-                const typeBadge = getRequestTypeBadge(req.requestType);
-                const statusBadge = getStatusBadge(req.status);
-
-                return (
-                  <div
-                    key={req.id}
-                    className="border-2 border-black bg-white rounded-[14px] p-4 shadow-[3px_3px_0px_0px_#000000] space-y-3"
-                  >
-                    {/* Top Row: Customer + Status/Type Pills */}
-                    <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-2.5">
-                      <div>
-                        <div className="font-black text-sm text-[#1A1A1A]">
-                          {req.customer?.name || "Customer"}
-                        </div>
-                        <div className="text-xs font-mono font-medium text-[#5C5647]">
-                          {req.customer?.mobile || "No phone"}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-mono font-bold uppercase ${typeBadge.className}`}
-                        >
-                          {typeBadge.icon}
-                          {typeBadge.label}
-                        </span>
-                        {!isPending && (
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] font-mono font-black uppercase ${statusBadge.className}`}
-                          >
-                            {statusBadge.label}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Change Comparison Block: From -> To */}
-                    <div className="space-y-2">
-                      {/* Current Configuration */}
-                      <div className="rounded-[8px] bg-stone-100 border border-black/20 p-2.5 text-xs text-[#5C5647]">
-                        <span className="font-mono text-[10px] uppercase font-bold text-[#78716C] block mb-0.5">
-                          Current Setting
-                        </span>
-                        <span className="font-semibold text-[#1A1A1A] block">
-                          {currentParsed.main}
-                        </span>
-                        {currentParsed.meta && (
-                          <span className="text-[10px] font-mono text-[#78716C] block mt-0.5">
-                            {currentParsed.meta}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Requested Change */}
-                      <div className="rounded-[8px] bg-[#FFF9D6] border-2 border-black p-2.5 text-xs text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]">
-                        <span className="font-mono text-[10px] uppercase font-black text-[#854D0E] flex items-center gap-1 mb-0.5">
-                          <ArrowRight className="h-3 w-3 stroke-[3]" />
-                          Requested Change
-                        </span>
-                        <span className="font-black text-[#1A1A1A] block">
-                          {requestedParsed.main}
-                        </span>
-                        {requestedParsed.meta && (
-                          <span className="text-[10px] font-mono text-[#5C5647] block mt-0.5">
-                            {requestedParsed.meta}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Date Info */}
-                    <div className="flex items-center justify-between text-[11px] font-mono text-[#5C5647] pt-1">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 stroke-[2]" />
-                        Submitted: {formatDate(req.createdAt)}
-                      </span>
-                    </div>
-
-                    {/* Action Buttons (Min 44px Tap Target) */}
-                    {isPending ? (
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-black/10">
-                        <button
-                          type="button"
-                          disabled={approvingId === req.id}
-                          onClick={() => handleApprove(req)}
-                          className="min-h-[44px] rounded-[10px] border-2 border-black bg-[#B8E8B8] active:bg-[#9fe09f] font-black text-xs uppercase text-[#14532D] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          {approvingId === req.id ? (
-                            <RefreshCw className="h-3.5 w-3.5 animate-spin stroke-[3]" />
-                          ) : (
-                            <Check className="h-3.5 w-3.5 stroke-[3]" />
-                          )}
-                          Approve
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenRejectModal(req)}
-                          className="min-h-[44px] rounded-[10px] border-2 border-black bg-white active:bg-[#FFD9D0] font-black text-xs uppercase text-[#7F1D1D] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <X className="h-3.5 w-3.5 stroke-[3]" />
-                          Reject
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })
-            )}
-
-            {/* Pagination Controls (Mobile) */}
-            <div className="p-3.5 bg-[#FAF7EC] border-2 border-black rounded-[14px] shadow-[2px_2px_0px_0px_#000000] text-xs font-bold text-[#1A1A1A] flex items-center justify-between gap-2">
-              <button
-                type="button"
-                disabled={currentPage <= 1 || requestsLoading}
-                onClick={() => {
-                  const prev = currentPage - 1;
-                  setCurrentPage(prev);
-                  fetchRequestsData(prev, false);
-                }}
-                className="min-h-[44px] px-3 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1"
-              >
-                <ChevronLeft className="h-3.5 w-3.5 stroke-[3]" />
-                Prev
-              </button>
-
-              <span className="font-mono text-xs font-black">
-                {currentPage} / {totalPages || 1}
-              </span>
-
-              <button
-                type="button"
-                disabled={currentPage >= totalPages || requestsLoading}
-                onClick={() => {
-                  const next = currentPage + 1;
-                  setCurrentPage(next);
-                  fetchRequestsData(next, false);
-                }}
-                className="min-h-[44px] px-3 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1"
-              >
-                Next
-                <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />
-              </button>
             </div>
           </div>
         </div>
@@ -1493,13 +1121,20 @@ export default function PlansAndDeliveryPage() {
                 Milk Subscription Plans
               </h2>
               <p className="text-xs font-semibold text-[#5C5647]">
-                Set milk prices, bottle limits, and active delivery days in Raipur.
+                Set milk prices, volume bounds, and delivery days in Raipur.
               </p>
             </div>
           </div>
 
+          {plansError && (
+            <ErrorState
+              error={plansError}
+              onRetry={() => fetchPlansData(true)}
+            />
+          )}
+
           {/* 3-Column Plan Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6" aria-busy={plansLoading}>
             {plansLoading && plans.length === 0 ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div
@@ -1607,93 +1242,17 @@ export default function PlansAndDeliveryPage() {
                               : `₹${Math.round(plan.deliveryFeePaise / 100)}`}
                           </span>
                         </div>
-
-                        {/* Plan-specific properties */}
-                        {isBuyOnce && (
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[#5C5647]">Max Usages:</span>
-                            <span className="font-mono font-black bg-[#FFDF58] px-2 py-0.5 rounded border border-black">
-                              {plan.maxUsages || 3} orders max
-                            </span>
-                          </div>
-                        )}
-
-                        {isSevenDay && (
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[#5C5647]">Parameters:</span>
-                            <span className="font-mono font-black bg-[#D8CEF6] px-2 py-0.5 rounded border border-black">
-                              7 Days (1x order)
-                            </span>
-                          </div>
-                        )}
-
-                        {isMonthly && (
-                          <div className="pt-2 space-y-2">
-                            <div>
-                              <span className="text-[11px] font-black uppercase text-[#5C5647] block mb-1">
-                                Delivery Days:
-                              </span>
-                              <div className="flex flex-wrap gap-1.5">
-                                <span
-                                  className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
-                                    plan.dailyEnabled !== false
-                                      ? "bg-[#B8E8B8] text-[#14532D]"
-                                      : "bg-gray-100 line-through text-gray-400"
-                                  }`}
-                                >
-                                  Daily
-                                </span>
-                                <span
-                                  className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
-                                    plan.alternateDaysEnabled !== false
-                                      ? "bg-[#B8E8B8] text-[#14532D]"
-                                      : "bg-gray-100 line-through text-gray-400"
-                                  }`}
-                                >
-                                  Alternate Days
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="pt-1">
-                              <span className="text-[11px] font-black uppercase text-[#5C5647] block mb-1">
-                                Quantity Modes:
-                              </span>
-                              <div className="flex flex-wrap gap-1.5">
-                                <span
-                                  className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
-                                    plan.fixedQuantityEnabled !== false
-                                      ? "bg-[#D8CEF6] text-[#4C1D95]"
-                                      : "bg-gray-100 line-through text-gray-400"
-                                  }`}
-                                >
-                                  Fixed Qty
-                                </span>
-                                <span
-                                  className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border border-black ${
-                                    plan.alternatingQuantityEnabled !== false
-                                      ? "bg-[#D8CEF6] text-[#4C1D95]"
-                                      : "bg-gray-100 line-through text-gray-400"
-                                  }`}
-                                >
-                                  Alternating
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
 
-                    {/* Action Button */}
                     <button
                       type="button"
-                      onClick={() => handleOpenEditPlanModal(plan)}
-                      aria-label={`Edit configuration for ${plan.type}`}
-                      className="w-full mt-4 rounded-[10px] border-2 border-black bg-[#FFD84D] hover:bg-[#fcd033] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                      onClick={() => handleEditPlan(plan)}
+                      aria-label={`Edit ${plan.type} plan pricing and parameters`}
+                      className="w-full h-10 bg-[#FFDF58] hover:bg-[#FFD84D] text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[10px] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
                     >
                       <Edit2 className="h-3.5 w-3.5 stroke-[2.5]" />
-                      Edit Configuration
+                      <span>Edit Plan Settings</span>
                     </button>
                   </div>
                 );
@@ -1703,39 +1262,35 @@ export default function PlansAndDeliveryPage() {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* MODALS                                                    */}
-      {/* ========================================================= */}
-
-      {/* Reject Subscription Change Request Modal */}
+      {/* Rejection Modal */}
       <RejectRequestModal
-        request={selectedRequestForReject}
         isOpen={isRejectModalOpen}
         onClose={() => {
           setIsRejectModalOpen(false);
           setSelectedRequestForReject(null);
         }}
-        onSuccess={(updated) => {
-          setRequests((prev) =>
-            prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
-          );
-          showNotice("Subscription change request rejected with reason note.");
-        }}
+        request={selectedRequestForReject}
+        onSuccess={handleRejectSuccess}
       />
 
       {/* Edit Plan Modal */}
       <EditPlanModal
-        plan={selectedPlanForEdit}
         isOpen={isEditPlanModalOpen}
         onClose={() => {
           setIsEditPlanModalOpen(false);
           setSelectedPlanForEdit(null);
         }}
-        onSuccess={(updated) => {
-          setPlans((prev) =>
-            prev.map((p) => (p.type === updated.type ? { ...p, ...updated } : p))
-          );
-          showNotice(`Plan configuration for ${updated.type} saved successfully!`);
+        plan={selectedPlanForEdit}
+        onSuccess={handlePlanSaved}
+      />
+
+      {/* Customer Detail Sheet */}
+      <CustomerDetailSheet
+        customerId={selectedCustomerId}
+        isOpen={isCustomerDetailOpen}
+        onClose={() => {
+          setIsCustomerDetailOpen(false);
+          setSelectedCustomerId(null);
         }}
       />
     </div>

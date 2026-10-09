@@ -17,7 +17,12 @@ import type {
   ChangePasswordResponse,
 } from "@/types/auth";
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export interface ExtendedAuthContextType extends Omit<AuthContextType, "login"> {
+  login: (email: string, password: string, returnUrl?: string) => Promise<void>;
+  isSessionExpired: boolean;
+}
+
+const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -46,9 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return !getCookie("admin_access_token") && !localStorage.getItem("admin_access_token");
   });
 
-  // Sync cookie ↔ localStorage after mount so middleware (which only reads
-  // cookies) sees the token when the user came from a tab that stored the
-  // token in localStorage only, and vice versa.
+  const [isSessionExpired, setIsSessionExpired] = useState<boolean>(false);
+
+  // Sync cookie ↔ localStorage after mount so middleware sees the token
   useEffect(() => {
     if (typeof window === "undefined") return;
     const cookieToken = getCookie("admin_access_token");
@@ -65,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleUnauthorized = () => {
       setAdmin(null);
       setIsAuthenticated(false);
+      setIsSessionExpired(true);
     };
 
     window.addEventListener("pf:unauthorized", handleUnauthorized);
@@ -115,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (adminData && adminData.email) {
         setAdmin(adminData);
+        setIsSessionExpired(false);
         if (typeof window !== "undefined") {
           localStorage.setItem("pf_admin_user", JSON.stringify(adminData));
         }
@@ -131,9 +138,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [checkAuth]);
 
   /**
-   * Authenticates admin with email & password, sets cookies & localStorage, and navigates to '/'.
+   * Authenticates admin with email & password, sets cookies & localStorage, and navigates to returnUrl or '/'.
    */
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = async (email: string, password: string, returnUrl?: string): Promise<void> => {
     setIsLoading(true);
     try {
       const res = await apiClient.post<LoginResponse>(
@@ -172,10 +179,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setAdmin(adminUser);
       setIsAuthenticated(true);
+      setIsSessionExpired(false);
       if (typeof window !== "undefined") {
         localStorage.setItem("pf_admin_user", JSON.stringify(adminUser));
       }
-      router.push("/");
+
+      const destination =
+        returnUrl && returnUrl.startsWith("/") && !returnUrl.startsWith("//")
+          ? returnUrl
+          : "/";
+      router.push(destination);
     } finally {
       setIsLoading(false);
     }
@@ -194,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setAdmin(null);
     setIsAuthenticated(false);
+    setIsSessionExpired(false);
     router.push("/login");
   }, [router]);
 
@@ -219,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         admin,
         isAuthenticated,
         isLoading,
+        isSessionExpired,
         login,
         logout,
         checkAuth,
@@ -230,7 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useAuth(): AuthContextType {
+export function useAuth(): ExtendedAuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");

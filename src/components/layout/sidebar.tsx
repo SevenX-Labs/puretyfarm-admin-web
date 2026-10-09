@@ -69,21 +69,21 @@ interface SidebarProps {
 
 export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
-  const { logout, admin } = useAuth();
+  const { admin, logout } = useAuth();
 
-  const renderNavContent = (isMobile = false) => (
-    <div className="flex flex-col h-full justify-between bg-[#FAF7EC]">
+  const renderContent = (isMobile = false) => (
+    <div className="flex h-full flex-col justify-between bg-[#FAF7EC]">
       {/* Brand Header */}
-      <div className="p-4 border-b-2 border-[#1A1A1A] bg-[#FAF7EC] flex items-center justify-between">
+      <div className="p-5 border-b-2 border-[#1A1A1A] bg-white flex items-center justify-between">
         <Link
           href="/"
           onClick={() => isMobile && onCloseMobile?.()}
-          className="flex-1 flex items-center gap-3 p-2.5 bg-[#FFD84D] border-2 border-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#1A1A1A] transition-all"
+          className="flex items-center gap-3 group"
         >
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#1A1A1A] bg-[#FFD84D] rounded-[6px] overflow-hidden shadow-[1px_1px_0px_0px_#1A1A1A]">
+          <div className="h-10 w-10 rounded-[10px] bg-[#FFD84D] border-2 border-[#1A1A1A] flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_#1A1A1A] overflow-hidden group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-[1px_1px_0px_0px_#1A1A1A] transition-all">
             <Image
-              src="/gir-cow-logo.jpg"
-              alt="Puretyfarm Gir Cow"
+              src="/purety-logo.png"
+              alt="Puretyfarm Logo"
               width={40}
               height={40}
               className="h-full w-full object-cover"
@@ -91,11 +91,16 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
             />
           </div>
           <div>
-            <div className="font-black text-[#1A1A1A] text-base tracking-tight leading-none uppercase">
-              Puretyfarm
+            <div className="flex items-center gap-1.5">
+              <span className="text-base font-black uppercase tracking-tight text-[#1A1A1A] leading-none">
+                PURETYFARM
+              </span>
+              <span className="bg-[#FFD84D] border border-[#1A1A1A] text-[#1A1A1A] font-black uppercase text-[9px] px-1.5 py-0.2 rounded-[4px]">
+                ADMIN
+              </span>
             </div>
-            <div className="mt-1 inline-block border border-[#1A1A1A] bg-white px-1.5 py-0.2 text-[9px] font-mono font-black uppercase text-[#1A1A1A] rounded-[4px]">
-              Raipur Dispatch
+            <div className="text-[10px] font-mono font-bold text-[#5C5647] uppercase mt-0.5">
+              Raipur Operations
             </div>
           </div>
         </Link>
@@ -104,10 +109,10 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
           <button
             type="button"
             onClick={onCloseMobile}
-            className="ml-2 flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[#1A1A1A] bg-[#FFD9D0] text-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
-            aria-label="Close navigation"
+            className="p-1.5 rounded-[8px] border-2 border-[#1A1A1A] bg-[#FFD9D0] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+            aria-label="Close menu"
           >
-            <X className="h-5 w-5 stroke-[2.5]" />
+            <X className="h-4 w-4 stroke-[3]" />
           </button>
         )}
       </div>
@@ -118,29 +123,10 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
           Operations
         </div>
         {NAV_ITEMS.map((item) => {
-          const isSettings = item.name === "Settings" || item.href === "/settings";
           const isActive =
-            !isSettings &&
-            (item.href === "/"
+            item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href));
-
-          if (isSettings) {
-            return (
-              <button
-                key={item.name}
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  // No-op: settings disabled / static data hidden from admin
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-black uppercase tracking-tight text-[#1A1A1A] transition-all border-2 rounded-[10px] bg-transparent border-transparent cursor-default select-none text-left"
-              >
-                <item.icon className="h-4 w-4 shrink-0 stroke-[2.5]" />
-                <span>{item.name}</span>
-              </button>
-            );
-          }
+              : pathname.startsWith(item.href);
 
           return (
             <Link
@@ -163,27 +149,40 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
 
       {/* Bottom Status & Logout */}
       <div className="p-4 border-t-2 border-[#1A1A1A] bg-[#FAF7EC] space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
-            Session
-          </span>
-          <span className="bg-[#B9E8B4] border-2 border-[#1A1A1A] text-[#1A1A1A] font-mono text-[10px] font-black px-2 py-0.5 rounded-[6px] shadow-[1.5px_1.5px_0px_0px_#1A1A1A] whitespace-nowrap">
-            {admin?.role ? `${admin.role} / OWNER` : "ADMIN / OWNER"}
+        {/* Hub Indicator */}
+        <div className="p-2.5 rounded-[10px] border-2 border-[#1A1A1A] bg-white shadow-[2px_2px_0px_0px_#1A1A1A] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#8FD694] border border-[#1A1A1A] animate-pulse" />
+            <span className="text-[11px] font-mono font-black uppercase text-[#1A1A1A]">
+              Raipur Hub Live
+            </span>
+          </div>
+          <span className="text-[10px] font-mono font-bold text-[#5C5647] bg-[#FAF7EC] px-1.5 py-0.5 rounded border border-[#1A1A1A]/30">
+            A2 MILK
           </span>
         </div>
 
-        {/* Hard-shadow Logout Button */}
-        <button
-          type="button"
-          onClick={() => {
-            if (isMobile) onCloseMobile?.();
-            logout();
-          }}
-          className="w-full flex items-center justify-center gap-2 bg-[#FFD9D0] hover:bg-[#FFC6B8] text-[#1A1A1A] font-black uppercase text-xs py-2.5 px-3 border-2 border-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all cursor-pointer"
-        >
-          <LogOut className="h-4 w-4 stroke-[2.5]" />
-          <span>Exit Console</span>
-        </button>
+        {/* User / Logout */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="min-w-0 pr-2">
+            <div className="font-extrabold text-xs uppercase text-[#1A1A1A] truncate">
+              {admin?.email?.split("@")[0] || "Operator"}
+            </div>
+            <div className="font-mono text-[10px] text-[#5C5647] truncate">
+              {admin?.role || "ADMIN"}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            title="Log Out"
+            aria-label="Log Out of console"
+            className="p-2 rounded-[8px] border-2 border-[#1A1A1A] bg-[#FFD9D0] hover:bg-[#FFC6B8] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer shrink-0"
+          >
+            <LogOut className="h-4 w-4 stroke-[2.5]" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -191,27 +190,26 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
   return (
     <>
       {/* Desktop Fixed Sidebar */}
-      <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 left-0 z-30 border-r-2 border-[#1A1A1A] bg-[#FAF7EC]">
-        {renderNavContent(false)}
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 z-30 w-64 flex-col border-r-2 border-[#1A1A1A] bg-[#FAF7EC]">
+        {renderContent(false)}
       </aside>
 
-      {/* Mobile Backdrop & Drawer */}
+      {/* Mobile Slide-Out Drawer */}
       {isMobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-[#1A1A1A]/60 backdrop-blur-xs lg:hidden animate-in fade-in-0 duration-200"
-          onClick={onCloseMobile}
-          aria-hidden="true"
-        />
-      )}
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            onClick={onCloseMobile}
+            aria-hidden="true"
+          />
 
-      <div
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] border-r-2 border-[#1A1A1A] bg-[#FAF7EC] transform transition-transform duration-300 ease-in-out lg:hidden shadow-[5px_0px_0px_0px_#1A1A1A]",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        {renderNavContent(true)}
-      </div>
+          {/* Drawer Panel */}
+          <div className="fixed inset-y-0 left-0 w-4/5 max-w-xs border-r-2 border-[#1A1A1A] bg-[#FAF7EC] shadow-[6px_0px_0px_0px_#1A1A1A] animate-in slide-in-from-left duration-200">
+            {renderContent(true)}
+          </div>
+        </div>
+      )}
     </>
   );
 }

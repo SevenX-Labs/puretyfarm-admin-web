@@ -3,12 +3,14 @@ import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
 export class ApiError extends Error {
   statusCode: number;
   data?: unknown;
+  isUnauthorized?: boolean;
 
   constructor(message: string, statusCode: number, data?: unknown) {
     super(message);
     this.name = "ApiError";
     this.statusCode = statusCode;
     this.data = data;
+    this.isUnauthorized = statusCode === 401 || statusCode === 403;
   }
 }
 
@@ -116,12 +118,12 @@ export async function apiClient<T = unknown>(
       headers: requestHeaders,
     });
 
-    // Check for 401 Unauthorized
-    if (response.status === 401) {
+    // Check for 401 Unauthorized or 403 Forbidden with auth-expired symptoms
+    if (response.status === 401 || (response.status === 403 && !skipAuth)) {
       const isBrowser = typeof window !== "undefined";
 
-      // If we haven't already retried this request and it was authenticated, attempt silent token refresh
-      if (!_retry && !skipAuth && isBrowser) {
+      // If we haven't already retried this request and it was authenticated, attempt silent token refresh FIRST
+      if (!_retry && !skipAuth && isBrowser && response.status === 401) {
         const refreshToken =
           getCookie("admin_refresh_token") ||
           localStorage.getItem("admin_refresh_token");
@@ -135,7 +137,7 @@ export async function apiClient<T = unknown>(
 
           const freshToken = await refreshPromise;
           if (freshToken) {
-            // Retry the request with the fresh token
+            // Retry the request exactly once with the fresh token
             const retryHeaders = new Headers(requestHeaders);
             retryHeaders.set("Authorization", `Bearer ${freshToken}`);
             return apiClient<T>(endpoint, {
@@ -147,12 +149,12 @@ export async function apiClient<T = unknown>(
         }
       }
 
-      let errorMsg = "Unauthorized: Session expired or invalid credentials.";
+      let errorMsg = "Your session has expired. Please log in again to continue.";
       let errorBody: unknown = null;
       try {
         errorBody = await response.json();
         if (errorBody && typeof errorBody === "object") {
-          const m = (errorBody as { message?: unknown }).message;
+          const m = (errorBody as { message?: unknown; error?: unknown }).message || (errorBody as { error?: unknown }).error;
           if (m) {
             errorMsg = Array.isArray(m) ? m.join(" • ") : String(m);
           }
@@ -169,18 +171,19 @@ export async function apiClient<T = unknown>(
         localStorage.removeItem("pf_admin_user");
 
         // Broadcast unauthorized event to open UI modal across the admin dashboard
+        const currentPath = window.location.pathname + window.location.search;
         window.dispatchEvent(
           new CustomEvent("pf:unauthorized", {
-            detail: { message: errorMsg },
+            detail: {
+              message: errorMsg,
+              status: response.status,
+              returnUrl: currentPath,
+            },
           })
         );
-
-        if (!skipAuthRedirect && !skipAuth && window.location.pathname !== "/login") {
-          window.location.href = "/login?expired=1";
-        }
       }
 
-      throw new ApiError(errorMsg, 401, errorBody);
+      throw new ApiError(errorMsg, response.status, errorBody);
     }
 
     // Try parsing response body

@@ -10,6 +10,7 @@ import {
   EyeOff,
   ArrowRight,
   Loader2,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [returnUrl, setReturnUrl] = useState<string>("/");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
@@ -26,6 +28,10 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search);
       if (params.get("expired") === "1") {
         setSessionNotice("Your session has expired. Please sign in again to continue.");
+      }
+      const ret = params.get("returnUrl");
+      if (ret && ret.startsWith("/") && !ret.startsWith("//")) {
+        setReturnUrl(ret);
       }
     }
   }, []);
@@ -45,7 +51,7 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, returnUrl);
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -58,18 +64,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:grid lg:grid-cols-12 bg-[#FAF7EC] selection:bg-[#FFD84D] selection:text-[#1A1A1A]">
-      {/* ========================================================================= */}
-      {/* Left Column: Form & Access Console                                       */}
-      {/* ========================================================================= */}
-      <div className="w-full flex-1 lg:col-span-5 flex flex-col justify-between p-6 sm:p-10 lg:p-12 min-h-screen bg-[#FAF7EC] border-r-0 lg:border-r-2 lg:border-[#1A1A1A] z-10">
-        {/* Brand Top Header */}
-        <div>
+    <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-12 bg-[#FAF7EC]">
+      {/* Left Column: Focused Login Form */}
+      <div className="lg:col-span-5 flex flex-col justify-between p-6 sm:p-10 lg:p-14 z-10">
+        {/* Brand Header */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center border-2 border-[#1A1A1A] bg-[#FFD84D] text-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] overflow-hidden">
+            <div className="h-11 w-11 rounded-[12px] bg-[#FFD84D] border-2 border-[#1A1A1A] flex items-center justify-center shrink-0 shadow-[3px_3px_0px_0px_#1A1A1A] overflow-hidden">
               <Image
-                src="/gir-cow-logo.jpg"
-                alt="Puretyfarm Gir Cow"
+                src="/purety-logo.png"
+                alt="Puretyfarm Logo"
                 width={44}
                 height={44}
                 className="h-full w-full object-cover"
@@ -180,6 +184,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-2 px-2.5 py-1 text-[#1A1A1A] font-mono text-xs font-black uppercase hover:bg-[#FAF7EC] transition-colors flex items-center gap-1 select-none border-2 border-[#1A1A1A] rounded-[6px] cursor-pointer"
                 >
                   {showPassword ? (
@@ -227,10 +232,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* Right Column: Clean Farm Imagery Showcase (Desktop only)                  */}
-      {/* Bottle positioned perfectly and visibly                                   */}
-      {/* ========================================================================= */}
+      {/* Right Column: Clean Farm Imagery Showcase (Desktop only) */}
       <div className="hidden lg:block lg:col-span-7 relative h-full min-h-screen overflow-hidden bg-stone-100">
         <Image
           src="/auth-bg.jpg"

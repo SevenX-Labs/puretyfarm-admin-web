@@ -43,6 +43,12 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
+import { StatCardSkeleton } from "@/components/ui/stat-card-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { ButtonLoader } from "@/components/ui/button-loader";
+
 
 export default function WalletPage() {
   const [requests, setRequests] = useState<CreditRequestItem[]>([]);
@@ -423,142 +429,146 @@ export default function WalletPage() {
       {/* ========================================================= */}
       {/* 2. STAT CARDS ROW (Pending Emphasized as Admin To-Do)      */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Stat 1: Pending Queue (EMPHASIZED TO-DO) */}
-        <button
-          type="button"
-          onClick={() => {
-            setStatusFilter("PENDING");
-            setCurrentPage(1);
-          }}
-          className={`text-left rounded-[14px] border-2 border-black p-4 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
-            statusFilter === "PENDING"
-              ? "bg-[#FFDF58] shadow-[4px_4px_0px_0px_#000000] ring-2 ring-black ring-offset-1"
-              : "bg-[#FFF9D6] hover:bg-[#FFDF58] shadow-[3px_3px_0px_0px_#000000]"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-black text-[#FFDF58] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FFDF58] animate-pulse" />
-              Your To-Do Queue
-            </span>
-            <Wallet className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
-          </div>
-
-          <div className="mt-3">
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono text-3xl font-black text-[#1A1A1A]">
-                {statusFilter === "PENDING" ? requests.length : pendingCount}
+      {isLoading && requests.length === 0 ? (
+        <StatCardSkeleton count={4} />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Stat 1: Pending Queue (EMPHASIZED TO-DO) */}
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("PENDING");
+              setCurrentPage(1);
+            }}
+            className={`text-left rounded-[14px] border-2 border-black p-4 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+              statusFilter === "PENDING"
+                ? "bg-[#FFDF58] shadow-[4px_4px_0px_0px_#000000] ring-2 ring-black ring-offset-1"
+                : "bg-[#FFF9D6] hover:bg-[#FFDF58] shadow-[3px_3px_0px_0px_#000000]"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black text-[#FFDF58] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#FFDF58] animate-pulse" />
+                Your To-Do Queue
               </span>
-              <span className="text-xs font-bold text-[#1A1A1A]">pending</span>
+              <Wallet className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
             </div>
-            <p className="text-[11px] font-bold text-[#423918] mt-0.5">
-              Needs your verification & approval
-            </p>
-          </div>
-        </button>
 
-        {/* Stat 2: Completed / Approved */}
-        <button
-          type="button"
-          onClick={() => {
-            setStatusFilter("COMPLETED");
-            setCurrentPage(1);
-          }}
-          className={`text-left rounded-[14px] border-2 border-black p-4 transition-all cursor-pointer flex flex-col justify-between ${
-            statusFilter === "COMPLETED"
-              ? "bg-[#D5F2D5] shadow-[4px_4px_0px_0px_#000000] ring-2 ring-black ring-offset-1"
-              : "bg-white hover:bg-[#FAF7EC] shadow-[3px_3px_0px_0px_#000000]"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[#14532D] bg-[#B8E8B8] border border-black/30 px-2 py-0.5 rounded-md">
-              Approved
-            </span>
-            <CheckCircle2 className="h-4 w-4 text-[#14532D] stroke-[2.5]" />
-          </div>
+            <div className="mt-3">
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-3xl font-black text-[#1A1A1A]">
+                  {pendingCount}
+                </span>
+                <span className="text-xs font-bold text-[#5C5647]">needs review</span>
+              </div>
+              <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
+                Requires manual approve or reject
+              </p>
+            </div>
+          </button>
 
-          <div className="mt-3">
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono text-3xl font-black text-[#1A1A1A]">
-                {statusFilter === "COMPLETED" ? requests.length : completedCount}
+          {/* Stat 2: Approved / Completed */}
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("COMPLETED");
+              setCurrentPage(1);
+            }}
+            className={`text-left rounded-[14px] border-2 border-black p-4 transition-all cursor-pointer flex flex-col justify-between ${
+              statusFilter === "COMPLETED"
+                ? "bg-[#D5F2D5] shadow-[4px_4px_0px_0px_#000000] ring-2 ring-black ring-offset-1"
+                : "bg-white hover:bg-[#FAF7EC] shadow-[3px_3px_0px_0px_#000000]"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#14532D] bg-[#B8E8B8] border border-black/30 px-2 py-0.5 rounded-md">
+                Approved
               </span>
-              <span className="text-xs font-bold text-[#5C5647]">credits</span>
+              <CheckCircle2 className="h-4 w-4 text-[#14532D] stroke-[2.5]" />
             </div>
-            <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
-              Successfully added to balance
-            </p>
-          </div>
-        </button>
 
-        {/* Stat 3: Rejected */}
-        <button
-          type="button"
-          onClick={() => {
-            setStatusFilter("REJECTED");
-            setCurrentPage(1);
-          }}
-          className={`text-left rounded-[14px] border-2 border-black p-4 transition-all cursor-pointer flex flex-col justify-between ${
-            statusFilter === "REJECTED"
-              ? "bg-[#FFE7E1] shadow-[4px_4px_0px_0px_#000000] ring-2 ring-black ring-offset-1"
-              : "bg-white hover:bg-[#FAF7EC] shadow-[3px_3px_0px_0px_#000000]"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[#7F1D1D] bg-[#FFD9D0] border border-black/30 px-2 py-0.5 rounded-md">
-              Rejected
-            </span>
-            <XCircle className="h-4 w-4 text-[#7F1D1D] stroke-[2.5]" />
-          </div>
+            <div className="mt-3">
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-3xl font-black text-[#1A1A1A]">
+                  {statusFilter === "COMPLETED" ? requests.length : completedCount}
+                </span>
+                <span className="text-xs font-bold text-[#5C5647]">credits</span>
+              </div>
+              <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
+                Successfully added to balance
+              </p>
+            </div>
+          </button>
 
-          <div className="mt-3">
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono text-3xl font-black text-[#1A1A1A]">
-                {statusFilter === "REJECTED" ? requests.length : rejectedCount}
+          {/* Stat 3: Rejected */}
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("REJECTED");
+              setCurrentPage(1);
+            }}
+            className={`text-left rounded-[14px] border-2 border-black p-4 transition-all cursor-pointer flex flex-col justify-between ${
+              statusFilter === "REJECTED"
+                ? "bg-[#FFE7E1] shadow-[4px_4px_0px_0px_#000000] ring-2 ring-black ring-offset-1"
+                : "bg-white hover:bg-[#FAF7EC] shadow-[3px_3px_0px_0px_#000000]"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#7F1D1D] bg-[#FFD9D0] border border-black/30 px-2 py-0.5 rounded-md">
+                Rejected
               </span>
-              <span className="text-xs font-bold text-[#5C5647]">declined</span>
+              <XCircle className="h-4 w-4 text-[#7F1D1D] stroke-[2.5]" />
             </div>
-            <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
-              Declined with refund or cash return
-            </p>
-          </div>
-        </button>
 
-        {/* Stat 4: Total Logged */}
-        <button
-          type="button"
-          onClick={() => {
-            setStatusFilter("ALL");
-            setCurrentPage(1);
-          }}
-          className={`text-left rounded-[14px] border-2 border-black p-4 transition-all cursor-pointer flex flex-col justify-between ${
-            statusFilter === "ALL"
-              ? "bg-[#FAF7EC] shadow-[4px_4px_0px_0px_#000000] ring-2 ring-black ring-offset-1"
-              : "bg-white hover:bg-[#FAF7EC] shadow-[3px_3px_0px_0px_#000000]"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[#1A1A1A] bg-stone-100 border border-black/30 px-2 py-0.5 rounded-md">
-              Total Log
-            </span>
-            <SlidersHorizontal className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
-          </div>
+            <div className="mt-3">
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-3xl font-black text-[#1A1A1A]">
+                  {statusFilter === "REJECTED" ? requests.length : rejectedCount}
+                </span>
+                <span className="text-xs font-bold text-[#5C5647]">declined</span>
+              </div>
+              <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
+                Declined with refund or cash return
+              </p>
+            </div>
+          </button>
 
-          <div className="mt-3">
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono text-3xl font-black text-[#1A1A1A]">
-                {totalRequests}
+          {/* Stat 4: Total Logged */}
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("ALL");
+              setCurrentPage(1);
+            }}
+            className={`text-left rounded-[14px] border-2 border-black p-4 transition-all cursor-pointer flex flex-col justify-between ${
+              statusFilter === "ALL"
+                ? "bg-[#FAF7EC] shadow-[4px_4px_0px_0px_#000000] ring-2 ring-black ring-offset-1"
+                : "bg-white hover:bg-[#FAF7EC] shadow-[3px_3px_0px_0px_#000000]"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#1A1A1A] bg-stone-100 border border-black/30 px-2 py-0.5 rounded-md">
+                Total Log
               </span>
-              <span className="text-xs font-bold text-[#5C5647]">requests</span>
+              <SlidersHorizontal className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
             </div>
-            <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
-              Total wallet top-up requests
-            </p>
-          </div>
-        </button>
-      </div>
 
-            {/* ========================================================= */}
+            <div className="mt-3">
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-3xl font-black text-[#1A1A1A]">
+                  {totalRequests}
+                </span>
+                <span className="text-xs font-bold text-[#5C5647]">requests</span>
+              </div>
+              <p className="text-[11px] font-bold text-[#5C5647] mt-0.5">
+                Total wallet top-up requests
+              </p>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================= */}
       {/* 3. STATUS TABS & FILTER BAR                               */}
       {/* ========================================================= */}
       <div className="bg-white border-2 border-black p-4 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3.5">
@@ -702,110 +712,38 @@ export default function WalletPage() {
 
             <tbody className="divide-y-2 divide-black bg-white">
               {isLoading && requests.length === 0 ? (
-                // SKELETON LOADING STATE
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse">
-                    <td className="py-4 px-4 border-r-2 border-black">
-                      <div className="h-5 bg-[#E5E0D8] rounded w-24" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black">
-                      <div className="h-4 bg-[#E5E0D8] rounded w-36 mb-1.5" />
-                      <div className="h-3 bg-[#E5E0D8]/60 rounded w-24" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black text-right">
-                      <div className="h-5 bg-[#E5E0D8] rounded w-20 ml-auto" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black text-center">
-                      <div className="h-6 bg-[#E5E0D8] rounded-full w-28 mx-auto" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black text-center">
-                      <div className="h-4 bg-[#E5E0D8] rounded w-16 mx-auto" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black">
-                      <div className="h-4 bg-[#E5E0D8] rounded w-24 mb-1" />
-                      <div className="h-3 bg-[#E5E0D8]/60 rounded w-16" />
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="h-7 bg-[#E5E0D8] rounded-[8px] w-28 mx-auto" />
-                    </td>
-                  </tr>
-                ))
+                <TableSkeleton colSpan={7} rows={6} />
               ) : loadError && requests.length === 0 ? (
-                // ERROR RETRY STATE
                 <tr>
-                  <td colSpan={7} className="py-12 px-4 text-center">
-                    <div className="max-w-md mx-auto space-y-3">
-                      <div className="flex justify-center">
-                        <AlertTriangle className="h-8 w-8 text-[#FF8E72] stroke-[2.5]" />
-                      </div>
-                      <p className="text-sm font-black text-[#1A1A1A]">{loadError}</p>
-                      <button
-                        type="button"
-                        onClick={() => loadCreditRequests(currentPage, true)}
-                        className="rounded-[8px] border-2 border-black bg-[#FFDF58] px-4 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] cursor-pointer"
-                      >
-                        Retry Connection
-                      </button>
-                    </div>
+                  <td colSpan={7} className="p-4">
+                    <ErrorState
+                      error={loadError}
+                      onRetry={() => loadCreditRequests(currentPage, true)}
+                    />
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
-                // FRIENDLY EMPTY STATE
                 <tr>
-                  <td colSpan={7} className="py-14 px-4 text-center">
-                    <div className="max-w-md mx-auto space-y-3">
-                      <div className="flex justify-center">
-                        {statusFilter === "PENDING" ? (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#B8E8B8] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-                            <CheckCircle2 className="h-6 w-6 text-[#14532D] stroke-[3]" />
-                          </div>
-                        ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FAF7EC] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-                            <Wallet className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-black uppercase tracking-tight text-[#1A1A1A]">
-                          {statusFilter === "PENDING" && !hasActiveFilters
-                            ? "All caught up! No pending requests"
-                            : hasActiveFilters
-                            ? "No matching requests found"
-                            : "No credit requests recorded"}
-                        </h3>
-                        <p className="text-xs font-semibold text-[#5C5647]">
-                          {statusFilter === "PENDING" && !hasActiveFilters
-                            ? "All wallet top-up requests have been approved and processed."
-                            : hasActiveFilters
-                            ? "Try adjusting your search query, date range, or status filter."
-                            : "There are currently no credit requests in this category."}
-                        </p>
-                      </div>
-
-                      {hasActiveFilters ? (
-                        <button
-                          type="button"
-                          onClick={handleResetFilters}
-                          className="rounded-[8px] border-2 border-black bg-[#FFDF58] px-4 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1.5"
-                        >
-                          <RotateCcw className="h-3 w-3 stroke-[2.5]" />
-                          Clear Filters
-                        </button>
-                      ) : statusFilter === "PENDING" ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter("ALL");
-                            setCurrentPage(1);
-                          }}
-                          className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1.5"
-                        >
-                          View All Historical Requests
-                          <ArrowRight className="h-3 w-3 stroke-[3]" />
-                        </button>
-                      ) : null}
-                    </div>
+                  <td colSpan={7} className="p-4">
+                    <EmptyState
+                      icon={statusFilter === "PENDING" ? <CheckCircle2 className="h-6 w-6 stroke-[2.5] text-green-700" /> : <Wallet className="h-6 w-6 stroke-[2.5]" />}
+                      title={
+                        statusFilter === "PENDING" && !hasActiveFilters
+                          ? "All caught up! No pending requests"
+                          : hasActiveFilters
+                          ? "No matching requests found"
+                          : "No credit requests recorded"
+                      }
+                      description={
+                        statusFilter === "PENDING" && !hasActiveFilters
+                          ? "All wallet top-up requests have been approved and processed."
+                          : hasActiveFilters
+                          ? "Try adjusting your search query, date range, or status filter."
+                          : "There are currently no credit requests in this category."
+                      }
+                      isFiltered={hasActiveFilters}
+                      onClearFilters={handleResetFilters}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -848,57 +786,43 @@ export default function WalletPage() {
                       {/* CUSTOMER PROFILE */}
                       <td className="py-3.5 px-4 border-r-2 border-black align-middle">
                         <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                req.customer?.id && handleOpenWalletSheet(req.customer.id)
-                              }
-                              className="font-black text-[#1A1A1A] text-xs hover:underline cursor-pointer text-left block"
-                            >
-                              {req.customer?.name || "Unknown Customer"}
-                            </button>
-                            <div className="text-[11px] font-mono font-bold text-[#5C5647]">
-                              {req.customer?.mobile || "No mobile"}
-                              {req.customer?.email ? ` • ${req.customer.email}` : ""}
-                            </div>
-                          </div>
-
-                          {/* Inspect Wallet Ledger button */}
-                          {req.customer?.id && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenWalletSheet(req.customer.id)}
-                              className="p-1.5 rounded-[6px] border border-black/30 bg-white hover:bg-[#FFDF58] text-[#1A1A1A] cursor-pointer shadow-[1px_1px_0px_0px_#000000] shrink-0"
-                              title="View customer wallet history"
-                              aria-label={`View wallet history for ${req.customer.name}`}
-                            >
-                              <ExternalLink className="h-3 w-3 stroke-[2.5]" />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenWalletSheet(req.customer?.id || "")}
+                            className="font-black text-xs text-[#1A1A1A] hover:underline hover:text-blue-700 text-left cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black"
+                            title="Open Customer Wallet History"
+                          >
+                            <span>{req.customer?.name || "Unknown"}</span>
+                            <ExternalLink className="h-3 w-3 stroke-[2] opacity-60 group-hover:opacity-100" />
+                          </button>
+                        </div>
+                        <div className="text-[11px] font-bold text-[#5C5647] font-mono mt-0.5">
+                          {req.customer?.mobile || "No Mobile"}
                         </div>
                       </td>
 
-                      {/* AMOUNT (Right-aligned with clear currency symbol) */}
-                      <td className="py-3.5 px-4 border-r-2 border-black font-mono font-black tabular-nums text-base text-right text-black align-middle">
+                      {/* AMOUNT (Tabular Numeral, Bold Neo-Brutalist) */}
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle text-right font-mono font-black text-sm text-[#1A1A1A] tabular-nums">
                         {formatCurrency(req.amountPaise / 100)}
                       </td>
 
-                      {/* STATUS BADGE */}
-                      <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
+                      {/* REQUEST STATUS */}
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle text-center">
                         {renderStatusBadge(req.status)}
                       </td>
 
                       {/* REFUND STATUS */}
-                      <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle text-center">
                         {renderRefundBadge(req.refundStatus)}
                       </td>
 
                       {/* CREATED AT */}
-                      <td className="py-3.5 px-4 border-r-2 border-black font-mono text-xs text-[#1A1A1A] align-middle">
-                        <div className="font-bold">{formatDate(req.createdAt)}</div>
-                        <div className="text-[10px] text-[#5C5647]">
-                          {new Date(req.createdAt).toLocaleTimeString("en-IN", {
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle text-[11px] font-bold text-[#5C5647]">
+                        <div className="font-mono text-[#1A1A1A]">
+                          {formatDate(req.createdAt)}
+                        </div>
+                        <div className="text-[10px] text-[#5C5647]/80">
+                          {new Date(req.createdAt).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
@@ -906,52 +830,58 @@ export default function WalletPage() {
                       </td>
 
                       {/* ACTIONS */}
-                      <td className="py-3.5 px-4 text-center align-middle">
+                      <td className="py-3.5 px-4 align-middle text-center">
                         {isPending ? (
-                          <div className="flex items-center justify-center gap-2">
-                            {/* APPROVE Button (Primary Action) */}
+                          <div className="flex items-center justify-center gap-1.5">
+                            {/* APPROVE BUTTON */}
                             <button
                               type="button"
-                              disabled={approvingId === req.id}
                               onClick={() => handleApprove(req)}
+                              disabled={approvingId === req.id}
                               aria-label={`Approve request ${req.id}`}
-                              className="rounded-[8px] border-2 border-black bg-[#B8E8B8] hover:bg-[#9fe09f] font-black text-xs px-3 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 text-[#14532D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-50"
+                              className="cursor-pointer rounded-[8px] border-2 border-black bg-[#8FD694] hover:bg-[#68C970] text-[#1A1A1A] font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                             >
-                              {approvingId === req.id ? (
-                                <RefreshCw className="h-3 w-3 animate-spin stroke-[3]" />
-                              ) : (
+                              <ButtonLoader loading={approvingId === req.id}>
                                 <Check className="h-3 w-3 stroke-[3]" />
-                              )}
-                              Approve
+                                Approve
+                              </ButtonLoader>
                             </button>
 
-                            {/* REJECT Button (Secondary Action) */}
+                            {/* REJECT BUTTON */}
                             <button
                               type="button"
-                              onClick={() => {
-                                setSelectedForReject(req);
-                                setIsRejectOpen(true);
-                              }}
+                              onClick={() => { setSelectedForReject(req); setIsRejectOpen(true); }}
+                              disabled={approvingId === req.id}
                               aria-label={`Reject request ${req.id}`}
-                              className="rounded-[8px] border-2 border-black bg-white hover:bg-[#FFD9D0] font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#7F1D1D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                              className="cursor-pointer rounded-[8px] border-2 border-black bg-[#FFD9D0] hover:bg-[#FFB8A8] text-[#1A1A1A] font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                             >
                               <X className="h-3 w-3 stroke-[3]" />
                               Reject
                             </button>
+
+                            {/* INSPECT DETAIL */}
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedForDetail(req.id); setIsDetailOpen(true); }}
+                              aria-label={`View details for request ${req.id}`}
+                              className="p-1.5 rounded-[8px] border border-black bg-white hover:bg-[#FAF7EC] text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000] cursor-pointer"
+                              title="Inspect full request JSON / metadata"
+                            >
+                              <Eye className="h-3.5 w-3.5 stroke-[2]" />
+                            </button>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedForDetail(req.id);
-                              setIsDetailOpen(true);
-                            }}
-                            aria-label={`View audit details for request ${req.id}`}
-                            className="rounded-[8px] bg-white hover:bg-[#FFDF58] font-black text-xs px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#1A1A1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
-                          >
-                            <Eye className="h-3 w-3 stroke-[2.5]" />
-                            <span>Details</span>
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedForDetail(req.id); setIsDetailOpen(true); }}
+                              aria-label={`View details for request ${req.id}`}
+                              className="rounded-[8px] border border-black bg-white hover:bg-[#FAF7EC] text-[#1A1A1A] font-black text-xs px-2.5 py-1 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <Eye className="h-3 w-3 stroke-[2]" />
+                              Details
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

@@ -11,6 +11,9 @@ import {
 import { fetchOrders, OrderQueryParams } from "@/services/order-service";
 import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
 import { Input } from "@/components/ui/input";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   Package,
   Search,
@@ -120,7 +123,8 @@ export default function OrdersPage() {
             if (fresh && Array.isArray(fresh.data)) {
               setOrders(fresh.data);
               setTotalPages(fresh.pagination?.totalPages || 1);
-              setTotalOrders(fresh.pagination?.total || fresh.data.length);
+              setTotalOrders(fresh.pagination?.total || 0);
+              setCurrentPage(fresh.pagination?.page || pageToLoad);
               setIsLoading(false);
             }
           },
@@ -129,7 +133,8 @@ export default function OrdersPage() {
         if (response && Array.isArray(response.data)) {
           setOrders(response.data);
           setTotalPages(response.pagination?.totalPages || 1);
-          setTotalOrders(response.pagination?.total || response.data.length);
+          setTotalOrders(response.pagination?.total || 0);
+          setCurrentPage(response.pagination?.page || pageToLoad);
         }
       } catch (err: unknown) {
         console.error("Failed to load orders:", err);
@@ -141,6 +146,7 @@ export default function OrdersPage() {
       }
     },
     [
+      pageSize,
       statusFilter,
       paymentStatusFilter,
       planTypeFilter,
@@ -151,11 +157,14 @@ export default function OrdersPage() {
     ]
   );
 
-  // Trigger search on filter / page change
   useEffect(() => {
-    setCurrentPage(1);
-    loadOrders(1, false);
-  }, [loadOrders]);
+    loadOrders(currentPage, false);
+  }, [loadOrders, currentPage]);
+
+  const handleOpenDetail = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setIsDetailOpen(true);
+  };
 
   const handleResetFilters = () => {
     setCustomerSearch("");
@@ -170,73 +179,47 @@ export default function OrdersPage() {
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = useMemo(() => {
-    return (
-      statusFilter !== "ALL" ||
-      paymentStatusFilter !== "ALL" ||
-      planTypeFilter !== "ALL" ||
-      debouncedCustomerSearch.length > 0 ||
-      debouncedOrderNumber.length > 0 ||
-      Boolean(startDate) ||
-      Boolean(endDate)
-    );
-  }, [
-    statusFilter,
-    paymentStatusFilter,
-    planTypeFilter,
-    debouncedCustomerSearch,
-    debouncedOrderNumber,
-    startDate,
-    endDate,
-  ]);
+  const hasActiveFilters =
+    Boolean(customerSearch) ||
+    Boolean(orderNumberInput) ||
+    statusFilter !== "ALL" ||
+    paymentStatusFilter !== "ALL" ||
+    planTypeFilter !== "ALL" ||
+    Boolean(startDate) ||
+    Boolean(endDate);
 
-  // Count active filters in the collapsible section
-  const extraFiltersCount = useMemo(() => {
-    let count = 0;
-    if (planTypeFilter !== "ALL") count++;
-    if (paymentStatusFilter !== "ALL") count++;
-    if (debouncedOrderNumber.length > 0) count++;
-    if (Boolean(endDate)) count++;
-    return count;
-  }, [planTypeFilter, paymentStatusFilter, debouncedOrderNumber, endDate]);
+  const extraFiltersCount = [
+    Boolean(orderNumberInput),
+    planTypeFilter !== "ALL",
+    paymentStatusFilter !== "ALL",
+    Boolean(endDate),
+  ].filter(Boolean).length;
 
-  const handleOpenDetail = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    setIsDetailOpen(true);
-  };
-
-  const handleOrderUpdated = (updatedOrder: AdminOrder) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o))
-    );
-  };
-
-  // Helper for quick status pills
   const getOrderStatusBadge = (status: OrderStatus) => {
     switch (status) {
       case "DELIVERED":
         return {
-          className: "bg-[#B8E8B8] border-2 border-black text-[#14532D] shadow-[1px_1px_0px_0px_#000000]",
-          icon: <CheckCircle2 className="h-3 w-3 stroke-[3]" />,
+          className: "bg-[#8FD694] border-2 border-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <CheckCircle2 className="h-3 w-3 stroke-[2.5]" />,
           label: "Delivered",
         };
       case "OUT_FOR_DELIVERY":
         return {
-          className: "bg-[#FED7AA] border-2 border-black text-[#9A3412] shadow-[1px_1px_0px_0px_#000000]",
+          className: "bg-[#D8CEF6] border-2 border-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]",
           icon: <Truck className="h-3 w-3 stroke-[2.5]" />,
           label: "Out for Delivery",
         };
-      case "CONFIRMED":
-        return {
-          className: "bg-[#D8CEF6] border-2 border-black text-[#4C1D95] shadow-[1px_1px_0px_0px_#000000]",
-          icon: <Check className="h-3 w-3 stroke-[3]" />,
-          label: "Confirmed",
-        };
       case "PROCESSING":
         return {
-          className: "bg-[#BAE6FD] border-2 border-black text-[#0369A1] shadow-[1px_1px_0px_0px_#000000]",
-          icon: <RefreshCw className="h-3 w-3 stroke-[2.5]" />,
+          className: "bg-[#FFDF58] border-2 border-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <RotateCcw className="h-3 w-3 stroke-[2.5]" />,
           label: "Processing",
+        };
+      case "CONFIRMED":
+        return {
+          className: "bg-[#B8E8B8] border-2 border-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <Check className="h-3 w-3 stroke-[3]" />,
+          label: "Confirmed",
         };
       case "PENDING":
         return {
@@ -349,32 +332,30 @@ export default function OrdersPage() {
           <button
             type="button"
             onClick={() => loadOrders(currentPage, true)}
-            disabled={isRefreshing}
-            aria-label="Sync orders from server"
-            className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+            disabled={isRefreshing || isLoading}
+            aria-label="Refresh orders list"
+            className="h-10 px-4 bg-[#FFDF58] hover:bg-[#FFD84D] text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[10px] shadow-[3px_3px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw
-              className={`h-3.5 w-3.5 stroke-[2.5] ${isRefreshing ? "animate-spin" : ""}`}
+            <RotateCcw
+              className={`h-4 w-4 stroke-[2.5] ${isRefreshing ? "animate-spin" : ""}`}
             />
-            {isRefreshing ? "Syncing..." : "Sync Orders"}
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
+      {/* Error / Session Expired Alert */}
       {error && (
-        <div
-          role="alert"
-          className="flex items-center gap-2.5 rounded-[12px] border-2 border-black bg-[#FFD9D0] p-3.5 text-xs font-black text-[#7F1D1D] shadow-[3px_3px_0px_0px_#1A1A1A]"
-        >
-          <AlertTriangle className="h-4 w-4 stroke-[3] shrink-0" />
-          <span>{error}</span>
-        </div>
+        <ErrorState
+          error={error}
+          onRetry={() => loadOrders(currentPage, true)}
+        />
       )}
 
       {/* ========================================================= */}
-      {/* 2. QUICK STATUS CHIPS                                     */}
+      {/* 2. QUICK STATUS TABS (Neo-Brutalist segmented pill bar)   */}
       {/* ========================================================= */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {quickFilterTabs.map((tab) => {
           const isActive = statusFilter === tab.key;
           return (
@@ -385,18 +366,20 @@ export default function OrdersPage() {
                 setStatusFilter(tab.key);
                 setCurrentPage(1);
               }}
-              className={`rounded-[8px] border-2 border-black px-3.5 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+              className={`h-9 px-4 rounded-[10px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                 isActive
-                  ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
-                  : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
+                  ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
+                  : "bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
               }`}
             >
-              {tab.key !== "ALL" && (
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    isActive ? "bg-black" : "bg-[#FFDF58]"
-                  }`}
-                />
+              {tab.key === "CONFIRMED" && (
+                <span className="w-2 h-2 rounded-full bg-[#B8E8B8] border border-black" />
+              )}
+              {tab.key === "DELIVERED" && (
+                <span className="w-2 h-2 rounded-full bg-[#8FD694] border border-black" />
+              )}
+              {tab.key === "OUT_FOR_DELIVERY" && (
+                <span className="w-2 h-2 rounded-full bg-[#D8CEF6] border border-black" />
               )}
               {tab.label}
             </button>
@@ -582,8 +565,8 @@ export default function OrdersPage() {
       {/* ========================================================= */}
       <div className="border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black">
+          <table className="w-full text-left text-sm border-collapse" aria-busy={isLoading}>
+            <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black font-mono">
               <tr>
                 <th className="py-3.5 px-4 border-r-2 border-black w-36">Order #</th>
                 <th className="py-3.5 px-4 border-r-2 border-black">Customer</th>
@@ -597,73 +580,22 @@ export default function OrdersPage() {
             </thead>
 
             <tbody className="divide-y-2 divide-black bg-white">
-              {isLoading && orders.length === 0 ? (
-                // SKELETON LOADING STATE
-                Array.from({ length: 6 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse">
-                    <td className="py-4 px-4 border-r-2 border-black">
-                      <div className="h-5 bg-[#E5E0D8] rounded w-20" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black">
-                      <div className="h-4 bg-[#E5E0D8] rounded w-36 mb-1.5" />
-                      <div className="h-3 bg-[#E5E0D8]/60 rounded w-24" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black">
-                      <div className="h-4 bg-[#E5E0D8] rounded w-24 mb-1" />
-                      <div className="h-3 bg-[#E5E0D8]/60 rounded w-20" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black text-center">
-                      <div className="h-5 bg-[#E5E0D8] rounded-full w-20 mx-auto" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black text-right">
-                      <div className="h-5 bg-[#E5E0D8] rounded w-16 ml-auto" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black text-center">
-                      <div className="h-6 bg-[#E5E0D8] rounded-full w-28 mx-auto" />
-                    </td>
-                    <td className="py-4 px-4 border-r-2 border-black text-center">
-                      <div className="h-5 bg-[#E5E0D8] rounded-full w-20 mx-auto" />
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="h-7 bg-[#E5E0D8] rounded-[8px] w-20 mx-auto" />
-                    </td>
-                  </tr>
-                ))
+              {isLoading ? (
+                <TableSkeleton columns={8} rows={6} />
               ) : orders.length === 0 ? (
-                // FRIENDLY EMPTY STATE
                 <tr>
-                  <td colSpan={8} className="py-14 px-4 text-center">
-                    <div className="max-w-md mx-auto space-y-3">
-                      <div className="flex justify-center">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FAF7EC] border-2 border-black shadow-[2px_2px_0px_0px_#000000]">
-                          <Package className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-black uppercase tracking-tight text-[#1A1A1A]">
-                          {hasActiveFilters
-                            ? "No orders for these filters"
-                            : "No orders yet"}
-                        </h3>
-                        <p className="text-xs font-semibold text-[#5C5647]">
-                          {hasActiveFilters
-                            ? "Try adjusting your search terms, status filter, or date range."
-                            : "New customer orders will appear here automatically for morning dispatch."}
-                        </p>
-                      </div>
-
-                      {hasActiveFilters && (
-                        <button
-                          type="button"
-                          onClick={handleResetFilters}
-                          className="rounded-[8px] border-2 border-black bg-[#FFDF58] px-4 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1.5"
-                        >
-                          <RotateCcw className="h-3 w-3 stroke-[2.5]" />
-                          Clear Filters
-                        </button>
-                      )}
-                    </div>
+                  <td colSpan={8} className="p-0">
+                    <EmptyState
+                      icon={<Package className="h-6 w-6 stroke-[2.5]" />}
+                      title={hasActiveFilters ? "No orders match active filters" : "No orders found"}
+                      description={
+                        hasActiveFilters
+                          ? "Try adjusting search criteria, order status, or date range."
+                          : "Orders for morning milk dispatch in Raipur will appear here."
+                      }
+                      isFiltered={hasActiveFilters}
+                      onClearFilters={handleResetFilters}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -718,65 +650,65 @@ export default function OrdersPage() {
                           onClick={() => handleOpenDetail(order.id)}
                           className="font-black text-[#1A1A1A] text-xs hover:underline cursor-pointer text-left block"
                         >
-                          {order.customer?.name || "Customer"}
+                          {order.customer?.name || "Raipur Customer"}
                         </button>
-                        <div className="text-[11px] font-mono font-medium text-[#5C5647]">
-                          {order.customer?.mobile || "No phone"}
+                        <div className="text-[11px] font-mono text-[#5C5647] mt-0.5">
+                          {order.customer?.mobile || "—"}
                         </div>
                       </td>
 
-                      {/* DELIVERY WINDOW */}
-                      <td className="py-3.5 px-4 border-r-2 border-black align-middle">
-                        <div className="font-mono font-bold text-xs text-[#1A1A1A]">
-                          {order.deliveryDate || formatDate(order.createdAt)}
+                      {/* DELIVERY WINDOW + DATE */}
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle font-mono text-xs">
+                        <div className="font-bold text-[#1A1A1A]">
+                          {formatDate(order.deliveryDate)}
                         </div>
-                        <div className="text-[10px] font-mono text-[#5C5647] flex items-center gap-1 mt-0.5">
-                          <Clock className="h-3 w-3 stroke-[2]" />
-                          {windowTime}
+                        <div className="text-[11px] text-[#5C5647] flex items-center gap-1 mt-0.5">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span>{windowTime}</span>
                         </div>
                       </td>
 
-                      {/* PLAN */}
-                      <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
+                      {/* PLAN BADGE */}
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle text-center">
                         <span
-                          className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-mono font-black uppercase ${planBadge.bg}`}
+                          className={`inline-block px-2 py-0.5 rounded-[6px] text-[11px] font-black uppercase ${planBadge.bg}`}
                         >
                           {planBadge.label}
                         </span>
                       </td>
 
-                      {/* ORDER TOTAL */}
-                      <td className="py-3.5 px-4 border-r-2 border-black text-right font-mono font-black text-sm tabular-nums text-[#1A1A1A] align-middle">
-                        {formatCurrency(order.totalPaise / 100)}
+                      {/* ORDER TOTAL (Right-aligned, Tabular Numbers) */}
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle text-right font-mono font-black text-xs text-[#1A1A1A]">
+                        {formatCurrency(order.totalPaise)}
                       </td>
 
-                      {/* STATUS */}
-                      <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
+                      {/* DISPATCH STATUS BADGE */}
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle text-center">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-black uppercase tracking-wider ${statusBadge.className}`}
+                          className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[11px] font-black uppercase ${statusBadge.className}`}
                         >
                           {statusBadge.icon}
-                          {statusBadge.label}
+                          <span>{statusBadge.label}</span>
                         </span>
                       </td>
 
-                      {/* PAYMENT STATUS */}
-                      <td className="py-3.5 px-4 border-r-2 border-black text-center align-middle">
+                      {/* PAYMENT STATUS BADGE */}
+                      <td className="py-3.5 px-4 border-r-2 border-black align-middle text-center">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-mono font-bold uppercase ${paymentBadge.className}`}
+                          className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-bold uppercase ${paymentBadge.className}`}
                         >
                           {paymentBadge.icon}
-                          {paymentBadge.label}
+                          <span>{paymentBadge.label}</span>
                         </span>
                       </td>
 
-                      {/* ACTION (Clear Primary Button) */}
+                      {/* ACTION: OPEN DETAIL DRAWER */}
                       <td className="py-3.5 px-4 text-center align-middle">
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(order.id)}
-                          aria-label={`Manage order ${order.orderNumber}`}
-                          className="rounded-[8px] bg-[#FFDF58] hover:bg-[#fcd033] font-black text-xs px-3 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#1A1A1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                          aria-label={`View order details for ${order.orderNumber}`}
+                          className="h-8 px-3 rounded-[8px] border-2 border-black bg-white hover:bg-[#FFDF58] text-[#1A1A1A] font-black uppercase text-xs shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1"
                         >
                           <span>Manage</span>
                           <ArrowRight className="h-3 w-3 stroke-[3]" />
@@ -790,59 +722,49 @@ export default function OrdersPage() {
           </table>
         </div>
 
-        {/* Pagination Strip */}
-        <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span>
-            Showing <strong className="font-mono">{orders.length}</strong> of{" "}
-            <strong className="font-mono">{totalOrders}</strong> dispatched orders
-          </span>
+        {/* PAGINATION BAR */}
+        <div className="p-4 bg-[#FAF7EC] border-t-2 border-black flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 font-mono text-xs">
+          <div className="font-bold text-[#1A1A1A]">
+            Showing page <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong> (
+            <strong>{totalOrders}</strong> total orders)
+          </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               type="button"
               disabled={currentPage <= 1 || isLoading}
-              onClick={() => {
-                const prev = currentPage - 1;
-                setCurrentPage(prev);
-                loadOrders(prev, false);
-              }}
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               aria-label="Previous page"
-              className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+              className="h-8 px-3 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFDF58] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="h-3 w-3 stroke-[3]" />
-              Prev
+              Previous
             </button>
-
-            <span className="font-mono text-xs font-black px-2">
-              Page {currentPage} of {totalPages || 1}
-            </span>
-
             <button
               type="button"
               disabled={currentPage >= totalPages || isLoading}
-              onClick={() => {
-                const next = currentPage + 1;
-                setCurrentPage(next);
-                loadOrders(next, false);
-              }}
+              onClick={() => setCurrentPage((prev) => prev + 1)}
               aria-label="Next page"
-              className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+              className="h-8 px-3 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFDF58] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed"
             >
               Next
-              <ChevronRight className="h-3 w-3 stroke-[3]" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* 5. ORDER INSPECTION & LIFECYCLE MANAGEMENT DRAWER         */}
-      {/* ========================================================= */}
+      {/* DETAIL DRAWER */}
       <OrderDetailSheet
         orderId={selectedOrderId}
         isOpen={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
-        onStatusUpdated={handleOrderUpdated}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setSelectedOrderId(null);
+        }}
+        onStatusUpdated={(updated) => {
+          setOrders((current) =>
+            current.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
+          );
+        }}
       />
     </div>
   );

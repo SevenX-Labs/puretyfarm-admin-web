@@ -18,8 +18,9 @@ export function SessionExpiredModal() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState<string>(
-    "Your session has expired or you are unauthorized. Please sign in again to access the operations console."
+    "Your operator session has expired or you are unauthorized. Please sign in again to access Raipur dairy operations."
   );
+  const [returnUrl, setReturnUrl] = useState<string>("/");
 
   useEffect(() => {
     // Don't show modal if already on login page
@@ -31,9 +32,17 @@ export function SessionExpiredModal() {
     const handleUnauthorized = (event: Event) => {
       if (pathname === "/login") return;
 
-      const customEvent = event as CustomEvent<{ message?: string }>;
+      const customEvent = event as CustomEvent<{
+        message?: string;
+        returnUrl?: string;
+      }>;
       if (customEvent.detail?.message) {
         setMessage(customEvent.detail.message);
+      }
+      if (customEvent.detail?.returnUrl) {
+        setReturnUrl(customEvent.detail.returnUrl);
+      } else if (typeof window !== "undefined") {
+        setReturnUrl(window.location.pathname + window.location.search);
       }
       setIsOpen(true);
     };
@@ -53,7 +62,8 @@ export function SessionExpiredModal() {
       localStorage.removeItem("pf_admin_user");
     }
     setIsOpen(false);
-    router.push("/login?expired=1");
+    const destination = returnUrl && returnUrl !== "/login" ? encodeURIComponent(returnUrl) : "";
+    router.push(`/login?expired=1${destination ? `&returnUrl=${destination}` : ""}`);
   };
 
   if (pathname === "/login") return null;
@@ -72,22 +82,22 @@ export function SessionExpiredModal() {
             </div>
             <div>
               <DialogTitle className="text-base sm:text-lg font-black uppercase text-[#1A1A1A] tracking-tight leading-none">
-                SESSION UNAUTHORIZED
+                SESSION EXPIRED
               </DialogTitle>
               <div className="text-[11px] font-mono font-bold text-[#8C2E1D] uppercase mt-1 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                <span>Authentication Required</span>
+                <span>Re-Authentication Required</span>
               </div>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="py-4 space-y-3">
+        <div className="py-4 space-y-3" role="alert" aria-live="assertive">
           <DialogDescription className="text-xs sm:text-sm font-bold text-[#5C5647] leading-relaxed">
             {message}
           </DialogDescription>
           <div className="p-3 bg-[#FAF7EC] border-2 border-[#1A1A1A] rounded-[10px] text-[11px] font-mono font-bold text-[#1A1A1A]">
-            ⚠️ Please log in again to continue managing subscriptions, dispatch, and customer accounts.
+            ⚠️ Please log in again to continue managing subscriptions, dispatch routes, and customer accounts.
           </div>
         </div>
 

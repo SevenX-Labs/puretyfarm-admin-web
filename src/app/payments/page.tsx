@@ -46,6 +46,12 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
+import { StatCardSkeleton } from "@/components/ui/stat-card-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { ButtonLoader } from "@/components/ui/button-loader";
+
 
 type ActiveTab = "CASH_COLLECTIONS" | "ONLINE_PAYMENTS";
 
@@ -575,6 +581,9 @@ export default function PaymentsPage() {
       {activeTab === "CASH_COLLECTIONS" && (
         <div className="space-y-4">
           {/* Top Stat Cards: Equal height, clean alignment */}
+          {isCashLoading && cashCollections.length === 0 ? (
+            <StatCardSkeleton count={2} />
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-stretch">
             {/* Stat 1: Pending Collections */}
             <div className="rounded-[14px] bg-[#FFDF58] border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
@@ -618,13 +627,15 @@ export default function PaymentsPage() {
                 <Building2 className="h-6 w-6 text-[#14532D] stroke-[2.5]" />
               </div>
             </div>
+          
           </div>
+          )}
 
           {cashError && (
-            <div className="flex items-center gap-2.5 rounded-[12px] border-2 border-black bg-[#FFD9D0] p-3 text-xs font-black text-[#7F1D1D] shadow-[2.5px_2.5px_0px_0px_#1A1A1A]">
-              <AlertTriangle className="h-4 w-4 stroke-[3] shrink-0" />
-              <span>{cashError}</span>
-            </div>
+            <ErrorState
+              error={cashError}
+              onRetry={() => loadCashCollections(cashPage, true)}
+            />
           )}
 
           {/* Cash Filter Bar */}
@@ -773,57 +784,21 @@ export default function PaymentsPage() {
 
                 <tbody className="divide-y-2 divide-black bg-white">
                   {isCashLoading && cashCollections.length === 0 ? (
-                    // Skeleton State
-                    Array.from({ length: 5 }).map((_, idx) => (
-                      <tr key={idx} className="animate-pulse">
-                        <td className="py-3.5 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-28 mb-1.5" />
-                          <div className="h-3 bg-[#E5E0D8]/60 rounded w-20" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black text-right">
-                          <div className="h-5 bg-[#E5E0D8] rounded w-20 ml-auto" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black">
-                          <div className="h-5 bg-[#E5E0D8] rounded-full w-24" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black text-center">
-                          <div className="h-6 bg-[#E5E0D8] rounded-full w-24 mx-auto" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-24" />
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <div className="h-8 bg-[#E5E0D8] rounded-lg w-28 mx-auto" />
-                        </td>
-                      </tr>
-                    ))
+                    <TableSkeleton colSpan={6} rows={5} />
                   ) : cashCollections.length === 0 ? (
-                    // Empty State
                     <tr>
-                      <td colSpan={6} className="py-12 text-center">
-                        <div className="max-w-sm mx-auto space-y-2">
-                          <div className="w-12 h-12 rounded-full bg-[#FAF7EC] border-2 border-black flex items-center justify-center mx-auto">
-                            <Banknote className="h-6 w-6 text-[#5C5647]" />
-                          </div>
-                          <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
-                            No Cash Collections Found
-                          </h3>
-                          <p className="text-xs font-semibold text-[#5C5647]">
-                            {hasActiveCashFilters
+                      <td colSpan={6} className="p-4">
+                        <EmptyState
+                          icon={<Banknote className="h-6 w-6 stroke-[2.5]" />}
+                          title="No Cash Collections Found"
+                          description={
+                            hasActiveCashFilters
                               ? "No cash collections match your filter criteria."
-                              : "No pending or historical cash collections are recorded."}
-                          </p>
-                          {hasActiveCashFilters && (
-                            <button
-                              type="button"
-                              onClick={handleResetCashFilters}
-                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs font-bold text-[#1A1A1A] cursor-pointer"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              Reset Filters
-                            </button>
-                          )}
-                        </div>
+                              : "No pending or historical cash collections are recorded."
+                          }
+                          isFiltered={hasActiveCashFilters}
+                          onClearFilters={handleResetCashFilters}
+                        />
                       </td>
                     </tr>
                   ) : (
@@ -1152,10 +1127,10 @@ export default function PaymentsPage() {
       {activeTab === "ONLINE_PAYMENTS" && (
         <div className="space-y-4">
           {paymentsError && (
-            <div className="flex items-center gap-2.5 rounded-[12px] border-2 border-black bg-[#FFD9D0] p-3 text-xs font-black text-[#7F1D1D] shadow-[2.5px_2.5px_0px_0px_#1A1A1A]">
-              <AlertTriangle className="h-4 w-4 stroke-[3] shrink-0" />
-              <span>{paymentsError}</span>
-            </div>
+            <ErrorState
+              error={paymentsError}
+              onRetry={() => loadPayments(paymentPage, true)}
+            />
           )}
 
           {/* Payments Filter Card */}
@@ -1328,61 +1303,21 @@ export default function PaymentsPage() {
 
                 <tbody className="divide-y-2 divide-black bg-white">
                   {isPaymentsLoading && payments.length === 0 ? (
-                    // Skeleton State
-                    Array.from({ length: 5 }).map((_, idx) => (
-                      <tr key={idx} className="animate-pulse">
-                        <td className="py-3.5 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-24 mb-1" />
-                          <div className="h-3 bg-[#E5E0D8]/60 rounded w-16" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-28 mb-1" />
-                          <div className="h-3 bg-[#E5E0D8]/60 rounded w-20" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black text-right">
-                          <div className="h-5 bg-[#E5E0D8] rounded w-20 ml-auto" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black">
-                          <div className="h-5 bg-[#E5E0D8] rounded w-24" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black text-center">
-                          <div className="h-6 bg-[#E5E0D8] rounded-full w-24 mx-auto" />
-                        </td>
-                        <td className="py-3.5 px-4 border-r-2 border-black">
-                          <div className="h-4 bg-[#E5E0D8] rounded w-24" />
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <div className="h-8 bg-[#E5E0D8] rounded-lg w-20 mx-auto" />
-                        </td>
-                      </tr>
-                    ))
+                    <TableSkeleton colSpan={7} rows={5} />
                   ) : payments.length === 0 ? (
-                    // Empty State
                     <tr>
-                      <td colSpan={7} className="py-12 text-center">
-                        <div className="max-w-sm mx-auto space-y-2">
-                          <div className="w-12 h-12 rounded-full bg-[#FAF7EC] border-2 border-black flex items-center justify-center mx-auto">
-                            <CreditCard className="h-6 w-6 text-[#5C5647]" />
-                          </div>
-                          <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
-                            No Online Payments Found
-                          </h3>
-                          <p className="text-xs font-semibold text-[#5C5647]">
-                            {hasActivePaymentFilters
+                      <td colSpan={7} className="p-4">
+                        <EmptyState
+                          icon={<CreditCard className="h-6 w-6 stroke-[2.5]" />}
+                          title="No Online Payments Found"
+                          description={
+                            hasActivePaymentFilters
                               ? "No payment records match your filter criteria."
-                              : "No payment gateway transactions have been recorded yet."}
-                          </p>
-                          {hasActivePaymentFilters && (
-                            <button
-                              type="button"
-                              onClick={handleResetPaymentFilters}
-                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs font-bold text-[#1A1A1A] cursor-pointer"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              Reset Filters
-                            </button>
-                          )}
-                        </div>
+                              : "No payment gateway transactions have been recorded yet."
+                          }
+                          isFiltered={hasActivePaymentFilters}
+                          onClearFilters={handleResetPaymentFilters}
+                        />
                       </td>
                     </tr>
                   ) : (
