@@ -64,29 +64,43 @@ export async function apiClient<T = unknown>(
     // Check for 401 Unauthorized
     if (response.status === 401) {
       let errorMsg = "Unauthorized session.";
+      let errorBody: unknown = null;
       try {
-        const errJson = await response.json();
-        if (errJson && errJson.message) {
-          errorMsg = Array.isArray(errJson.message)
-            ? errJson.message.join(" • ")
-            : String(errJson.message);
+        errorBody = await response.json();
+        if (errorBody && typeof errorBody === "object") {
+          const m = (errorBody as { message?: unknown }).message;
+          if (m) {
+            errorMsg = Array.isArray(m) ? m.join(" • ") : String(m);
+          }
         }
       } catch {
-        // Fallback to default message
+        // Non-JSON body — keep default message
       }
 
-      // In browser, clean up dead token if unauthorized
-      if (typeof window !== "undefined" && !skipAuthRedirect) {
+      // Only redirect to /login when the request was authenticated AND the
+      // caller didn't opt out. For login/refresh/bootstrap paths that pass
+      // skipAuth or skipAuthRedirect, let the caller surface the error
+      // instead of nuking the session on a transient 401.
+      const isBrowser = typeof window !== "undefined";
+      const hadToken =
+        isBrowser &&
+        Boolean(
+          getCookie("admin_access_token") ||
+            localStorage.getItem("admin_access_token")
+        );
+
+      if (isBrowser && !skipAuthRedirect && !skipAuth && hadToken) {
         deleteCookie("admin_access_token");
         deleteCookie("admin_refresh_token");
         localStorage.removeItem("admin_access_token");
         localStorage.removeItem("admin_refresh_token");
+        localStorage.removeItem("pf_admin_user");
         if (window.location.pathname !== "/login") {
           window.location.href = "/login?expired=1";
         }
       }
 
-      throw new ApiError(errorMsg, 401);
+      throw new ApiError(errorMsg, 401, errorBody);
     }
 
     // Try parsing response body

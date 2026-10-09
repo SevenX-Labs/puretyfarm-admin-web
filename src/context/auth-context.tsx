@@ -35,6 +35,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
+    return Boolean(
+      getCookie("admin_access_token") ||
+        localStorage.getItem("admin_access_token")
+    );
+  });
+
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return !getCookie("admin_access_token") && !localStorage.getItem("admin_access_token");
+  });
+
+  // Sync cookie ↔ localStorage after mount so middleware (which only reads
+  // cookies) sees the token when the user came from a tab that stored the
+  // token in localStorage only, and vice versa. Must run as an effect — NOT
+  // inside a useState initializer — to be safe during SSR hydration.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     const cookieToken = getCookie("admin_access_token");
     const localToken = localStorage.getItem("admin_access_token");
     if (!cookieToken && localToken) {
@@ -42,13 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else if (cookieToken && !localToken) {
       localStorage.setItem("admin_access_token", cookieToken);
     }
-    return Boolean(cookieToken || localToken);
-  });
-
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return !getCookie("admin_access_token") && !localStorage.getItem("admin_access_token");
-  });
+  }, []);
 
   /**
    * Silently verifies or updates admin profile in the background without forcing logout on refresh.
@@ -120,11 +131,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         { skipAuth: true, skipAuthRedirect: true }
       );
 
-      if (res.accessToken) {
-        setCookie("admin_access_token", res.accessToken, 30);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("admin_access_token", res.accessToken);
-        }
+      // Backend contract: 200 with { success, accessToken, refreshToken, admin }.
+      // Guard against malformed success responses so the user sees a real
+      // error instead of a silent bounce back to /login.
+      if (!res || !res.accessToken) {
+        throw new Error(
+          res?.message || "Login did not return an access token. Please try again."
+        );
+      }
+      if (res.success === false) {
+        throw new Error(res.message || "Authentication failed.");
+      }
+
+      setCookie("admin_access_token", res.accessToken, 30);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("admin_access_token", res.accessToken);
       }
       if (res.refreshToken) {
         setCookie("admin_refresh_token", res.refreshToken, 60);

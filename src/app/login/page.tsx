@@ -147,7 +147,7 @@ export default function LoginPage() {
                   setEmail(e.target.value);
                   if (errorMessage) setErrorMessage(null);
                 }}
-                placeholder="admin@puretyfarm.com"
+                placeholder="admin@puretyfarm.in"
                 className="w-full h-11 border-2 border-[#1A1A1A] bg-white px-4 font-mono font-bold text-xs text-[#1A1A1A] rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] focus:shadow-[3px_3px_0px_0px_#1A1A1A] focus:ring-2 focus:ring-[#FFD84D] focus:bg-[#FFFDF7] outline-none transition-all disabled:opacity-50"
               />
             </div>
