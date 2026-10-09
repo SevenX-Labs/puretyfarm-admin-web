@@ -550,30 +550,7 @@ export default function PlansAndDeliveryPage() {
         </button>
       </div>
 
-      {/* ========================================================= */}
-      {/* 3. PLAIN-LANGUAGE HOW THIS WORKS BANNER                   */}
-      {/* ========================================================= */}
-      {activeTab === "REQUESTS" && (
-        <div className="bg-white border-2 border-black p-3.5 rounded-[12px] shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-2.5 text-xs text-[#1A1A1A]">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#FAF7EC] border border-black shrink-0 mt-0.5 sm:mt-0 font-mono font-black text-[10px]">
-              ℹ️
-            </div>
-            <p className="font-semibold text-[#5C5647] leading-relaxed">
-              <strong className="text-[#1A1A1A]">How it works:</strong> Plans are prepaid from customer wallet or confirmed cash. Approving a delivery change only reschedules shipments — no charge is deducted.
-            </p>
-          </div>
-
-          {pendingRequestsCount > 0 && (
-            <div className="inline-flex items-center gap-1.5 self-start sm:self-auto shrink-0 bg-[#FFDF58] border-2 border-black px-2.5 py-1 rounded-[8px] shadow-[1.5px_1.5px_0px_0px_#000000] font-mono text-xs font-black text-[#1A1A1A]">
-              <span className="h-2 w-2 rounded-full bg-black animate-pulse" />
-              {pendingRequestsCount} Pending Review
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================= */}
+            {/* ========================================================= */}
       {/* TAB 1: CUSTOMER DELIVERY CHANGE REQUESTS                  */}
       {/* ========================================================= */}
       {activeTab === "REQUESTS" && (
