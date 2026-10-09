@@ -33,3 +33,8 @@ export function formatDate(dateStr: string | Date): string {
 export function formatTime(timeStr: string): string {
   return timeStr;
 }
+
+export function formatPaise(paise: number | null | undefined): string {
+  if (paise === null || paise === undefined || isNaN(paise)) return "—";
+  return formatCurrency(paise / 100);
+}
