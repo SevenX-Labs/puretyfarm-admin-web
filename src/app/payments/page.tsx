@@ -20,6 +20,7 @@ import {
 import { ConfirmCashModal } from "@/components/payments/confirm-cash-modal";
 import { CancelCashModal } from "@/components/payments/cancel-cash-modal";
 import { PaymentDetailSheet } from "@/components/payments/payment-detail-sheet";
+import { CashCollectionDetailSheet } from "@/components/payments/cash-collection-detail-sheet";
 import { Input } from "@/components/ui/input";
 import {
   CreditCard,
@@ -60,24 +61,33 @@ export default function PaymentsPage() {
   const [cashError, setCashError] = useState<string | null>(null);
   const [isCashFiltersOpen, setIsCashFiltersOpen] = useState<boolean>(false);
 
-  // Cash Pagination
+  // Cash Pagination (API default limit is 20)
   const [cashPage, setCashPage] = useState<number>(1);
   const [cashTotalPages, setCashTotalPages] = useState<number>(1);
   const [cashTotalCount, setCashTotalCount] = useState<number>(0);
 
   // Cash Filters
-  const [cashStatusFilter, setCashStatusFilter] = useState<CashCollectionStatus | "ALL">("ALL");
+  const [cashStatusFilter, setCashStatusFilter] = useState<CashCollectionStatus | "ALL">("PENDING");
   const [cashSearch, setCashSearch] = useState<string>("");
   const [debouncedCashSearch, setDebouncedCashSearch] = useState<string>("");
   const [cashStartDate, setCashStartDate] = useState<string>("");
   const [cashEndDate, setCashEndDate] = useState<string>("");
 
-  // Cash Action Modals
+  // Cash Action Modals & Inspection Sheet
   const [confirmItem, setConfirmItem] = useState<CashCollectionItem | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const [cancelItem, setCancelItem] = useState<CashCollectionItem | null>(null);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
+
+  const [selectedCashCollectionId, setSelectedCashCollectionId] = useState<string | null>(null);
+  const [isCashDetailOpen, setIsCashDetailOpen] = useState(false);
+
+  // Top Metrics Cache
+  const [cashMetrics, setCashMetrics] = useState<{
+    pendingCount: number;
+    unreconciledFloat: number;
+  }>({ pendingCount: 0, unreconciledFloat: 0 });
 
   // =========================================================================
   // STATE: ONLINE PAYMENTS (TAB 2)
@@ -88,7 +98,7 @@ export default function PaymentsPage() {
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [isPaymentFiltersOpen, setIsPaymentFiltersOpen] = useState<boolean>(false);
 
-  // Payment Pagination
+  // Payment Pagination (API default limit is 20)
   const [paymentPage, setPaymentPage] = useState<number>(1);
   const [paymentTotalPages, setPaymentTotalPages] = useState<number>(1);
   const [paymentTotalCount, setPaymentTotalCount] = useState<number>(0);
@@ -116,7 +126,7 @@ export default function PaymentsPage() {
     setNotice({ message, type });
     setTimeout(() => {
       setNotice(null);
-    }, 4000);
+    }, 4500);
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -150,6 +160,31 @@ export default function PaymentsPage() {
   }, [transactionIdSearch]);
 
   // =========================================================================
+  // METRICS LOADER (Accurate Depot Pending Total & Unreconciled Float)
+  // =========================================================================
+  const refreshCashMetrics = useCallback(async () => {
+    try {
+      const pendingRes = await fetchCashCollections(
+        { status: "PENDING", limit: 100 },
+        { forceRefresh: true }
+      );
+      if (pendingRes && Array.isArray(pendingRes.data)) {
+        const totalCount = pendingRes.pagination?.total ?? pendingRes.data.length;
+        const totalPaise = pendingRes.data.reduce(
+          (sum, item) => sum + (item.amountPaise || 0),
+          0
+        );
+        setCashMetrics({
+          pendingCount: totalCount,
+          unreconciledFloat: totalPaise / 100,
+        });
+      }
+    } catch {
+      // Fallback is kept from local calculation
+    }
+  }, []);
+
+  // =========================================================================
   // DATA FETCHING: PHYSICAL CASH HUB
   // =========================================================================
   const loadCashCollections = useCallback(
@@ -163,7 +198,7 @@ export default function PaymentsPage() {
 
       const params: CashCollectionQueryParams = {
         page: targetPage,
-        limit: 10,
+        limit: 20,
       };
 
       if (cashStatusFilter !== "ALL") params.status = cashStatusFilter;
@@ -188,6 +223,15 @@ export default function PaymentsPage() {
           setCashCollections(response.data);
           setCashTotalPages(response.pagination?.totalPages || 1);
           setCashTotalCount(response.pagination?.total || response.data.length);
+
+          // Update metrics from pending response if currently on PENDING tab
+          if (cashStatusFilter === "PENDING" && !debouncedCashSearch && !cashStartDate && !cashEndDate) {
+            const totalPaise = response.data.reduce((sum, item) => sum + (item.amountPaise || 0), 0);
+            setCashMetrics({
+              pendingCount: response.pagination?.total ?? response.data.length,
+              unreconciledFloat: totalPaise / 100,
+            });
+          }
         }
       } catch (err: unknown) {
         console.error("Failed to load cash collections:", err);
@@ -215,7 +259,7 @@ export default function PaymentsPage() {
 
       const params: PaymentQueryParams = {
         page: targetPage,
-        limit: 10,
+        limit: 20,
       };
 
       if (paymentStatusFilter !== "ALL") params.status = paymentStatusFilter;
@@ -263,6 +307,11 @@ export default function PaymentsPage() {
       paymentEndDate,
     ]
   );
+
+  // Initial load and metrics sync
+  useEffect(() => {
+    refreshCashMetrics();
+  }, [refreshCashMetrics]);
 
   // Trigger cash collections on filter / page change
   useEffect(() => {
@@ -330,34 +379,6 @@ export default function PaymentsPage() {
     paymentEndDate,
   ]);
 
-  // =========================================================================
-  // METRICS COMPUTATIONS
-  // =========================================================================
-  const cashMetrics = useMemo(() => {
-    const pendingItems = cashCollections.filter(
-      (c) => c.status === "PENDING" || c.status === "COLLECTED"
-    );
-    const confirmedItems = cashCollections.filter(
-      (c) => c.status === "CONFIRMED"
-    );
-    const pendingCount = pendingItems.length;
-    const totalUnreconciledPaise = pendingItems.reduce(
-      (sum, item) => sum + (item.amountPaise || 0),
-      0
-    );
-    const totalReconciledPaise = confirmedItems.reduce(
-      (sum, item) => sum + (item.amountPaise || 0),
-      0
-    );
-
-    return {
-      pendingCount,
-      unreconciledFloat: totalUnreconciledPaise / 100,
-      confirmedCount: confirmedItems.length,
-      reconciledRevenue: totalReconciledPaise / 100,
-    };
-  }, [cashCollections]);
-
   // Handle cash collection modal actions
   const handleCashUpdated = (updated: CashCollectionItem) => {
     setCashCollections((prev) =>
@@ -365,6 +386,7 @@ export default function PaymentsPage() {
     );
     showNotice("Cash collection " + updated.status.toLowerCase() + " successfully!");
     loadCashCollections(cashPage, true);
+    refreshCashMetrics();
   };
 
   const handlePaymentUpdated = (updated: PaymentItem) => {
@@ -387,7 +409,7 @@ export default function PaymentsPage() {
         return {
           className: "bg-[#FFDF58] border-2 border-black text-[#713F12] shadow-[1px_1px_0px_0px_#000000]",
           icon: <Clock className="h-3 w-3 stroke-[3]" />,
-          label: "Pending",
+          label: status === "COLLECTED" ? "Collected" : "Pending",
         };
       case "CANCELLED":
         return {
@@ -413,6 +435,7 @@ export default function PaymentsPage() {
           label: "Success",
         };
       case "PENDING":
+      case "PROCESSING":
         return {
           className: "bg-[#FFDF58] border-2 border-black text-[#713F12] shadow-[1px_1px_0px_0px_#000000]",
           icon: <Clock className="h-3 w-3 stroke-[3]" />,
@@ -431,11 +454,12 @@ export default function PaymentsPage() {
           label: "Refunded",
         };
       case "FAILED":
+      case "CANCELLED":
       case "EXPIRED":
         return {
           className: "bg-[#FFD9D0] border-2 border-black text-[#7F1D1D] shadow-[1px_1px_0px_0px_#000000]",
           icon: <XCircle className="h-3 w-3 stroke-[2.5]" />,
-          label: status === "FAILED" ? "Failed" : "Expired",
+          label: status === "FAILED" ? "Failed" : status === "EXPIRED" ? "Expired" : "Cancelled",
         };
       default:
         return {
@@ -505,6 +529,7 @@ export default function PaymentsPage() {
             onClick={() => {
               if (activeTab === "CASH_COLLECTIONS") {
                 loadCashCollections(cashPage, true);
+                refreshCashMetrics();
               } else {
                 loadPayments(paymentPage, true);
               }
@@ -550,30 +575,8 @@ export default function PaymentsPage() {
       {activeTab === "CASH_COLLECTIONS" && (
         <div className="space-y-4">
           {/* Top Stat Cards: Equal height, clean alignment */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-stretch">
-            {/* Stat 1: Confirmed Cash Collections */}
-            <div className="rounded-[14px] bg-[#B9E8B4] border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
-              <div>
-                <span className="text-[11px] font-black uppercase tracking-wider text-[#14532D] block">
-                  Confirmed Cash Revenue
-                </span>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="font-mono text-3xl font-black text-[#14532D] tabular-nums leading-none">
-                    {formatCurrency(cashMetrics.reconciledRevenue)}
-                  </span>
-                  <span className="text-xs font-bold text-[#14532D]">({cashMetrics.confirmedCount})</span>
-                </div>
-                <p className="text-xs font-semibold text-[#14532D]/80 mt-1">
-                  Physically collected & confirmed
-                </p>
-              </div>
-
-              <div className="rounded-[10px] border-2 border-black bg-white p-2.5 shadow-[2px_2px_0px_0px_#000000] shrink-0">
-                <CheckCircle2 className="h-6 w-6 text-[#14532D] stroke-[2.5]" />
-              </div>
-            </div>
-
-            {/* Stat 2: Pending Collections */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-stretch">
+            {/* Stat 1: Pending Collections */}
             <div className="rounded-[14px] bg-[#FFDF58] border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
               <div>
                 <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
@@ -595,11 +598,11 @@ export default function PaymentsPage() {
               </div>
             </div>
 
-            {/* Stat 3: Total Unreconciled Cash Float */}
+            {/* Stat 2: Total Unreconciled Cash Float */}
             <div className="rounded-[14px] bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
               <div>
                 <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
-                  Pending Cash Float
+                  Total Unreconciled Cash Float
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-mono text-3xl font-black text-[#1A1A1A] tabular-nums leading-none">
@@ -607,12 +610,12 @@ export default function PaymentsPage() {
                   </span>
                 </div>
                 <p className="text-xs font-semibold text-[#5C5647] mt-1">
-                  Float pending wallet ledger credit
+                  Physical currency pending wallet ledger credit
                 </p>
               </div>
 
-              <div className="rounded-[10px] border-2 border-black bg-[#FAF7EC] p-2.5 shadow-[2px_2px_0px_0px_#000000] shrink-0">
-                <Building2 className="h-6 w-6 text-[#5C5647] stroke-[2.5]" />
+              <div className="rounded-[10px] border-2 border-black bg-[#B8E8B8] p-2.5 shadow-[2px_2px_0px_0px_#000000] shrink-0">
+                <Building2 className="h-6 w-6 text-[#14532D] stroke-[2.5]" />
               </div>
             </div>
           </div>
@@ -632,6 +635,7 @@ export default function PaymentsPage() {
                 {(
                   [
                     { key: "PENDING", label: "Pending" },
+                    { key: "COLLECTED", label: "Collected" },
                     { key: "CONFIRMED", label: "Confirmed" },
                     { key: "CANCELLED", label: "Cancelled" },
                     { key: "ALL", label: "All Collections" },
@@ -649,7 +653,7 @@ export default function PaymentsPage() {
                           : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
                       )}
                     >
-                      {tab.key === "PENDING" && (
+                      {(tab.key === "PENDING" || tab.key === "COLLECTED") && (
                         <span
                           className={"h-2 w-2 rounded-full " + (
                             isActive ? "bg-black" : "bg-[#FFDF58]"
@@ -763,7 +767,7 @@ export default function PaymentsPage() {
                     <th className="py-3 px-4 border-r-2 border-black">Purpose</th>
                     <th className="py-3 px-4 border-r-2 border-black text-center w-36">Status</th>
                     <th className="py-3 px-4 border-r-2 border-black w-44">Collection Date</th>
-                    <th className="py-3 px-4 text-center w-48">Actions</th>
+                    <th className="py-3 px-4 text-center w-52">Actions</th>
                   </tr>
                 </thead>
 
@@ -827,6 +831,7 @@ export default function PaymentsPage() {
                       const isPending =
                         item.status === "PENDING" || item.status === "COLLECTED";
                       const statusBadge = getCashStatusBadge(item.status);
+                      const isPlan = item.purpose === "PLAN_PAYMENT" || Boolean(item.planSelectionId);
 
                       return (
                         <tr
@@ -851,15 +856,9 @@ export default function PaymentsPage() {
                           {/* Purpose */}
                           <td className="py-3 px-4 border-r-2 border-black">
                             <div className="flex flex-col gap-1">
-                              {item.purpose ? (
-                                <span className="inline-block max-w-[200px] truncate rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-bold text-[#1A1A1A]">
-                                  {item.purpose}
-                                </span>
-                              ) : (
-                                <span className="inline-block rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-bold text-[#1A1A1A]">
-                                  Order / Plan
-                                </span>
-                              )}
+                              <span className="inline-block max-w-[200px] truncate rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-bold text-[#1A1A1A]">
+                                {isPlan ? "Plan Payment" : "Wallet Top-up"}
+                              </span>
                               {item.adminNote && (
                                 <span className="text-[10px] text-[#5C5647] truncate max-w-[200px]">
                                   Note: {item.adminNote}
@@ -911,9 +910,17 @@ export default function PaymentsPage() {
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-xs font-bold text-[#5C5647]">
-                                No Action Needed
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCashCollectionId(item.id);
+                                  setIsCashDetailOpen(true);
+                                }}
+                                className="cursor-pointer rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-3 py-1.5 text-xs font-bold uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all inline-flex items-center gap-1 min-h-[34px]"
+                              >
+                                <Eye className="h-3.5 w-3.5 stroke-[2.5]" />
+                                Inspect
+                              </button>
                             )}
                           </td>
                         </tr>
@@ -1007,6 +1014,7 @@ export default function PaymentsPage() {
                 const isPending =
                   item.status === "PENDING" || item.status === "COLLECTED";
                 const statusBadge = getCashStatusBadge(item.status);
+                const isPlan = item.purpose === "PLAN_PAYMENT" || Boolean(item.planSelectionId);
 
                 return (
                   <div
@@ -1045,7 +1053,7 @@ export default function PaymentsPage() {
 
                       <div className="text-right">
                         <span className="rounded-md border border-black/30 bg-white px-2 py-0.5 text-[10px] font-bold text-[#1A1A1A]">
-                          {item.purpose || "Order / Plan"}
+                          {isPlan ? "Plan Payment" : "Wallet Top-up"}
                         </span>
                       </div>
                     </div>
@@ -1082,7 +1090,19 @@ export default function PaymentsPage() {
                           Cancel
                         </button>
                       </div>
-                    ) : null}
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCashCollectionId(item.id);
+                          setIsCashDetailOpen(true);
+                        }}
+                        className="w-full min-h-[44px] rounded-[8px] border-2 border-black bg-white active:bg-[#FAF7EC] font-bold text-xs uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000] flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <Eye className="h-3.5 w-3.5 stroke-[2.5]" />
+                        Inspect Details
+                      </button>
+                    )}
                   </div>
                 );
               })
@@ -1199,7 +1219,7 @@ export default function PaymentsPage() {
                   aria-expanded={isPaymentFiltersOpen}
                   aria-label="Toggle extra payment filters"
                   className={"h-9 px-3 rounded-[8px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0 " + (
-                    transactionIdSearch || paymentStartDate || paymentEndDate || isPaymentFiltersOpen
+                    transactionIdSearch || paymentPurposeFilter !== "ALL" || paymentMethodFilter !== "ALL" || paymentStartDate || paymentEndDate || isPaymentFiltersOpen
                       ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
                       : "bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A]"
                   )}
@@ -1231,7 +1251,8 @@ export default function PaymentsPage() {
 
             {/* Collapsible Secondary Payment Filters */}
             {isPaymentFiltersOpen && (
-              <div className="pt-2.5 border-t border-black/10 grid grid-cols-1 sm:grid-cols-3 gap-2.5 animate-in fade-in duration-150">
+              <div className="pt-2.5 border-t border-black/10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 animate-in fade-in duration-150">
+                {/* Transaction ID */}
                 <div className="relative">
                   <Receipt className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
                   <Input
@@ -1242,6 +1263,23 @@ export default function PaymentsPage() {
                   />
                 </div>
 
+                {/* Purpose Filter */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
+                    Purpose:
+                  </span>
+                  <select
+                    value={paymentPurposeFilter}
+                    onChange={(e) => setPaymentPurposeFilter(e.target.value as PaymentPurpose | "ALL")}
+                    className="h-8 flex-1 rounded-[8px] border-2 border-black bg-white px-2 text-xs font-bold text-[#1A1A1A]"
+                  >
+                    <option value="ALL">All Purposes</option>
+                    <option value="WALLET_TOPUP">Wallet Top-up</option>
+                    <option value="ORDER">Order Checkout</option>
+                  </select>
+                </div>
+
+                {/* From Date */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
                     From:
@@ -1254,6 +1292,7 @@ export default function PaymentsPage() {
                   />
                 </div>
 
+                {/* To Date */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
                     To:
@@ -1376,7 +1415,7 @@ export default function PaymentsPage() {
                             </div>
                             {p.providerPaymentId && (
                               <span className="font-mono text-[10px] text-[#5C5647] block truncate max-w-[140px]">
-                                PG: {p.providerPaymentId}
+                                Ref: {p.providerPaymentId}
                               </span>
                             )}
                           </td>
@@ -1649,6 +1688,16 @@ export default function PaymentsPage() {
           setCancelItem(null);
         }}
         onSuccess={handleCashUpdated}
+      />
+
+      {/* Cash Collection Inspection Sheet */}
+      <CashCollectionDetailSheet
+        collectionId={selectedCashCollectionId}
+        isOpen={isCashDetailOpen}
+        onClose={() => {
+          setIsCashDetailOpen(false);
+          setSelectedCashCollectionId(null);
+        }}
       />
 
       {/* Online Payment Inspection Sheet */}

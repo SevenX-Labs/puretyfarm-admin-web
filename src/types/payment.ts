@@ -10,6 +10,7 @@ export type PaymentTransactionStatus =
 
 export type CashCollectionStatus = "PENDING" | "COLLECTED" | "CONFIRMED" | "CANCELLED";
 export type PaymentPurpose = "ORDER" | "WALLET_TOPUP";
+export type CashPurpose = "WALLET_TOPUP" | "PLAN_PAYMENT" | string;
 export type PaymentMethod = "ONLINE" | "CASH";
 
 export interface PaymentCustomer {
@@ -23,6 +24,7 @@ export interface PaymentItem {
   id: string;
   transactionId: string;
   providerPaymentId?: string | null;
+  providerRefundId?: string | null;
   provider: "PAYU" | "CASH" | string;
   purpose: PaymentPurpose;
   paymentMethod: PaymentMethod;
@@ -62,7 +64,7 @@ export interface CashCollectionItem {
   id: string;
   amountPaise: number;
   status: CashCollectionStatus;
-  purpose: PaymentPurpose;
+  purpose: CashPurpose;
   walletCreditRequestId?: string | null;
   planSelectionId?: string | null;
   collectedAt?: string | null;
@@ -78,6 +80,12 @@ export interface CashCollectionItem {
     amountPaise: number;
     completedAt?: string | null;
     transactionId?: string | null;
+  } | null;
+  planSelection?: {
+    id: string;
+    status: string;
+    planType: string;
+    paidAt?: string | null;
   } | null;
 }
 

@@ -33,6 +33,8 @@ export function ConfirmCashModal({
 
   if (!item) return null;
 
+  const isPlanPayment = item.purpose === "PLAN_PAYMENT" || Boolean(item.planSelectionId);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -76,10 +78,12 @@ export function ConfirmCashModal({
             </div>
             <div>
               <DialogTitle className="text-lg font-black uppercase tracking-tight text-[#1A1A1A]">
-                Confirm Physical Cash Receipt
+                Confirm Cash Receipt
               </DialogTitle>
               <DialogDescription className="text-xs font-bold text-[#5C5647]">
-                Confirm cash received and add balance to customer wallet
+                {isPlanPayment
+                  ? "Confirm cash received and activate subscription deliveries"
+                  : "Confirm cash received and credit customer wallet"}
               </DialogDescription>
             </div>
           </div>
@@ -99,10 +103,10 @@ export function ConfirmCashModal({
               <span className="text-xs font-bold text-[#5C5647]">Customer:</span>
               <div className="text-right">
                 <span className="text-xs font-black text-[#1A1A1A] block">
-                  {item.customer.name}
+                  {item.customer?.name || "Customer"}
                 </span>
                 <span className="text-[10px] font-mono text-[#5C5647]">
-                  {item.customer.mobile}
+                  {item.customer?.mobile || "No phone"}
                 </span>
               </div>
             </div>
@@ -110,7 +114,7 @@ export function ConfirmCashModal({
             <div className="flex justify-between items-center border-b border-black/10 pb-2">
               <span className="text-xs font-bold text-[#5C5647]">Purpose:</span>
               <span className="rounded-[4px] border border-black bg-white px-2 py-0.5 text-[10px] font-mono font-black text-[#1A1A1A]">
-                {item.purpose.replace(/_/g, " ")}
+                {isPlanPayment ? "PLAN PAYMENT" : "WALLET TOP-UP"}
               </span>
             </div>
 
@@ -128,7 +132,9 @@ export function ConfirmCashModal({
           <div className="rounded-[10px] border-2 border-black bg-[#FFE58F] p-3 text-xs font-bold text-[#1A1A1A] flex items-start gap-2 shadow-[2px_2px_0px_0px_#000000]">
             <ShieldAlert className="h-4 w-4 shrink-0 text-[#1A1A1A] mt-0.5" />
             <p className="leading-snug">
-              Confirming will immediately credit the customer&apos;s wallet or activate their subscription deliveries. This action cannot be reversed.
+              {isPlanPayment
+                ? "Confirming will activate this subscription plan and materialize delivery schedules. This action cannot be reversed."
+                : "Confirming will immediately credit the customer\x27s wallet balance. This action cannot be reversed."}
             </p>
           </div>
 
@@ -140,7 +146,7 @@ export function ConfirmCashModal({
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Received cash from delivery person at Raipur center."
+              placeholder="e.g. Received cash from delivery partner at depot."
               maxLength={1000}
               rows={3}
               className="w-full rounded-[8px] border-2 border-black bg-white p-2.5 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] focus:outline-none placeholder:text-[#5C5647]/60"
@@ -162,7 +168,7 @@ export function ConfirmCashModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-[8px] border-2 border-black bg-[#B8E8B8] hover:bg-[#9fe09f] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 justify-center"
+              className="rounded-[8px] border-2 border-black bg-[#FFDF58] hover:bg-[#fcd033] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 justify-center"
             >
               {isSubmitting ? (
                 <>
@@ -172,7 +178,7 @@ export function ConfirmCashModal({
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4 stroke-[2.5]" />
-                  <span>Confirm & Credit Wallet</span>
+                  <span>{isPlanPayment ? "Confirm & Activate Plan" : "Confirm & Credit Wallet"}</span>
                 </>
               )}
             </button>
