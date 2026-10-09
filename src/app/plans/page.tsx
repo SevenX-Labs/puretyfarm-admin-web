@@ -788,7 +788,7 @@ export default function PlansAndDeliveryPage() {
 
                           <td className="py-3.5 px-4 border-r-2 border-black text-right font-mono">
                             <div className="font-black text-xs text-[#1A1A1A]">
-                              {sub.paidAmountPaise ? formatCurrency(sub.paidAmountPaise) : "—"}
+                              {sub.paidAmountPaise ? formatCurrency(sub.paidAmountPaise / 100) : "—"}
                             </div>
                             <div className="text-[10px] text-[#5C5647] uppercase font-bold">
                               {sub.paymentMethod || "PAID"}

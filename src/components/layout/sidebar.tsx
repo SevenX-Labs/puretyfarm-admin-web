@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -68,12 +68,7 @@ interface SidebarProps {
 
 export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
-  const { admin, logout } = useAuth();
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const { logout } = useAuth();
 
   const renderContent = (isMobile = false) => (
     <div className="flex h-full flex-col justify-between bg-[#FAF7EC]">
@@ -142,8 +137,8 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
       </nav>
 
       {/* Bottom Status & Logout */}
-      <div className="p-4 border-t-2 border-[#1A1A1A] bg-[#FAF7EC] space-y-3">
-        {/* Hub Indicator */}
+      <div className="p-4 border-t-2 border-[#1A1A1A] bg-[#FAF7EC]">
+        {/* Hub Indicator with inline logout */}
         <div className="p-2.5 rounded-[10px] border-2 border-[#1A1A1A] bg-white shadow-[2px_2px_0px_0px_#1A1A1A] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#8FD694] border border-[#1A1A1A] animate-pulse" />
@@ -151,34 +146,12 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
               Raipur Hub Live
             </span>
           </div>
-          <span className="text-[10px] font-mono font-bold text-[#5C5647] bg-[#FAF7EC] px-1.5 py-0.5 rounded border border-[#1A1A1A]/30">
-            A2 MILK
-          </span>
-        </div>
-
-        {/* User / Logout */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="min-w-0 pr-2">
-            <div
-              suppressHydrationWarning
-              className="font-extrabold text-xs uppercase text-[#1A1A1A] truncate"
-            >
-              {isMounted && admin?.email ? admin.email.split("@")[0] : "Operator"}
-            </div>
-            <div
-              suppressHydrationWarning
-              className="font-mono text-[10px] text-[#5C5647] truncate"
-            >
-              {isMounted && admin?.role ? admin.role : "ADMIN"}
-            </div>
-          </div>
-
           <button
             type="button"
             onClick={logout}
             title="Log Out"
             aria-label="Log Out of console"
-            className="p-2 rounded-[8px] border-2 border-[#1A1A1A] bg-[#FFD9D0] hover:bg-[#FFC6B8] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer shrink-0"
+            className="p-1.5 rounded-[8px] border-2 border-[#1A1A1A] bg-[#FFD9D0] hover:bg-[#FFC6B8] text-[#1A1A1A] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer shrink-0"
           >
             <LogOut className="h-4 w-4 stroke-[2.5]" />
           </button>

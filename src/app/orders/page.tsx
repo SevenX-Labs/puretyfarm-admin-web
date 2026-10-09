@@ -679,7 +679,7 @@ export default function OrdersPage() {
 
                       {/* ORDER TOTAL (Right-aligned, Tabular Numbers) */}
                       <td className="py-3.5 px-4 border-r-2 border-black align-middle text-right font-mono font-black text-xs text-[#1A1A1A]">
-                        {formatCurrency(order.totalPaise)}
+                        {formatCurrency(order.totalPaise / 100)}
                       </td>
 
                       {/* DISPATCH STATUS BADGE */}
