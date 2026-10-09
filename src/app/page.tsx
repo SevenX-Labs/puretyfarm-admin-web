@@ -564,7 +564,7 @@ export default function DashboardOverviewPage() {
               Subscription Portfolio Distribution
             </h2>
             <p className="text-xs font-bold text-[#5C5647]">
-              Current breakdown of active recurring milk plans and trials.
+              Current breakdown of active recurring milk plans and trial subscriptions.
             </p>
           </div>
 
