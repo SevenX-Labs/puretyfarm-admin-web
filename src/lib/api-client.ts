@@ -4,6 +4,12 @@ export class ApiError extends Error {
   statusCode: number;
   data?: unknown;
   isUnauthorized?: boolean;
+  /** Stable machine-readable code from the API, e.g. `CASH_CONFIRMATION_TIMED_OUT`. */
+  code?: string;
+  /** Support reference the API logged alongside the failure, when it sent one. */
+  reference?: string;
+  /** True when the API states the call changed nothing and may be repeated. */
+  retryable?: boolean;
 
   constructor(message: string, statusCode: number, data?: unknown) {
     super(message);
@@ -11,7 +17,51 @@ export class ApiError extends Error {
     this.statusCode = statusCode;
     this.data = data;
     this.isUnauthorized = statusCode === 401 || statusCode === 403;
+
+    // Nest sends domain failures as `{ error, message, reference, retryable }`,
+    // sometimes nested under `message` when a filter re-wraps the body.
+    if (data && typeof data === "object") {
+      const body = data as Record<string, unknown>;
+      const inner =
+        body.message && typeof body.message === "object"
+          ? (body.message as Record<string, unknown>)
+          : body;
+      const code = inner.error ?? body.error;
+      if (typeof code === "string") this.code = code;
+      const reference = inner.reference ?? body.reference;
+      if (typeof reference === "string") this.reference = reference;
+      const retryable = inner.retryable ?? body.retryable;
+      if (typeof retryable === "boolean") this.retryable = retryable;
+    }
   }
+}
+
+/**
+ * Verbose request/response logging, development only.
+ *
+ * Deliberately never logs the Authorization header or request cookies: this
+ * output ends up pasted into bug reports, and a leaked admin bearer token is a
+ * full account compromise.
+ */
+const DEBUG_API =
+  process.env.NODE_ENV !== "production" ||
+  process.env.NEXT_PUBLIC_DEBUG_API === "true";
+
+const REDACTED_HEADERS = ["authorization", "cookie", "set-cookie"];
+
+function debugLog(label: string, detail: Record<string, unknown>) {
+  if (!DEBUG_API) return;
+  console.debug(`[api] ${label}`, detail);
+}
+
+function safeHeaders(headers: Headers): Record<string, string> {
+  const out: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    out[key] = REDACTED_HEADERS.includes(key.toLowerCase())
+      ? "<redacted>"
+      : value;
+  });
+  return out;
 }
 
 const BASE_URL =
@@ -112,6 +162,21 @@ export async function apiClient<T = unknown>(
     }
   }
 
+  const method = (rest.method || "GET").toUpperCase();
+  const startedAt = Date.now();
+
+  debugLog(`-> ${method} ${url}`, {
+    endpoint: normalizedEndpoint,
+    headers: safeHeaders(requestHeaders),
+    body:
+      rest.body instanceof FormData
+        ? "<FormData>"
+        : typeof rest.body === "string"
+        ? rest.body
+        : rest.body ?? null,
+    retry: _retry,
+  });
+
   try {
     const response = await fetch(url, {
       ...rest,
@@ -200,6 +265,11 @@ export async function apiClient<T = unknown>(
       }
     }
 
+    debugLog(
+      `<- ${response.status} ${method} ${url} (${Date.now() - startedAt}ms)`,
+      { ok: response.ok, body: data },
+    );
+
     // Handle non-2xx HTTP responses
     if (!response.ok) {
       let errorMessage = `Request failed with status ${response.status}`;
@@ -221,11 +291,18 @@ export async function apiClient<T = unknown>(
     if (err instanceof ApiError) {
       throw err;
     }
-    const message =
-      err instanceof Error
-        ? err.message
-        : "Network request failed. Please verify connection.";
-    throw new ApiError(message, 0);
+    // Reaching here means fetch itself rejected — DNS, TLS, offline, or a CORS
+    // preflight the browser refused. Status 0 distinguishes it from any real
+    // HTTP response, and the original message is useless to an operator, so
+    // callers get something they can act on.
+    debugLog(`!! ${method} ${url} (${Date.now() - startedAt}ms)`, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw new ApiError(
+      "Could not reach the server. Check your connection and try again.",
+      0,
+      { cause: err instanceof Error ? err.message : String(err) }
+    );
   }
 }
 
