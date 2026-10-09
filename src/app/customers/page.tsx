@@ -331,10 +331,10 @@ export default function CustomersPage() {
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            {isLoading ? (
-              <TableSkeleton columns={7} rows={6} />
-            ) : filteredCustomers.length === 0 ? (
-              <tbody>
+            <tbody className="divide-y-2 divide-[#1A1A1A] bg-white">
+              {isLoading ? (
+                <TableSkeleton columns={7} rows={6} />
+              ) : filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-0">
                     <EmptyState
@@ -355,10 +355,8 @@ export default function CustomersPage() {
                     />
                   </td>
                 </tr>
-              </tbody>
-            ) : (
-              <tbody className="divide-y-2 divide-[#1A1A1A] bg-white">
-                {filteredCustomers.map((customer) => {
+              ) : (
+                filteredCustomers.map((customer) => {
                   const fullName = customer.profile
                     ? `${customer.profile.firstName || ""} ${customer.profile.lastName || ""}`.trim()
                     : "No Profile Set";
@@ -468,9 +466,9 @@ export default function CustomersPage() {
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            )}
+                })
+              )}
+            </tbody>
           </table>
         </div>
 

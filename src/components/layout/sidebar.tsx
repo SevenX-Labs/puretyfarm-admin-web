@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -70,6 +70,11 @@ interface SidebarProps {
 export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const { admin, logout } = useAuth();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const renderContent = (isMobile = false) => (
     <div className="flex h-full flex-col justify-between bg-[#FAF7EC]">
@@ -165,11 +170,17 @@ export function Sidebar({ isMobileOpen = false, onCloseMobile }: SidebarProps) {
         {/* User / Logout */}
         <div className="flex items-center justify-between pt-1">
           <div className="min-w-0 pr-2">
-            <div className="font-extrabold text-xs uppercase text-[#1A1A1A] truncate">
-              {admin?.email?.split("@")[0] || "Operator"}
+            <div
+              suppressHydrationWarning
+              className="font-extrabold text-xs uppercase text-[#1A1A1A] truncate"
+            >
+              {isMounted && admin?.email ? admin.email.split("@")[0] : "Operator"}
             </div>
-            <div className="font-mono text-[10px] text-[#5C5647] truncate">
-              {admin?.role || "ADMIN"}
+            <div
+              suppressHydrationWarning
+              className="font-mono text-[10px] text-[#5C5647] truncate"
+            >
+              {isMounted && admin?.role ? admin.role : "ADMIN"}
             </div>
           </div>
 
