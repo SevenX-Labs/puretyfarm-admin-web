@@ -47,6 +47,10 @@ export function CustomerDetailSheet({
   const [error, setError] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [customer?.profile?.profileImageUrl]);
+
   const activeId = customerId || customerProp?.id || null;
 
   useEffect(() => {
@@ -193,6 +197,7 @@ export function CustomerDetailSheet({
                   src={customer.profile.profileImageUrl}
                   alt={fullName || "Customer Avatar"}
                   onError={() => setImgError(true)}
+                  referrerPolicy="no-referrer"
                   className="w-14 h-14 rounded-[10px] border-2 border-[#1A1A1A] object-cover shadow-[2px_2px_0px_0px_#1A1A1A] shrink-0"
                 />
               ) : (

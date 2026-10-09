@@ -28,6 +28,10 @@ function CustomerAvatarItem({
 }) {
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [profile?.profileImageUrl]);
+
   const initials = profile
     ? `${profile.firstName?.[0] || ""}${profile.lastName?.[0] || ""}`.toUpperCase() || "PF"
     : mobile.slice(-2);
@@ -39,6 +43,7 @@ function CustomerAvatarItem({
         src={profile.profileImageUrl}
         alt={profile.firstName || "Customer"}
         onError={() => setImgError(true)}
+        referrerPolicy="no-referrer"
         className="w-9 h-9 border-2 border-[#1A1A1A] rounded-[8px] object-cover shadow-[2px_2px_0px_0px_#1A1A1A] shrink-0"
       />
     );
