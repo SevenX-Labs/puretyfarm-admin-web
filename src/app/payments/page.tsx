@@ -494,21 +494,22 @@ export default function PaymentsPage() {
         {/* Aligned Top-Right Control Group: Segmented Tabs + Sync Live on ONE Row */}
         <div className="flex flex-wrap items-center gap-2 self-stretch lg:self-auto justify-between lg:justify-end">
           {/* Segmented Tab Control */}
-          <div className="inline-flex items-center bg-[#FAF7EC] p-1 rounded-[12px] border-2 border-black shadow-[2px_2px_0px_0px_#000000] flex-1 sm:flex-initial">
+          <div className="grid min-w-0 flex-1 grid-cols-2 items-center rounded-[12px] border-2 border-black bg-[#FAF7EC] p-1 shadow-[2px_2px_0px_0px_#000000] sm:inline-flex sm:flex-initial">
             <button
               type="button"
               onClick={() => setActiveTab("CASH_COLLECTIONS")}
               aria-selected={activeTab === "CASH_COLLECTIONS"}
-              className={"flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[8px] text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[36px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black " + (
+              className={"min-w-0 px-1.5 max-[360px]:px-1 py-1.5 rounded-[8px] text-[10px] max-[360px]:text-[9px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 max-[360px]:gap-0.5 sm:gap-2 min-h-[40px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black whitespace-nowrap sm:px-3.5 " + (
                 activeTab === "CASH_COLLECTIONS"
                   ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]"
                   : "bg-transparent text-[#5C5647] hover:text-[#1A1A1A] hover:bg-black/5 border border-transparent"
               )}
             >
-              <Banknote className="h-4 w-4 stroke-[2.5]" />
-              <span>Physical Cash Hub</span>
+              <Banknote className="h-3.5 w-3.5 shrink-0 stroke-[2.5] max-[360px]:h-3 max-[360px]:w-3 sm:h-4 sm:w-4" />
+              <span className="sm:hidden">Cash Hub</span>
+              <span className="hidden sm:inline">Physical Cash Hub</span>
               {cashMetrics.pendingCount > 0 && (
-                <span className="ml-0.5 rounded-full bg-black text-[#FFDF58] px-1.5 py-0.2 text-[10px] font-mono font-black">
+                <span className="ml-0.5 rounded-full bg-black px-1.5 py-0.2 font-mono text-[10px] font-black text-[#FFDF58]">
                   {cashMetrics.pendingCount}
                 </span>
               )}
@@ -518,14 +519,16 @@ export default function PaymentsPage() {
               type="button"
               onClick={() => setActiveTab("ONLINE_PAYMENTS")}
               aria-selected={activeTab === "ONLINE_PAYMENTS"}
-              className={"flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[8px] text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[36px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black " + (
+              className={"min-w-0 px-1.5 max-[360px]:px-1 py-1.5 rounded-[8px] text-[10px] max-[360px]:text-[9px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 max-[360px]:gap-0.5 sm:gap-2 min-h-[40px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black whitespace-nowrap sm:px-3.5 " + (
                 activeTab === "ONLINE_PAYMENTS"
                   ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]"
                   : "bg-transparent text-[#5C5647] hover:text-[#1A1A1A] hover:bg-black/5 border border-transparent"
               )}
             >
-              <CreditCard className="h-4 w-4 stroke-[2.5]" />
-              <span>PayU Audit Ledger</span>
+              <CreditCard className="h-3.5 w-3.5 shrink-0 stroke-[2.5] max-[360px]:h-3 max-[360px]:w-3 sm:h-4 sm:w-4" />
+              <span className="sm:hidden max-[360px]:hidden">PayU Ledger</span>
+              <span className="hidden max-[360px]:inline sm:hidden">PayU</span>
+              <span className="hidden sm:inline">PayU Audit Ledger</span>
             </button>
           </div>
 
@@ -642,7 +645,7 @@ export default function PaymentsPage() {
           <div className="bg-white border-2 border-black p-3 rounded-[14px] shadow-[3px_3px_0px_0px_#000000] space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               {/* Status Chips */}
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 {(
                   [
                     { key: "PENDING", label: "Pending" },
@@ -658,7 +661,7 @@ export default function PaymentsPage() {
                       key={tab.key}
                       type="button"
                       onClick={() => setCashStatusFilter(tab.key)}
-                      className={"rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black " + (
+                      className={"shrink-0 whitespace-nowrap rounded-[8px] border-2 border-black px-2 py-1.5 text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer flex items-center gap-1.5 min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black sm:px-3 sm:text-xs sm:tracking-wider sm:min-h-[36px] " + (
                         isActive
                           ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
                           : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
@@ -739,7 +742,7 @@ export default function PaymentsPage() {
             {/* Collapsible Date Filters */}
             {isCashFiltersOpen && (
               <div className="pt-2.5 border-t border-black/10 grid grid-cols-1 sm:grid-cols-2 gap-2.5 animate-in fade-in duration-150">
-                <div className="flex items-center gap-1.5">
+                <label className="flex min-w-0 flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-1.5">
                   <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
                     From:
                   </span>
@@ -747,10 +750,10 @@ export default function PaymentsPage() {
                     type="date"
                     value={cashStartDate}
                     onChange={(e) => setCashStartDate(e.target.value)}
-                    className="h-8 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
+                    className="h-9 w-full min-w-0 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] sm:h-8"
                   />
-                </div>
-                <div className="flex items-center gap-1.5">
+                </label>
+                <label className="flex min-w-0 flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-1.5">
                   <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
                     To:
                   </span>
@@ -758,9 +761,9 @@ export default function PaymentsPage() {
                     type="date"
                     value={cashEndDate}
                     onChange={(e) => setCashEndDate(e.target.value)}
-                    className="h-8 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
+                    className="h-9 w-full min-w-0 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] sm:h-8"
                   />
-                </div>
+                </label>
               </div>
             )}
           </div>
@@ -1137,7 +1140,7 @@ export default function PaymentsPage() {
           <div className="bg-white border-2 border-black p-3 rounded-[14px] shadow-[3px_3px_0px_0px_#000000] space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               {/* Status Pills */}
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 {(
                   [
                     { key: "ALL", label: "All Statuses" },
@@ -1154,7 +1157,7 @@ export default function PaymentsPage() {
                       key={tab.key}
                       type="button"
                       onClick={() => setPaymentStatusFilter(tab.key)}
-                      className={"rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black " + (
+                      className={"shrink-0 whitespace-nowrap rounded-[8px] border-2 border-black px-2 py-1.5 text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer flex items-center gap-1.5 min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black sm:px-3 sm:text-xs sm:tracking-wider sm:min-h-[36px] " + (
                         isActive
                           ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
                           : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
@@ -1255,7 +1258,7 @@ export default function PaymentsPage() {
                 </div>
 
                 {/* From Date */}
-                <div className="flex items-center gap-1.5">
+                <label className="flex min-w-0 flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-1.5">
                   <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
                     From:
                   </span>
@@ -1263,12 +1266,12 @@ export default function PaymentsPage() {
                     type="date"
                     value={paymentStartDate}
                     onChange={(e) => setPaymentStartDate(e.target.value)}
-                    className="h-8 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
+                    className="h-9 w-full min-w-0 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] sm:h-8"
                   />
-                </div>
+                </label>
 
                 {/* To Date */}
-                <div className="flex items-center gap-1.5">
+                <label className="flex min-w-0 flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-1.5">
                   <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
                     To:
                   </span>
@@ -1276,9 +1279,9 @@ export default function PaymentsPage() {
                     type="date"
                     value={paymentEndDate}
                     onChange={(e) => setPaymentEndDate(e.target.value)}
-                    className="h-8 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
+                    className="h-9 w-full min-w-0 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] sm:h-8"
                   />
-                </div>
+                </label>
               </div>
             )}
           </div>

@@ -673,8 +673,8 @@ export default function PlansAndDeliveryPage() {
               ))}
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 sm:w-64">
+            <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+              <div className="relative w-full min-w-0 sm:w-64">
                 <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
                 <Input
                   placeholder="Search customer, mobile..."
@@ -706,7 +706,7 @@ export default function PlansAndDeliveryPage() {
 
           {/* Subscriptions Table */}
           <div className="border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm border-collapse" aria-busy={subscriptionsLoading}>
                 <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black font-mono">
                   <tr>
@@ -830,14 +830,152 @@ export default function PlansAndDeliveryPage() {
               </table>
             </div>
 
+            <div className="space-y-3 p-3 md:hidden" aria-busy={subscriptionsLoading}>
+              {subscriptionsLoading ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="animate-pulse space-y-3 rounded-[12px] border-2 border-black bg-white p-3 shadow-[2px_2px_0px_0px_#000000]"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="h-4 w-32 rounded bg-[#E4DFD0]" />
+                      <div className="h-5 w-20 rounded bg-[#E4DFD0]" />
+                    </div>
+                    <div className="h-10 rounded-[8px] bg-[#FAF7EC]" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="h-12 rounded-[8px] bg-[#E4DFD0]" />
+                      <div className="h-12 rounded-[8px] bg-[#E4DFD0]" />
+                    </div>
+                  </div>
+                ))
+              ) : subscriptions.length === 0 ? (
+                <EmptyState
+                  icon={<Milk className="h-6 w-6 stroke-[2.5]" />}
+                  title="No subscriptions found"
+                  description={
+                    debouncedSubSearch || subStatusFilter !== "ALL" || subPlanTypeFilter !== "ALL"
+                      ? "Try adjusting active filters or clearing search criteria."
+                      : "No subscription plans are currently recorded in Raipur database."
+                  }
+                  isFiltered={Boolean(
+                    debouncedSubSearch ||
+                      subStatusFilter !== "ALL" ||
+                      subPlanTypeFilter !== "ALL"
+                  )}
+                  onClearFilters={() => {
+                    setSubSearch("");
+                    setDebouncedSubSearch("");
+                    setSubStatusFilter("ALL");
+                    setSubPlanTypeFilter("ALL");
+                  }}
+                />
+              ) : (
+                subscriptions.map((sub) => {
+                  const isActive = sub.status === "CONFIRMED" || sub.status === "ACTIVE";
+                  const isPaused = sub.status === "PAUSED";
+
+                  return (
+                    <article
+                      key={sub.id}
+                      className="min-w-0 space-y-3 rounded-[12px] border-2 border-black bg-white p-3 shadow-[2.5px_2.5px_0px_0px_#000000]"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-black uppercase text-[#1A1A1A]">
+                            {sub.customer?.name || "Raipur Customer"}
+                          </div>
+                          <div className="mt-0.5 truncate font-mono text-[11px] text-[#5C5647]">
+                            {sub.customer?.mobile || "—"}
+                          </div>
+                          {sub.customer?.address?.area && (
+                            <div className="mt-0.5 flex min-w-0 items-center gap-1 truncate font-mono text-[10px] text-[#5C5647]">
+                              <User className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{sub.customer.address.area}</span>
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className={`inline-block shrink-0 rounded-[6px] border-2 border-black px-2 py-1 font-mono text-[9px] font-black uppercase shadow-[1px_1px_0px_0px_#000000] ${
+                            isActive
+                              ? "bg-[#B9E8B4] text-[#14532D]"
+                              : isPaused
+                              ? "bg-[#FFDF58] text-[#713F12]"
+                              : "bg-[#FFD9D0] text-[#7F1D1D]"
+                          }`}
+                        >
+                          {sub.status.replace(/_/g, " ")}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 border-t border-black/15 pt-2">
+                        <span className="inline-block max-w-[70%] truncate rounded-[6px] border-2 border-black bg-[#FFD84D] px-2 py-1 font-mono text-[10px] font-black uppercase shadow-[1px_1px_0px_0px_#000000]">
+                          {sub.planType.replace(/_/g, " ")}
+                        </span>
+                        <span className="shrink-0 font-mono text-xs font-black text-[#1A1A1A]">
+                          {sub.paidAmountPaise
+                            ? formatCurrency(sub.paidAmountPaise / 100)
+                            : "—"}
+                          {sub.paymentMethod && (
+                            <span className="ml-1 text-[9px] font-bold uppercase text-[#5C5647]">
+                              {sub.paymentMethod}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="min-w-0 rounded-[8px] border border-black/20 bg-[#FAF7EC] px-2.5 py-2">
+                          <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                            Quantity & Cadence
+                          </div>
+                          <div className="mt-1 break-words font-mono text-[11px] font-bold text-[#1A1A1A]">
+                            {sub.quantity ?? 1} Litre
+                            {Number(sub.quantity ?? 1) > 1 ? "s" : ""} (
+                            {sub.quantityMode || "FIXED"})
+                          </div>
+                          <div className="mt-0.5 font-mono text-[10px] text-[#5C5647]">
+                            {sub.frequency || "DAILY"}
+                          </div>
+                        </div>
+                        <div className="min-w-0 rounded-[8px] border border-black/20 bg-[#FAF7EC] px-2.5 py-2">
+                          <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                            Billing Period
+                          </div>
+                          <div className="mt-1 break-words font-mono text-[10px] font-bold text-[#1A1A1A]">
+                            {sub.startDate ? sub.startDate.split("T")[0] : "—"}
+                          </div>
+                          <div className="font-mono text-[10px] text-[#5C5647]">
+                            to {sub.endDate ? sub.endDate.split("T")[0] : "—"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCustomerId(sub.userId);
+                          setIsCustomerDetailOpen(true);
+                        }}
+                        aria-label={`View profile for ${sub.customer?.name || "customer"}`}
+                        className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[8px] border-2 border-black bg-[#FAF7EC] px-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[#FFD84D] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                      >
+                        View Profile
+                        <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
+                      </button>
+                    </article>
+                  );
+                })
+              )}
+            </div>
+
             {/* Pagination Strip */}
-            <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black flex items-center justify-between text-xs font-bold">
+            <div className="flex flex-col gap-3 border-t-2 border-black bg-[#FAF7EC] p-3.5 text-xs font-bold sm:flex-row sm:items-center sm:justify-between">
               <span>
                 Showing <strong className="font-mono">{subscriptions.length}</strong> of{" "}
                 <strong className="font-mono">{totalSubscriptions}</strong> subscriptions
               </span>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2 sm:justify-start">
                 <button
                   type="button"
                   disabled={subPage <= 1 || subscriptionsLoading}

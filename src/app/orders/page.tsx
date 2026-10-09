@@ -320,7 +320,7 @@ export default function OrdersPage() {
       {/* ========================================================= */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#1A1A1A] leading-tight">
+          <h1 className="text-xl sm:text-3xl font-black uppercase tracking-tight text-[#1A1A1A] leading-tight">
             Order Dispatch & Fulfillment
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-[#5C5647] mt-0.5">
@@ -355,7 +355,7 @@ export default function OrdersPage() {
       {/* ========================================================= */}
       {/* 2. QUICK STATUS TABS (Neo-Brutalist segmented pill bar)   */}
       {/* ========================================================= */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex w-full min-w-0 max-w-full flex-wrap items-center gap-1.5">
         {quickFilterTabs.map((tab) => {
           const isActive = statusFilter === tab.key;
           return (
@@ -366,7 +366,7 @@ export default function OrdersPage() {
                 setStatusFilter(tab.key);
                 setCurrentPage(1);
               }}
-              className={`h-9 px-4 rounded-[10px] border-2 border-black text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+              className={`h-9 shrink-0 whitespace-nowrap rounded-[10px] border-2 border-black px-2 text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer flex items-center gap-1.5 sm:px-4 sm:text-xs sm:tracking-wider ${
                 isActive
                   ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] translate-x-[-1px] translate-y-[-1px]"
                   : "bg-white hover:bg-[#FAF7EC] text-[#5C5647] hover:text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
@@ -390,7 +390,7 @@ export default function OrdersPage() {
       {/* ========================================================= */}
       {/* 3. MINIMAL FILTER BLOCK (Collapsed by Default)            */}
       {/* ========================================================= */}
-      <div className="bg-white border-2 border-black p-3.5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3">
+      <div className="min-w-0 bg-white border-2 border-black p-3.5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3">
         {/* Primary Single Row: Search + Status + Date + Expander */}
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
           {/* Search Box (Customer Name/Phone/Email) */}
@@ -564,7 +564,7 @@ export default function OrdersPage() {
       {/* 4. ORDERS DISPATCH TABLE                                  */}
       {/* ========================================================= */}
       <div className="border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm border-collapse" aria-busy={isLoading}>
             <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black font-mono">
               <tr>
@@ -720,6 +720,145 @@ export default function OrdersPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="space-y-3 p-3 md:hidden" aria-busy={isLoading}>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="animate-pulse space-y-3 rounded-[12px] border-2 border-black bg-white p-3 shadow-[2px_2px_0px_0px_#000000]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="h-5 w-24 rounded bg-[#E4DFD0]" />
+                  <div className="h-5 w-20 rounded bg-[#E4DFD0]" />
+                </div>
+                <div className="h-10 rounded-[8px] bg-[#FAF7EC]" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="h-12 rounded-[8px] bg-[#E4DFD0]" />
+                  <div className="h-12 rounded-[8px] bg-[#E4DFD0]" />
+                </div>
+              </div>
+            ))
+          ) : orders.length === 0 ? (
+            <EmptyState
+              icon={<Package className="h-6 w-6 stroke-[2.5]" />}
+              title={hasActiveFilters ? "No orders match active filters" : "No orders found"}
+              description={
+                hasActiveFilters
+                  ? "Try adjusting search criteria, order status, or date range."
+                  : "Orders for morning milk dispatch in Raipur will appear here."
+              }
+              isFiltered={hasActiveFilters}
+              onClearFilters={handleResetFilters}
+            />
+          ) : (
+            orders.map((order) => {
+              const windowTime =
+                order.deliveryStartTime && order.deliveryEndTime
+                  ? `${order.deliveryStartTime} - ${order.deliveryEndTime}`
+                  : "06:00 - 08:00";
+              const planBadge = getPlanBadge(order.planType);
+              const isPrepaidPlan = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
+              const displayPaymentStatus: PaymentStatus = isPrepaidPlan ? "PAID" : order.paymentStatus;
+              const statusBadge = getOrderStatusBadge(order.status);
+              const paymentBadge = getPaymentStatusBadge(displayPaymentStatus);
+              const isCopied = copiedId === order.orderNumber;
+
+              return (
+                <article
+                  key={order.id}
+                  className="min-w-0 space-y-3 rounded-[12px] border-2 border-black bg-white p-3 shadow-[2.5px_2.5px_0px_0px_#000000]"
+                >
+                  <div className="flex min-w-0 items-center justify-between gap-2 border-b border-black/15 pb-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate rounded-[6px] border border-black bg-[#FAF7EC] px-2 py-1 font-mono text-xs font-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]">
+                        {order.orderNumber}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyOrderNumber(e, order.orderNumber)}
+                        aria-label={`Copy order number ${order.orderNumber}`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-black/20 text-[#5C5647] hover:bg-[#FAF7EC] hover:text-[#1A1A1A]"
+                      >
+                        {isCopied ? (
+                          <CheckCheck className="h-4 w-4 text-green-700 stroke-[3]" />
+                        ) : (
+                          <Copy className="h-4 w-4 stroke-[2]" />
+                        )}
+                      </button>
+                    </div>
+                    <span
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-[6px] px-2 py-1 text-[9px] font-black uppercase ${statusBadge.className}`}
+                    >
+                      {statusBadge.icon}
+                      <span>{statusBadge.label}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex min-w-0 items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDetail(order.id)}
+                        className="block max-w-full truncate text-left text-sm font-black text-[#1A1A1A] hover:underline"
+                      >
+                        {order.customer?.name || "Raipur Customer"}
+                      </button>
+                      <div className="mt-0.5 truncate font-mono text-[11px] text-[#5C5647]">
+                        {order.customer?.mobile || "—"}
+                      </div>
+                    </div>
+                    <span className="shrink-0 rounded-[6px] border border-black/40 px-2 py-1 text-[10px] font-black uppercase text-[#1A1A1A]">
+                      {planBadge.label}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="min-w-0 rounded-[8px] border border-black/20 bg-[#FAF7EC] px-2.5 py-2">
+                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                        Delivery
+                      </div>
+                      <div className="mt-1 flex min-w-0 items-start gap-1.5 font-mono text-[11px] font-bold text-[#1A1A1A]">
+                        <Calendar className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span className="min-w-0 break-words">
+                          {formatDate(order.deliveryDate)}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-[#5C5647]">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span>{windowTime}</span>
+                      </div>
+                    </div>
+                    <div className="min-w-0 rounded-[8px] border border-black/20 bg-[#FAF7EC] px-2.5 py-2">
+                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                        Order Total
+                      </div>
+                      <div className="mt-1 truncate font-mono text-sm font-black text-[#1A1A1A]">
+                        {formatCurrency(order.totalPaise / 100)}
+                      </div>
+                      <span
+                        className={`mt-1 inline-flex max-w-full items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[9px] font-bold uppercase ${paymentBadge.className}`}
+                      >
+                        {paymentBadge.icon}
+                        <span className="truncate">{paymentBadge.label}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDetail(order.id)}
+                    aria-label={`View order details for ${order.orderNumber}`}
+                    className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[8px] border-2 border-black bg-[#FFDF58] text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                  >
+                    Manage Order
+                    <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
+                  </button>
+                </article>
+              );
+            })
+          )}
         </div>
 
         {/* PAGINATION BAR */}

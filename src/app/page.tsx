@@ -165,10 +165,10 @@ export default function DashboardOverviewPage() {
       {/* ========================================================= */}
       {/* 1. TOP HEADER & DATE RANGE FILTER BAR                     */}
       {/* ========================================================= */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000]">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#1A1A1A]">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border-2 border-black p-4 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000]">
+        <div className="min-w-0">
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+            <h1 className="text-xl sm:text-3xl font-black uppercase tracking-tight text-[#1A1A1A]">
               Operations Command
             </h1>
             <span className="bg-[#B8E8B8] border-2 border-black font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] shadow-[1px_1px_0px_0px_#000000]">
@@ -181,9 +181,9 @@ export default function DashboardOverviewPage() {
         </div>
 
         {/* Date Filter Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           {/* Preset Buttons */}
-          <div className="inline-flex rounded-[10px] border-2 border-black p-0.5 bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#000000]">
+          <div className="grid min-w-0 flex-1 grid-cols-4 rounded-[10px] border-2 border-black p-0.5 bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#000000] sm:inline-flex sm:flex-none">
             {(["TODAY", "YESTERDAY", "LAST_7_DAYS", "THIS_MONTH"] as DatePreset[]).map((p) => {
               const label =
                 p === "TODAY"
@@ -201,7 +201,7 @@ export default function DashboardOverviewPage() {
                   key={p}
                   type="button"
                   onClick={() => handleSelectPreset(p)}
-                  className={`px-3 py-1 text-xs font-black uppercase tracking-wider rounded-[6px] transition-all cursor-pointer ${
+                  className={`whitespace-nowrap px-1 py-1 text-[9px] font-black uppercase tracking-tight rounded-[6px] transition-all cursor-pointer sm:px-3 sm:text-xs sm:tracking-wider ${
                     isActive
                       ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1px_1px_0px_0px_#000000]"
                       : "text-[#5C5647] hover:text-[#1A1A1A] hover:bg-white"
@@ -219,7 +219,7 @@ export default function DashboardOverviewPage() {
             onClick={() => loadDashboardData(fromDate, toDate, true)}
             disabled={isRefreshing || isLoading}
             aria-label="Refresh dashboard data"
-            className="h-9 px-3 bg-white hover:bg-[#FAF7EC] text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[10px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="h-9 w-9 shrink-0 justify-center px-0 bg-white hover:bg-[#FAF7EC] text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[10px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 sm:w-auto sm:px-3"
           >
             <RotateCcw
               className={`h-3.5 w-3.5 stroke-[2.5] ${isRefreshing ? "animate-spin" : ""}`}
@@ -240,13 +240,13 @@ export default function DashboardOverviewPage() {
       {/* ========================================================= */}
       {/* 2. ROW 1: CORE METRIC KPI STAT CARDS                      */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-busy={isLoading}>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" aria-busy={isLoading}>
         {isLoading || !data ? (
-          <StatCardSkeleton count={4} />
+          <StatCardSkeleton count={4} className="min-w-0 p-3 sm:p-5" />
         ) : (
           <>
             {/* Card 1: Revenue */}
-            <div className="bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
+            <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
                   Total Revenue
@@ -257,7 +257,7 @@ export default function DashboardOverviewPage() {
               </div>
 
               <div className="mt-4">
-                <div className="font-mono text-3xl font-black text-[#1A1A1A] tracking-tight">
+                <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
                   ₹{Math.round((revenue?.collectedPaise || 0) / 100).toLocaleString("en-IN")}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
@@ -279,7 +279,7 @@ export default function DashboardOverviewPage() {
             </div>
 
             {/* Card 2: Milk Volume (Litres) */}
-            <div className="bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
+            <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
                   Volume Delivered
@@ -290,7 +290,7 @@ export default function DashboardOverviewPage() {
               </div>
 
               <div className="mt-4">
-                <div className="font-mono text-3xl font-black text-[#1A1A1A] tracking-tight">
+                <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
                   {orders?.total || 0} <span className="text-lg font-black text-[#5C5647]">Orders</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
@@ -312,7 +312,7 @@ export default function DashboardOverviewPage() {
             </div>
 
             {/* Card 3: Deliveries */}
-            <div className="bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
+            <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
                   Deliveries
@@ -323,7 +323,7 @@ export default function DashboardOverviewPage() {
               </div>
 
               <div className="mt-4">
-                <div className="font-mono text-3xl font-black text-[#1A1A1A] tracking-tight">
+                <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
                   {deliveries?.delivered || 0} <span className="text-sm font-bold text-[#5C5647]">/ {((deliveries?.scheduled || 0) + (deliveries?.delivered || 0) + (deliveries?.skipped || 0)) || 0}</span>
                 </div>
                 <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
@@ -333,7 +333,7 @@ export default function DashboardOverviewPage() {
             </div>
 
             {/* Card 4: Active Customers */}
-            <div className="bg-white border-2 border-black p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
+            <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
                   Active Customers
@@ -344,7 +344,7 @@ export default function DashboardOverviewPage() {
               </div>
 
               <div className="mt-4">
-                <div className="font-mono text-3xl font-black text-[#1A1A1A] tracking-tight">
+                <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
                   {customers?.active || 0}
                 </div>
                 <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
@@ -359,19 +359,19 @@ export default function DashboardOverviewPage() {
       {/* ========================================================= */}
       {/* 3. ROW 2: 7-DAY DELIVERY & REVENUE TREND CHART + CUTOFF   */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
         {/* Left: Trend Chart (8 Cols) */}
-        <div className="lg:col-span-8 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-6 rounded-[14px] flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b-2 border-black/10 pb-3 mb-4">
+        <div className="min-w-0 lg:col-span-8 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-4 sm:p-6 rounded-[14px] flex flex-col justify-between">
+          <div className="flex flex-col items-start gap-3 border-b-2 border-black/10 pb-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-base font-black uppercase tracking-tight text-[#1A1A1A]">
+              <h2 className="text-sm sm:text-base font-black uppercase tracking-tight text-[#1A1A1A]">
                 Fulfillment & Volume Trajectory
               </h2>
               <p className="text-xs font-bold text-[#5C5647]">
                 Daily milk litres dispatched vs total daily revenue in Raipur.
               </p>
             </div>
-            <div className="flex items-center gap-2 text-xs font-mono font-bold">
+            <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs font-mono font-bold">
               <span className="inline-flex items-center gap-1.5 bg-[#FFDF58] px-2 py-0.5 rounded border border-black">
                 <span className="w-2 h-2 rounded-full bg-[#1A1A1A]" /> Litres (L)
               </span>
@@ -452,7 +452,7 @@ export default function DashboardOverviewPage() {
         {/* Right: Operational Status & Engine Cutoff Status (4 Cols) */}
         <div className="lg:col-span-4 flex flex-col gap-4">
           {/* Engine Cutoff & Next Run Card */}
-          <div className="bg-[#FAF7EC] border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 rounded-[14px] space-y-3">
+          <div className="bg-[#FAF7EC] border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-4 sm:p-5 rounded-[14px] space-y-3">
             <div className="flex items-center justify-between border-b-2 border-black/10 pb-2.5">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
@@ -470,7 +470,7 @@ export default function DashboardOverviewPage() {
               <strong className="text-[#1A1A1A]">10:00 PM</strong> every evening for Raipur route packing.
             </p>
 
-            <div className="p-3 bg-white border-2 border-black rounded-[8px] flex items-center justify-between text-xs font-mono font-bold">
+            <div className="p-3 bg-white border-2 border-black rounded-[8px] flex flex-col items-start gap-2 text-xs font-mono font-bold sm:flex-row sm:items-center sm:justify-between">
               <span>Next Morning Delivery Window:</span>
               <span className="bg-[#FFDF58] px-2 py-0.5 rounded border border-black text-[#1A1A1A]">
                 06:00 AM – 09:00 AM
@@ -479,7 +479,7 @@ export default function DashboardOverviewPage() {
           </div>
 
           {/* Morning Dispatch Status */}
-          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-5 rounded-[14px] flex-1 flex flex-col justify-between">
+          <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-4 sm:p-5 rounded-[14px] flex-1 flex flex-col justify-between">
             <div className="flex items-center justify-between border-b-2 border-black/10 pb-2">
               <span className="text-xs font-black uppercase text-[#1A1A1A]">
                 Order Breakdown by Status
@@ -556,9 +556,9 @@ export default function DashboardOverviewPage() {
       {/* ========================================================= */}
       {/* 4. ROW 3: SUBSCRIPTION & OPERATIONAL SUMMARY              */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Left: Active Subscriptions Split */}
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-6 rounded-[14px] space-y-4">
+        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-4 sm:p-6 rounded-[14px] space-y-4">
           <div className="border-b-2 border-black/10 pb-3">
             <h2 className="text-base font-black uppercase tracking-tight text-[#1A1A1A]">
               Subscription Portfolio Distribution
@@ -608,7 +608,7 @@ export default function DashboardOverviewPage() {
         </div>
 
         {/* Right: Quick Action Shortcuts */}
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-6 rounded-[14px] space-y-4">
+        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-4 sm:p-6 rounded-[14px] space-y-4">
           <div className="border-b-2 border-black/10 pb-3">
             <h2 className="text-base font-black uppercase tracking-tight text-[#1A1A1A]">
               Operational Quick Access Hub

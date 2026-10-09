@@ -701,11 +701,11 @@ export default function ServiceabilityPage() {
         </div>
 
         {/* Filter Tabs & Add State Button */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="grid w-full grid-cols-3 items-center gap-2 sm:w-auto sm:flex sm:shrink-0">
           <button
             type="button"
             onClick={() => setFilterStatus("ALL")}
-            className={`h-11 px-4 text-xs font-black uppercase tracking-wider border-2 border-[#1A1A1A] rounded-[10px] transition-all cursor-pointer ${
+            className={`h-11 w-full px-2 text-[10px] font-black uppercase tracking-tight border-2 border-[#1A1A1A] rounded-[10px] transition-all cursor-pointer sm:w-auto sm:px-4 sm:text-xs sm:tracking-wider ${
               filterStatus === "ALL"
                 ? "bg-[#FFD84D] shadow-[3px_3px_0px_0px_#1A1A1A] translate-x-[-1px] translate-y-[-1px]"
                 : "bg-white hover:bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#1A1A1A]"
@@ -716,7 +716,7 @@ export default function ServiceabilityPage() {
           <button
             type="button"
             onClick={() => setFilterStatus("ACTIVE")}
-            className={`h-11 px-4 text-xs font-black uppercase tracking-wider border-2 border-[#1A1A1A] rounded-[10px] transition-all cursor-pointer ${
+            className={`h-11 w-full px-2 text-[10px] font-black uppercase tracking-tight border-2 border-[#1A1A1A] rounded-[10px] transition-all cursor-pointer sm:w-auto sm:px-4 sm:text-xs sm:tracking-wider ${
               filterStatus === "ACTIVE"
                 ? "bg-[#FFD84D] shadow-[3px_3px_0px_0px_#1A1A1A] translate-x-[-1px] translate-y-[-1px]"
                 : "bg-white hover:bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#1A1A1A]"
@@ -727,7 +727,7 @@ export default function ServiceabilityPage() {
           <button
             type="button"
             onClick={() => setFilterStatus("INACTIVE")}
-            className={`h-11 px-4 text-xs font-black uppercase tracking-wider border-2 border-[#1A1A1A] rounded-[10px] transition-all cursor-pointer ${
+            className={`h-11 w-full px-2 text-[10px] font-black uppercase tracking-tight border-2 border-[#1A1A1A] rounded-[10px] transition-all cursor-pointer sm:w-auto sm:px-4 sm:text-xs sm:tracking-wider ${
               filterStatus === "INACTIVE"
                 ? "bg-[#FFD84D] shadow-[3px_3px_0px_0px_#1A1A1A] translate-x-[-1px] translate-y-[-1px]"
                 : "bg-white hover:bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#1A1A1A]"
@@ -739,7 +739,7 @@ export default function ServiceabilityPage() {
           <Button
             type="button"
             onClick={handleOpenAddState}
-            className="h-11 px-4 bg-[#FFD84D] hover:bg-[#E6C23D] border-2 border-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5"
+            className="col-span-3 h-11 w-full justify-center px-4 bg-[#FFD84D] hover:bg-[#E6C23D] border-2 border-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 sm:col-span-1 sm:w-auto"
           >
             <Plus className="h-4 w-4 stroke-[3]" />
             <span>Add State</span>

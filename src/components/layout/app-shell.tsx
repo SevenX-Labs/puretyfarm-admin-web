@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen w-full flex bg-[#FAF7EC]">
+    <div className="min-h-screen w-full min-w-0 flex bg-[#FAF7EC]">
       {/* Session Expired / Unauthorized Modal */}
       <SessionExpiredModal />
 

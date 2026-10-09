@@ -634,7 +634,7 @@ export default function WalletPage() {
         {/* Search & Date Range Filters Row */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Customer Search Input */}
-          <div className="md:col-span-6 relative">
+          <div className="relative min-w-0 md:col-span-6">
             <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
             <Input
               placeholder="Search by customer name, phone, email, or request ID..."
@@ -655,37 +655,39 @@ export default function WalletPage() {
           </div>
 
           {/* Date Filter From */}
-          <div className="md:col-span-3 flex items-center gap-1.5">
-            <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
+          <div className="flex min-w-0 flex-col items-stretch gap-1 md:col-span-3 md:flex-row md:items-center md:gap-1.5">
+            <label htmlFor="wallet-start-date" className="text-[11px] font-black uppercase text-[#5C5647]">
               From:
-            </span>
-            <div className="relative w-full">
+            </label>
+            <div className="relative w-full min-w-0">
               <Input
+                id="wallet-start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => {
                   setStartDate(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
+                className="h-10 w-full min-w-0 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
               />
             </div>
           </div>
 
           {/* Date Filter To */}
-          <div className="md:col-span-3 flex items-center gap-1.5">
-            <span className="text-[11px] font-black uppercase text-[#5C5647] shrink-0">
+          <div className="flex min-w-0 flex-col items-stretch gap-1 md:col-span-3 md:flex-row md:items-center md:gap-1.5">
+            <label htmlFor="wallet-end-date" className="text-[11px] font-black uppercase text-[#5C5647]">
               To:
-            </span>
-            <div className="relative w-full">
+            </label>
+            <div className="relative w-full min-w-0">
               <Input
+                id="wallet-end-date"
                 type="date"
                 value={endDate}
                 onChange={(e) => {
                   setEndDate(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
+                className="h-10 w-full min-w-0 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
               />
             </div>
           </div>
@@ -696,7 +698,7 @@ export default function WalletPage() {
       {/* 4. CREDIT REQUESTS TABLE                                  */}
       {/* ========================================================= */}
       <div className="border-2 border-black bg-white rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm border-collapse">
             <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black">
               <tr>
@@ -890,6 +892,201 @@ export default function WalletPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="space-y-3 p-3 md:hidden" aria-busy={isLoading}>
+          {isLoading && requests.length === 0 ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="animate-pulse space-y-3 rounded-[12px] border-2 border-black bg-white p-3 shadow-[2px_2px_0px_0px_#000000]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="h-5 w-28 rounded bg-[#E4DFD0]" />
+                  <div className="h-5 w-20 rounded bg-[#E4DFD0]" />
+                </div>
+                <div className="h-10 rounded-[8px] bg-[#FAF7EC]" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="h-12 rounded-[8px] bg-[#E4DFD0]" />
+                  <div className="h-12 rounded-[8px] bg-[#E4DFD0]" />
+                </div>
+              </div>
+            ))
+          ) : loadError && requests.length === 0 ? (
+            <ErrorState
+              error={loadError}
+              onRetry={() => loadCreditRequests(currentPage, true)}
+            />
+          ) : requests.length === 0 ? (
+            <EmptyState
+              icon={
+                statusFilter === "PENDING" ? (
+                  <CheckCircle2 className="h-6 w-6 stroke-[2.5] text-green-700" />
+                ) : (
+                  <Wallet className="h-6 w-6 stroke-[2.5]" />
+                )
+              }
+              title={
+                statusFilter === "PENDING" && !hasActiveFilters
+                  ? "All caught up! No pending requests"
+                  : hasActiveFilters
+                  ? "No matching requests found"
+                  : "No credit requests recorded"
+              }
+              description={
+                statusFilter === "PENDING" && !hasActiveFilters
+                  ? "All wallet top-up requests have been approved and processed."
+                  : hasActiveFilters
+                  ? "Try adjusting your search query, date range, or status filter."
+                  : "There are currently no credit requests in this category."
+              }
+              isFiltered={hasActiveFilters}
+              onClearFilters={handleResetFilters}
+            />
+          ) : (
+            requests.map((req) => {
+              const isPending = req.status === "PENDING";
+              const uuidSnippet =
+                req.id.length > 8 ? `${req.id.substring(0, 8)}...` : req.id;
+              const isCopied = copiedId === req.id;
+
+              return (
+                <article
+                  key={req.id}
+                  className="min-w-0 space-y-3 rounded-[12px] border-2 border-black bg-white p-3 shadow-[2.5px_2.5px_0px_0px_#000000]"
+                >
+                  <div className="flex min-w-0 items-center justify-between gap-2 border-b border-black/15 pb-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span
+                        title={`Full ID: ${req.id}`}
+                        className="truncate rounded-[6px] border border-black bg-[#FAF7EC] px-2 py-1 font-mono text-xs font-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
+                      >
+                        {uuidSnippet}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyId(e, req.id)}
+                        aria-label={`Copy request ID ${req.id}`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-black/20 text-[#5C5647] hover:bg-[#FAF7EC] hover:text-[#1A1A1A]"
+                      >
+                        {isCopied ? (
+                          <CheckCheck className="h-4 w-4 text-green-700 stroke-[3]" />
+                        ) : (
+                          <Copy className="h-4 w-4 stroke-[2]" />
+                        )}
+                      </button>
+                    </div>
+                    {renderStatusBadge(req.status)}
+                  </div>
+
+                  <div className="flex min-w-0 items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenWalletSheet(req.customer?.id || "")}
+                        title="Open Customer Wallet History"
+                        className="flex max-w-full items-center gap-1 text-left text-sm font-black text-[#1A1A1A] hover:underline"
+                      >
+                        <span className="truncate">
+                          {req.customer?.name || "Unknown"}
+                        </span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </button>
+                      <div className="mt-0.5 truncate font-mono text-[11px] text-[#5C5647]">
+                        {req.customer?.mobile || "No Mobile"}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="font-mono text-lg font-black tabular-nums text-[#1A1A1A]">
+                        {formatCurrency(req.amountPaise / 100)}
+                      </div>
+                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                        Amount
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="min-w-0 rounded-[8px] border border-black/20 bg-[#FAF7EC] px-2.5 py-2">
+                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                        Refund Status
+                      </div>
+                      <div className="mt-1">{renderRefundBadge(req.refundStatus)}</div>
+                    </div>
+                    <div className="min-w-0 rounded-[8px] border border-black/20 bg-[#FAF7EC] px-2.5 py-2">
+                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                        Requested
+                      </div>
+                      <div className="mt-1 font-mono text-[11px] font-bold text-[#1A1A1A]">
+                        {formatDate(req.createdAt)}
+                      </div>
+                      <div className="font-mono text-[10px] text-[#5C5647]">
+                        {new Date(req.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {isPending ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(req)}
+                        disabled={approvingId === req.id}
+                        aria-label={`Approve request ${req.id}`}
+                        className="flex h-10 items-center justify-center gap-1 rounded-[8px] border-2 border-black bg-[#8FD694] px-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-50"
+                      >
+                        <ButtonLoader loading={approvingId === req.id}>
+                          <Check className="h-3.5 w-3.5 stroke-[3]" />
+                          Approve
+                        </ButtonLoader>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedForReject(req);
+                          setIsRejectOpen(true);
+                        }}
+                        disabled={approvingId === req.id}
+                        aria-label={`Reject request ${req.id}`}
+                        className="flex h-10 items-center justify-center gap-1 rounded-[8px] border-2 border-black bg-[#FFD9D0] px-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-50"
+                      >
+                        <X className="h-3.5 w-3.5 stroke-[3]" />
+                        Reject
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedForDetail(req.id);
+                          setIsDetailOpen(true);
+                        }}
+                        aria-label={`View details for request ${req.id}`}
+                        className="col-span-2 flex h-10 items-center justify-center gap-1.5 rounded-[8px] border-2 border-black bg-white px-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[#FAF7EC]"
+                      >
+                        <Eye className="h-3.5 w-3.5 stroke-[2]" />
+                        View Request Details
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedForDetail(req.id);
+                        setIsDetailOpen(true);
+                      }}
+                      aria-label={`View details for request ${req.id}`}
+                      className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[8px] border-2 border-black bg-white px-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[#FAF7EC]"
+                    >
+                      <Eye className="h-3.5 w-3.5 stroke-[2]" />
+                      View Request Details
+                    </button>
+                  )}
+                </article>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination Strip */}

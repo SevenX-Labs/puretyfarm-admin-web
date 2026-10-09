@@ -200,28 +200,33 @@ export default function CustomersPage() {
     setPage(1);
   };
 
+  const handleClearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setFilterStatus("ALL");
+    setPage(1);
+  };
+
   const hasActiveFilter = Boolean(debouncedSearch || filterStatus !== "ALL");
 
   return (
     <div className="space-y-6">
       {/* Consolidated Header & Control Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border-2 border-[#1A1A1A] rounded-[14px] p-5 shadow-[5px_5px_0px_0px_#1A1A1A]">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border-2 border-[#1A1A1A] rounded-[14px] p-4 sm:p-5 shadow-[5px_5px_0px_0px_#1A1A1A]">
         {/* Title and stats pill */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-[#1A1A1A]">
-              Customer Directory
-            </h1>
-            <span className="bg-[#B9E8B4] border-2 border-[#1A1A1A] font-mono text-[11px] font-black uppercase px-2.5 py-0.5 rounded-[6px] shadow-[1.5px_1.5px_0px_0px_#1A1A1A] whitespace-nowrap inline-flex items-center shrink-0">
-              {isLoading ? "..." : `${pagination.total} Registered`}
-            </span>
-          </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <h1 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-[#1A1A1A]">
+            Customer Directory
+          </h1>
+          <span className="bg-[#B9E8B4] border-2 border-[#1A1A1A] font-mono text-[11px] font-black uppercase px-2.5 py-0.5 rounded-[6px] shadow-[1.5px_1.5px_0px_0px_#1A1A1A] whitespace-nowrap inline-flex items-center shrink-0">
+            {isLoading ? "..." : `${pagination.total} Registered`}
+          </span>
         </div>
 
         {/* Integrated Search, Filter, & Refresh */}
-        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+        <div className="flex w-full min-w-0 flex-col gap-2.5 sm:flex-row sm:flex-nowrap lg:w-auto">
           {/* Search Bar */}
-          <div className="relative flex-1 sm:w-72">
+          <div className="relative w-full min-w-0 sm:w-72 sm:flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
             <input
               type="text"
@@ -244,13 +249,13 @@ export default function CustomersPage() {
           </div>
 
           {/* Filter Dropdown */}
-          <div className="flex items-center gap-1.5 border-2 border-[#1A1A1A] bg-white px-3 h-11 rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A]">
+          <div className="flex h-11 w-full min-w-0 items-center gap-1.5 border-2 border-[#1A1A1A] bg-white px-3 rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] sm:w-auto">
             <Filter className="h-4 w-4 text-[#1A1A1A] stroke-[2.5] shrink-0" />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               aria-label="Filter customer profiles"
-              className="bg-transparent font-mono font-bold text-xs text-[#1A1A1A] outline-none cursor-pointer pr-1"
+              className="min-w-0 flex-1 bg-transparent font-mono font-bold text-xs text-[#1A1A1A] outline-none cursor-pointer pr-1 sm:flex-none"
             >
               <option value="ALL">All Profiles</option>
               <option value="COMPLETE">Complete Profile</option>
@@ -267,7 +272,7 @@ export default function CustomersPage() {
             onClick={() => loadCustomers(true)}
             disabled={isLoading}
             aria-label="Refresh customer list"
-            className="h-11 px-4 bg-[#FFD84D] hover:bg-[#E6C23D] text-[#1A1A1A] font-black uppercase text-xs border-2 border-[#1A1A1A] rounded-[10px] shadow-[3px_3px_0px_0px_#1A1A1A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
+            className="flex h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-[10px] border-2 border-[#1A1A1A] bg-[#FFD84D] px-4 text-xs font-black uppercase text-[#1A1A1A] shadow-[3px_3px_0px_0px_#1A1A1A] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:bg-[#E6C23D] hover:shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none disabled:opacity-50 sm:w-auto"
           >
             <RotateCcw className={`h-4 w-4 stroke-[2.5] ${isLoading ? "animate-spin" : ""}`} />
             <span>Refresh</span>
@@ -318,7 +323,7 @@ export default function CustomersPage() {
 
       {/* Streamlined Customer Data Table */}
       <div className="border-2 border-[#1A1A1A] bg-white rounded-[14px] shadow-[5px_5px_0px_0px_#1A1A1A] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm border-collapse" aria-busy={isLoading}>
             <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase font-mono text-[11px] font-black tracking-wider border-b-2 border-[#1A1A1A]">
               <tr>
@@ -346,12 +351,7 @@ export default function CustomersPage() {
                           : "No registered customers found in Raipur database."
                       }
                       isFiltered={hasActiveFilter}
-                      onClearFilters={() => {
-                        setSearch("");
-                        setDebouncedSearch("");
-                        setFilterStatus("ALL");
-                        setPage(1);
-                      }}
+                      onClearFilters={handleClearFilters}
                     />
                   </td>
                 </tr>
@@ -470,6 +470,130 @@ export default function CustomersPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="space-y-3 p-3 md:hidden" aria-busy={isLoading}>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="animate-pulse space-y-3 rounded-[12px] border-2 border-[#1A1A1A] bg-white p-3 shadow-[2px_2px_0px_0px_#1A1A1A]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 shrink-0 rounded-[8px] bg-[#E4DFD0]" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="h-3 w-2/3 rounded bg-[#E4DFD0]" />
+                    <div className="h-2.5 w-1/3 rounded bg-[#E4DFD0]" />
+                  </div>
+                </div>
+                <div className="h-10 rounded-[8px] bg-[#FAF7EC]" />
+              </div>
+            ))
+          ) : filteredCustomers.length === 0 ? (
+            <EmptyState
+              icon={<Users className="h-6 w-6 stroke-[2.5]" />}
+              title="No customers found"
+              description={
+                hasActiveFilter
+                  ? "No customer accounts match your active search or filter criteria."
+                  : "No registered customers found in Raipur database."
+              }
+              isFiltered={hasActiveFilter}
+              onClearFilters={handleClearFilters}
+            />
+          ) : (
+            filteredCustomers.map((customer) => {
+              const fullName = customer.profile
+                ? `${customer.profile.firstName || ""} ${customer.profile.lastName || ""}`.trim()
+                : "No Profile Set";
+              const registeredDate = customer.createdAt
+                ? new Date(customer.createdAt).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "—";
+
+              return (
+                <button
+                  key={customer.id}
+                  type="button"
+                  onClick={() => handleOpenDetail(customer.id)}
+                  aria-label={`View full record for ${fullName}`}
+                  className="w-full space-y-3 rounded-[12px] border-2 border-[#1A1A1A] bg-white p-3 text-left shadow-[2.5px_2.5px_0px_0px_#1A1A1A] transition-colors hover:bg-[#FAF7EC] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <CustomerAvatarItem
+                      profile={customer.profile}
+                      mobile={customer.mobile}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-extrabold uppercase text-[#1A1A1A]">
+                        {fullName}
+                      </div>
+                      <div className="truncate font-mono text-[10px] text-[#5C5647]">
+                        ID: {customer.id.slice(0, 8)}...
+                      </div>
+                    </div>
+                    {customer.profile ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-[6px] border-2 border-[#1A1A1A] bg-[#B9E8B4] px-1.5 py-0.5 font-mono text-[9px] font-black uppercase text-[#1A1A1A]">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Complete
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-[6px] border-2 border-[#1A1A1A] bg-[#E4DFD0] px-1.5 py-0.5 font-mono text-[9px] font-black uppercase text-[#1A1A1A]">
+                        Incomplete
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1 border-t border-[#1A1A1A]/15 pt-2 font-mono text-xs">
+                    <div className="flex min-w-0 items-center gap-1.5 font-bold text-[#1A1A1A]">
+                      <Phone className="h-3.5 w-3.5 shrink-0 text-[#5C5647]" />
+                      <span>{customer.mobile}</span>
+                    </div>
+                    <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-[#5C5647]">
+                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">
+                        {customer.email || "No email linked"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-[8px] border border-[#1A1A1A]/20 bg-[#FAF7EC] px-2.5 py-2">
+                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                        Addresses
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5 font-mono text-xs font-bold text-[#1A1A1A]">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[#5C5647]" />
+                        {customer.counts?.addresses || 0} saved
+                      </div>
+                    </div>
+                    <div className="rounded-[8px] border border-[#1A1A1A]/20 bg-[#FAF7EC] px-2.5 py-2">
+                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                        Active Plans
+                      </div>
+                      <div className="mt-0.5 font-mono text-xs font-bold text-[#1A1A1A]">
+                        {customer.counts?.planSelections ?? 0} active
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 border-t border-[#1A1A1A]/15 pt-2">
+                    <span className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[#5C5647]">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Joined {registeredDate}</span>
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-black uppercase text-[#1A1A1A]">
+                      View Record
+                      <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
+                    </span>
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination Footer */}

@@ -187,13 +187,13 @@ export function OrderDetailSheet({
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md md:max-w-xl p-0 overflow-y-auto bg-[#FAF7EC] border-l-2 border-black shadow-[-5px_0px_0px_0px_#000000]"
+        className="w-full min-w-0 sm:max-w-md md:max-w-xl p-0 overflow-x-hidden overflow-y-auto bg-[#FAF7EC] border-l-2 border-black shadow-[-5px_0px_0px_0px_#000000]"
       >
         {/* Header Strip */}
-        <div className="p-5 border-b-2 border-black bg-white">
+        <div className="p-3 sm:p-5 border-b-2 border-black bg-white">
           <SheetHeader>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 pr-10 sm:justify-between sm:pr-12">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="rounded-[6px] border-2 border-black bg-white px-2.5 py-1 text-xs font-mono font-black text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]">
                   {order?.orderNumber || "ORDER"}
                 </span>
@@ -209,7 +209,7 @@ export function OrderDetailSheet({
               </div>
 
               {order && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex min-w-0 items-center gap-1.5">
                   <span
                     className={`rounded-[6px] px-2 py-0.5 text-[10px] uppercase ${getPaymentStatusBadgeClass(
                       displayPaymentStatus
@@ -221,7 +221,7 @@ export function OrderDetailSheet({
               )}
             </div>
 
-            <SheetTitle className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] mt-3">
+            <SheetTitle className="mt-2 pr-8 text-lg font-black uppercase tracking-tight text-[#1A1A1A] sm:mt-3 sm:pr-0 sm:text-xl">
               Order Dispatch Snapshot
             </SheetTitle>
             <SheetDescription className="text-xs font-bold text-[#5C5647]">
@@ -231,7 +231,7 @@ export function OrderDetailSheet({
         </div>
 
         {/* Content Body */}
-        <div className="p-5 space-y-5">
+        <div className="min-w-0 space-y-3 p-3 sm:space-y-5 sm:p-5">
           {isLoading && !order ? (
             <div className="space-y-4 animate-pulse">
               <div className="h-16 bg-[#E5E0D8] rounded-[10px] border-2 border-black/30" />
@@ -261,16 +261,16 @@ export function OrderDetailSheet({
               )}
 
               {/* 1. STATE MACHINE LIFECYCLE TRANSITION HUB */}
-              <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+              <div className="min-w-0 space-y-3 rounded-[14px] border-2 border-black bg-white p-3 shadow-[4px_4px_0px_0px_#000000] sm:p-4">
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-1.5">
                     <Truck className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
-                    <span className="text-xs font-black uppercase text-[#1A1A1A]">
+                    <span className="text-[11px] font-black uppercase text-[#1A1A1A] sm:text-xs">
                       State Machine Transition Hub
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold text-[#5C5647]">
-                    Current: {order.status}
+                  <span className="w-fit rounded-[6px] border border-black/20 bg-[#FAF7EC] px-2 py-0.5 text-[10px] font-mono font-bold text-[#5C5647]">
+                    Current: {order.status.replace(/_/g, " ")}
                   </span>
                 </div>
 
@@ -295,7 +295,7 @@ export function OrderDetailSheet({
                             type="button"
                             disabled={isUpdatingStatus}
                             onClick={() => handleTransitionStatus(target)}
-                            className={`rounded-[8px] border-2 border-black px-3.5 py-1.5 text-xs font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 text-[#1A1A1A] ${
+                            className={`max-w-full whitespace-normal rounded-[8px] border-2 border-black px-2.5 py-1.5 text-left text-[10px] font-black uppercase leading-tight tracking-wider shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 text-[#1A1A1A] sm:px-3.5 sm:text-xs ${
                               isCancelOrFailed
                                 ? "bg-[#FF8E72] hover:bg-[#ff7b5a]"
                                 : isSuccessDelivered
@@ -318,9 +318,9 @@ export function OrderDetailSheet({
               </div>
 
               {/* 2. DELIVERY TIMING & PLAN INFO */}
-              <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2.5">
-                <div className="flex items-center justify-between border-b border-black/10 pb-2">
-                  <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5">
+              <div className="min-w-0 space-y-2.5 rounded-[14px] border-2 border-black bg-white p-3 shadow-[4px_4px_0px_0px_#000000] sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-black/10 pb-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-black uppercase text-[#1A1A1A] sm:text-xs">
                     <Calendar className="h-3.5 w-3.5 stroke-[2.5]" />
                     Delivery Schedule & Plan
                   </span>
@@ -329,12 +329,12 @@ export function OrderDetailSheet({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs font-bold pt-1">
+                <div className="grid grid-cols-1 gap-3 pt-1 text-xs font-bold min-[420px]:grid-cols-2">
                   <div>
                     <span className="text-[10px] font-black uppercase text-[#5C5647] block">
                       Target Delivery Date
                     </span>
-                    <span className="font-mono font-black text-sm text-[#1A1A1A]">
+                    <span className="break-words font-mono text-sm font-black text-[#1A1A1A]">
                       {order.deliveryDate || formatDate(order.createdAt)}
                     </span>
                   </div>
@@ -343,7 +343,7 @@ export function OrderDetailSheet({
                     <span className="text-[10px] font-black uppercase text-[#5C5647] block">
                       Delivery Window
                     </span>
-                    <span className="font-mono font-black text-sm text-[#1A1A1A]">
+                    <span className="break-words font-mono text-sm font-black text-[#1A1A1A]">
                       {order.deliveryStartTime && order.deliveryEndTime
                         ? `${order.deliveryStartTime} - ${order.deliveryEndTime}`
                         : "06:00 - 08:00 AM"}
@@ -353,9 +353,9 @@ export function OrderDetailSheet({
               </div>
 
               {/* 3. CUSTOMER & DELIVERY ADDRESS SNAPSHOT CARD */}
-              <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
-                <div className="flex items-center justify-between border-b border-black/10 pb-2">
-                  <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5">
+              <div className="min-w-0 space-y-3 rounded-[14px] border-2 border-black bg-white p-3 shadow-[4px_4px_0px_0px_#000000] sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-black/10 pb-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-black uppercase text-[#1A1A1A] sm:text-xs">
                     <MapPin className="h-3.5 w-3.5 stroke-[2.5]" />
                     Delivery Address Snapshot
                   </span>
@@ -365,17 +365,17 @@ export function OrderDetailSheet({
                 </div>
 
                 {/* Customer Contact */}
-                <div className="rounded-[10px] border border-black/20 bg-[#FAF7EC] p-3 text-xs font-bold space-y-1">
+                <div className="min-w-0 space-y-1 rounded-[10px] border border-black/20 bg-[#FAF7EC] p-3 text-xs font-bold">
                   <div className="font-black text-sm text-[#1A1A1A]">
                     {order.customer?.name || "Customer"}
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#5C5647]">
-                    <span className="font-mono flex items-center gap-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#5C5647]">
+                    <span className="flex items-center gap-1 font-mono">
                       <Phone className="h-3 w-3 stroke-[2]" />
                       {order.customer?.mobile || "No phone"}
                     </span>
                     {order.customer?.email && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex min-w-0 items-center gap-1 break-all">
                         <Mail className="h-3 w-3 stroke-[2]" />
                         {order.customer.email}
                       </span>
@@ -387,37 +387,37 @@ export function OrderDetailSheet({
                 <div className="grid grid-cols-2 gap-2 text-xs font-bold pt-1">
                   <div className="rounded-[8px] border border-black/15 bg-white p-2">
                     <span className="text-[10px] uppercase text-[#5C5647] block font-mono">House / Flat</span>
-                    <span className="text-xs text-[#1A1A1A] font-bold">
+                    <span className="break-words text-xs font-bold text-[#1A1A1A]">
                       {addressSnap.houseNumber || "—"}
                     </span>
                   </div>
                   <div className="rounded-[8px] border border-black/15 bg-white p-2">
                     <span className="text-[10px] uppercase text-[#5C5647] block font-mono">Building / Society</span>
-                    <span className="text-xs text-[#1A1A1A] font-bold">
+                    <span className="break-words text-xs font-bold text-[#1A1A1A]">
                       {addressSnap.buildingName || "—"}
                     </span>
                   </div>
                   <div className="rounded-[8px] border border-black/15 bg-white p-2">
                     <span className="text-[10px] uppercase text-[#5C5647] block font-mono">Street / Landmark</span>
-                    <span className="text-xs text-[#1A1A1A] font-bold">
+                    <span className="break-words text-xs font-bold text-[#1A1A1A]">
                       {[addressSnap.streetName, addressSnap.landmark].filter(Boolean).join(" • ") || "—"}
                     </span>
                   </div>
                   <div className="rounded-[8px] border border-black/15 bg-white p-2">
                     <span className="text-[10px] uppercase text-[#5C5647] block font-mono">Area</span>
-                    <span className="text-xs text-[#1A1A1A] font-bold">
+                    <span className="break-words text-xs font-bold text-[#1A1A1A]">
                       {addressSnap.area || "—"}
                     </span>
                   </div>
                   <div className="rounded-[8px] border border-black/15 bg-white p-2">
                     <span className="text-[10px] uppercase text-[#5C5647] block font-mono">City / State</span>
-                    <span className="text-xs text-[#1A1A1A] font-bold">
+                    <span className="break-words text-xs font-bold text-[#1A1A1A]">
                       {[addressSnap.city || "Raipur", addressSnap.state || "Chhattisgarh"].filter(Boolean).join(", ")}
                     </span>
                   </div>
                   <div className="rounded-[8px] border border-black/15 bg-white p-2">
                     <span className="text-[10px] uppercase text-[#5C5647] block font-mono">Pincode</span>
-                    <span className="text-xs font-mono text-[#1A1A1A] font-black">
+                    <span className="break-words text-xs font-mono font-black text-[#1A1A1A]">
                       {addressSnap.pincode || "—"}
                     </span>
                   </div>
@@ -429,7 +429,7 @@ export function OrderDetailSheet({
                     <span className="text-[10px] font-black uppercase text-[#5C5647] block">
                       Full Destination Line:
                     </span>
-                    <p className="text-xs text-[#1A1A1A] font-bold leading-snug">
+                    <p className="break-words text-xs font-bold leading-snug text-[#1A1A1A]">
                       {formattedAddressLines.join(", ")}
                     </p>
                   </div>
@@ -437,9 +437,9 @@ export function OrderDetailSheet({
               </div>
 
               {/* 4. LINE ITEMS SNAPSHOT TABLE */}
-              <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
-                <div className="flex items-center justify-between border-b border-black/10 pb-2">
-                  <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5">
+              <div className="min-w-0 space-y-3 rounded-[14px] border-2 border-black bg-white p-3 shadow-[4px_4px_0px_0px_#000000] sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-black/10 pb-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-black uppercase text-[#1A1A1A] sm:text-xs">
                     <Package className="h-3.5 w-3.5 stroke-[2.5]" />
                     Line Items Snapshot
                   </span>
@@ -489,7 +489,7 @@ export function OrderDetailSheet({
               </div>
 
               {/* 5. FINANCIAL BREAKDOWN CARD */}
-              <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2.5">
+              <div className="min-w-0 space-y-2.5 rounded-[14px] border-2 border-black bg-white p-3 shadow-[4px_4px_0px_0px_#000000] sm:p-4">
                 <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
                   <Receipt className="h-3.5 w-3.5 stroke-[2.5]" />
                   Financial Breakdown
@@ -538,13 +538,13 @@ export function OrderDetailSheet({
               </div>
 
               {/* 6. INVOICE METADATA CARD */}
-              <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2.5">
+              <div className="min-w-0 space-y-2.5 rounded-[14px] border-2 border-black bg-white p-3 shadow-[4px_4px_0px_0px_#000000] sm:p-4">
                 <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
                   <FileCheck2 className="h-3.5 w-3.5 stroke-[2.5]" />
                   Invoice Metadata
                 </span>
 
-                <div className="grid grid-cols-2 gap-3 text-xs font-bold pt-1">
+                <div className="grid grid-cols-1 gap-3 pt-1 text-xs font-bold min-[420px]:grid-cols-2">
                   <div>
                     <span className="text-[10px] font-black uppercase text-[#5C5647] block">
                       Invoice Number
