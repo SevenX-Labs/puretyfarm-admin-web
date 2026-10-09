@@ -64,3 +64,45 @@ export interface PlansApiResponse {
   plans: PlanConfig[];
   unconfigured?: string[];
 }
+
+export interface CustomerSubscriptionItem {
+  id: string;
+  userId: string;
+  planType: PlanType;
+  status: string;
+  frequency: string | null;
+  quantityMode: string | null;
+  quantity: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  paymentMethod: string | null;
+  paidAmountPaise: number | null;
+  paidAt: string | null;
+  createdAt: string;
+  deliveriesCount: number;
+  customer: {
+    id: string;
+    mobile: string;
+    email: string | null;
+    name: string | null;
+    address: {
+      fullName?: string;
+      houseNumber?: string;
+      buildingName?: string;
+      streetName?: string;
+      area?: string;
+      city?: string;
+      pincode?: string;
+    } | null;
+  };
+}
+
+export interface CustomerSubscriptionsApiResponse {
+  data: CustomerSubscriptionItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}

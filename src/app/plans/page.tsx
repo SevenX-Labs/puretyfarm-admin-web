@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
+  CustomerSubscriptionItem,
+  CustomerSubscriptionsApiResponse,
   PlanConfig,
   PlanType,
   RequestType,
@@ -11,6 +13,7 @@ import {
 } from "@/types/plan-delivery";
 import {
   getAllPlans,
+  fetchAdminSubscriptions,
   updatePlanConfig,
   fetchChangeRequests,
   approveChangeRequest,
@@ -18,10 +21,12 @@ import {
 } from "@/services/plan-delivery-service";
 import { RejectRequestModal } from "@/components/plans/reject-request-modal";
 import { EditPlanModal } from "@/components/plans/edit-plan-modal";
+import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { Input } from "@/components/ui/input";
 import {
   Calendar,
   Clock,
+  Milk,
   Search,
   CheckCircle2,
   AlertTriangle,
@@ -50,11 +55,84 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 
-type TabMode = "REQUESTS" | "PLANS";
+type TabMode = "SUBSCRIPTIONS" | "REQUESTS" | "PLANS";
 
 export default function PlansAndDeliveryPage() {
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<TabMode>("REQUESTS");
+    const [activeTab, setActiveTab] = useState<TabMode>("SUBSCRIPTIONS");
+
+  // ==========================================
+  // TAB 0: CUSTOMER SUBSCRIPTIONS STATE
+  // ==========================================
+  const [subscriptions, setSubscriptions] = useState<CustomerSubscriptionItem[]>([]);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState<boolean>(true);
+  const [isRefreshingSubscriptions, setIsRefreshingSubscriptions] = useState<boolean>(false);
+  const [subStatusFilter, setSubStatusFilter] = useState<string>("ALL");
+  const [subPlanTypeFilter, setSubPlanTypeFilter] = useState<string>("ALL");
+  const [subSearch, setSubSearch] = useState<string>("");
+  const [debouncedSubSearch, setDebouncedSubSearch] = useState<string>("");
+  const [subPage, setSubPage] = useState<number>(1);
+  const [subTotalPages, setSubTotalPages] = useState<number>(1);
+  const [totalSubscriptions, setTotalSubscriptions] = useState<number>(0);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [isCustomerDetailOpen, setIsCustomerDetailOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSubSearch(subSearch.trim());
+      setSubPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [subSearch]);
+
+  const fetchSubscriptionsData = useCallback(
+    async (pageToLoad = 1, forceRefresh = false) => {
+      if (forceRefresh) setIsRefreshingSubscriptions(true);
+      else setSubscriptionsLoading(true);
+
+      try {
+        const res = await fetchAdminSubscriptions(
+          {
+            page: pageToLoad,
+            limit: 20,
+            status: subStatusFilter,
+            planType: subPlanTypeFilter,
+            search: debouncedSubSearch,
+          },
+          {
+            forceRefresh,
+            onFreshData: (fresh) => {
+              if (fresh && Array.isArray(fresh.data)) {
+                setSubscriptions(fresh.data);
+                setSubTotalPages(fresh.pagination?.totalPages || 1);
+                setTotalSubscriptions(fresh.pagination?.total || fresh.data.length);
+                setSubscriptionsLoading(false);
+              }
+            },
+          }
+        );
+
+        if (res && Array.isArray(res.data)) {
+          setSubscriptions(res.data);
+          setSubTotalPages(res.pagination?.totalPages || 1);
+          setTotalSubscriptions(res.pagination?.total || res.data.length);
+        }
+      } catch (err: unknown) {
+        console.error("Failed to fetch subscriptions:", err);
+      } finally {
+        setSubscriptionsLoading(false);
+        setIsRefreshingSubscriptions(false);
+      }
+    },
+    [subStatusFilter, subPlanTypeFilter, debouncedSubSearch]
+  );
+
+  useEffect(() => {
+    if (activeTab === "SUBSCRIPTIONS") {
+      fetchSubscriptionsData(subPage, false);
+    }
+  }, [activeTab, subPage, fetchSubscriptionsData]);
+
 
   // Global Toast / Notice State
   const [notice, setNotice] = useState<{
@@ -459,7 +537,22 @@ export default function PlansAndDeliveryPage() {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {activeTab === "REQUESTS" ? (
+          {activeTab === "SUBSCRIPTIONS" ? (
+            <button
+              type="button"
+              onClick={() => fetchSubscriptionsData(subPage, true)}
+              disabled={isRefreshingSubscriptions}
+              aria-label="Sync customer subscriptions from server"
+              className="cursor-pointer rounded-[10px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black min-h-[40px]"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 stroke-[2.5] ${
+                  isRefreshingSubscriptions ? "animate-spin" : ""
+                }`}
+              />
+              {isRefreshingSubscriptions ? "Syncing..." : "Sync Subscriptions"}
+            </button>
+          ) : activeTab === "REQUESTS" ? (
             <button
               type="button"
               onClick={() => fetchRequestsData(currentPage, true)}
@@ -515,7 +608,26 @@ export default function PlansAndDeliveryPage() {
       {/* ========================================================= */}
       {/* 2. SEGMENTED TABS (Customer Requests vs Plan Config)      */}
       {/* ========================================================= */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[#FAF7EC] p-1.5 rounded-[14px] border-2 border-black shadow-[3px_3px_0px_0px_#000000]">
+      <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#FAF7EC] p-1.5 rounded-[14px] border-2 border-black shadow-[3px_3px_0px_0px_#000000]">
+        <button
+          type="button"
+          onClick={() => setActiveTab("SUBSCRIPTIONS")}
+          aria-selected={activeTab === "SUBSCRIPTIONS"}
+          className={`w-full py-2.5 px-4 rounded-[10px] text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+            activeTab === "SUBSCRIPTIONS"
+              ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[2px_2px_0px_0px_#000000]"
+              : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
+          }`}
+        >
+          <Milk className="h-4 w-4 stroke-[2.5]" />
+          <span>Active Subscriptions</span>
+          {totalSubscriptions > 0 && (
+            <span className="ml-1 rounded-full bg-black text-[#FFDF58] px-2 py-0.5 text-[11px] font-mono font-black">
+              {totalSubscriptions}
+            </span>
+          )}
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("REQUESTS")}
@@ -527,7 +639,7 @@ export default function PlansAndDeliveryPage() {
           }`}
         >
           <Clock className="h-4 w-4 stroke-[2.5]" />
-          <span>Customer Change Requests</span>
+          <span>Change Requests</span>
           {pendingRequestsCount > 0 && (
             <span className="ml-1 rounded-full bg-black text-[#FFDF58] px-2 py-0.5 text-[11px] font-mono font-black">
               {pendingRequestsCount}
@@ -545,12 +657,232 @@ export default function PlansAndDeliveryPage() {
               : "bg-white text-[#5C5647] hover:text-[#1A1A1A] border border-black/20"
           }`}
         >
-          <CalendarDays className="h-4 w-4 stroke-[2.5]" />
-          <span>Plan Pricing & Configuration</span>
+          <SlidersHorizontal className="h-4 w-4 stroke-[2.5]" />
+          <span>Pricing & Settings</span>
         </button>
       </div>
 
             {/* ========================================================= */}
+      {/* TAB 0: CUSTOMER ACTIVE SUBSCRIPTIONS                      */}
+      {/* ========================================================= */}
+      {activeTab === "SUBSCRIPTIONS" && (
+        <div className="space-y-4">
+          {/* Subscriptions Filter Bar */}
+          <div className="bg-white border-2 border-black p-3.5 rounded-[14px] shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { key: "ALL", label: "All" },
+                { key: "CONFIRMED", label: "Confirmed" },
+                { key: "ACTIVE", label: "Active" },
+                { key: "PENDING_PAYMENT", label: "Pending Payment" },
+                { key: "PAUSED", label: "Paused" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    setSubStatusFilter(tab.key);
+                    setSubPage(1);
+                  }}
+                  className={`rounded-[8px] border-2 border-black px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer min-h-[36px] ${
+                    subStatusFilter === tab.key
+                      ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
+                      : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#5C5647]" />
+                <input
+                  type="text"
+                  placeholder="Search customer, phone..."
+                  value={subSearch}
+                  onChange={(e) => setSubSearch(e.target.value)}
+                  className="w-full h-9 pl-9 pr-3 rounded-[8px] border-2 border-black bg-white text-xs font-bold text-[#1A1A1A] outline-none shadow-[1.5px_1.5px_0px_0px_#000000]"
+                />
+              </div>
+
+              <select
+                value={subPlanTypeFilter}
+                onChange={(e) => {
+                  setSubPlanTypeFilter(e.target.value);
+                  setSubPage(1);
+                }}
+                className="h-9 px-3 rounded-[8px] border-2 border-black bg-white text-xs font-black uppercase text-[#1A1A1A] outline-none shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
+              >
+                <option value="ALL">All Types</option>
+                <option value="BUY_ONCE">Buy Once</option>
+                <option value="SEVEN_DAY_TRIAL">7-Day Trial</option>
+                <option value="MONTHLY">Monthly</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Subscriptions Table */}
+          <div className="bg-white border-2 border-black rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-[#FAF7EC] border-b-2 border-black text-[#1A1A1A] font-black uppercase text-[11px] tracking-wider">
+                    <th className="py-3 px-4 border-r-2 border-black">Customer</th>
+                    <th className="py-3 px-4 border-r-2 border-black">Plan</th>
+                    <th className="py-3 px-4 border-r-2 border-black">Schedule & Volume</th>
+                    <th className="py-3 px-4 border-r-2 border-black">Date Range</th>
+                    <th className="py-3 px-4 border-r-2 border-black text-right">Payment</th>
+                    <th className="py-3 px-4 border-r-2 border-black text-center">Status</th>
+                    <th className="py-3 px-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y-2 divide-black text-xs">
+                  {subscriptionsLoading ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-[#5C5647] font-bold">
+                        <div className="flex items-center justify-center gap-2">
+                          <RefreshCw className="h-5 w-5 animate-spin" />
+                          <span>Loading customer subscriptions...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : subscriptions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-[#5C5647]">
+                        <div className="max-w-sm mx-auto space-y-2">
+                          <CheckCircle2 className="h-10 w-10 mx-auto text-[#14532D]" />
+                          <p className="font-black text-sm text-[#1A1A1A] uppercase">
+                            No Customer Subscriptions Found
+                          </p>
+                          <p className="text-xs font-semibold">
+                            {debouncedSubSearch || subStatusFilter !== "ALL" || subPlanTypeFilter !== "ALL"
+                              ? "Try adjusting filters or clearing search criteria."
+                              : "No subscription plans are currently recorded."}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    subscriptions.map((sub) => {
+                      const isActive = sub.status === "CONFIRMED" || sub.status === "ACTIVE";
+                      const isPaused = sub.status === "PAUSED";
+                      return (
+                        <tr key={sub.id} className="hover:bg-[#FFFDF7] transition-colors">
+                          <td className="py-3.5 px-4 border-r-2 border-black">
+                            <div className="font-black text-sm text-[#1A1A1A]">
+                              {sub.customer?.name || "Customer"}
+                            </div>
+                            <div className="text-[11px] font-mono font-bold text-[#5C5647]">
+                              {sub.customer?.mobile}
+                            </div>
+                            {sub.customer?.address?.area && (
+                              <div className="text-[10px] font-mono text-[#5C5647] truncate max-w-[180px]">
+                                {sub.customer.address.area}
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-4 border-r-2 border-black">
+                            <span className="inline-block bg-[#FFD84D] border-2 border-black rounded-[6px] font-mono font-black text-[10px] uppercase px-2 py-0.5 shadow-[1px_1px_0px_0px_#000000]">
+                              {sub.planType}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 border-r-2 border-black font-mono">
+                            <div className="font-black text-xs text-[#1A1A1A]">
+                              {sub.quantity ?? 1} Liters ({sub.quantityMode || "FIXED"})
+                            </div>
+                            <div className="text-[11px] text-[#5C5647]">
+                              Frequency: <span className="font-bold">{sub.frequency || "DAILY"}</span>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 border-r-2 border-black font-mono text-xs">
+                            <div>{sub.startDate ? sub.startDate.split("T")[0] : "—"}</div>
+                            <div className="text-[11px] text-[#5C5647]">
+                              to {sub.endDate ? sub.endDate.split("T")[0] : "—"}
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 border-r-2 border-black text-right font-mono">
+                            <div className="font-black text-xs text-[#1A1A1A]">
+                              {sub.paidAmountPaise ? formatCurrency(sub.paidAmountPaise / 100) : "—"}
+                            </div>
+                            <div className="text-[10px] text-[#5C5647] uppercase font-bold">
+                              {sub.paymentMethod || "PAID"}
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 border-r-2 border-black text-center">
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-[6px] border-2 border-black font-mono font-black text-[10px] uppercase shadow-[1px_1px_0px_0px_#000000] ${
+                                isActive
+                                  ? "bg-[#B9E8B4] text-[#14532D]"
+                                  : isPaused
+                                  ? "bg-[#FFDF58] text-[#713F12]"
+                                  : "bg-[#FFD9D0] text-[#7F1D1D]"
+                              }`}
+                            >
+                              {sub.status}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedCustomerId(sub.userId);
+                                setIsCustomerDetailOpen(true);
+                              }}
+                              className="bg-[#FFDF58] hover:bg-[#fcd033] text-[#1A1A1A] font-black text-xs px-3 py-1.5 border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                            >
+                              View Profile
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Strip */}
+            <div className="p-3 bg-[#FAF7EC] border-t-2 border-black flex items-center justify-between text-xs font-bold">
+              <span>
+                Showing <strong className="font-mono">{subscriptions.length}</strong> of{" "}
+                <strong className="font-mono">{totalSubscriptions}</strong> subscriptions
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={subPage <= 1 || subscriptionsLoading}
+                  onClick={() => setSubPage((p) => Math.max(1, p - 1))}
+                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1px_1px_0px_0px_#000000] cursor-pointer"
+                >
+                  Prev
+                </button>
+                <span className="font-mono text-xs font-black px-1">
+                  Page {subPage} of {subTotalPages || 1}
+                </span>
+                <button
+                  type="button"
+                  disabled={subPage >= subTotalPages || subscriptionsLoading}
+                  onClick={() => setSubPage((p) => Math.min(subTotalPages, p + 1))}
+                  className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1px_1px_0px_0px_#000000] cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
       {/* TAB 1: CUSTOMER DELIVERY CHANGE REQUESTS                  */}
       {/* ========================================================= */}
       {activeTab === "REQUESTS" && (

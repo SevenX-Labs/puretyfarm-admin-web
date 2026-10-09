@@ -370,3 +370,61 @@ export async function fetchChangeRequestDetail(
 }
 
 export const getChangeRequests = fetchChangeRequests;
+
+import type { CustomerSubscriptionItem, CustomerSubscriptionsApiResponse } from "@/types/plan-delivery";
+
+export async function fetchAdminSubscriptions(
+  params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    planType?: string;
+    search?: string;
+  } = {},
+  options?: SwrOptions<CustomerSubscriptionsApiResponse>
+): Promise<CustomerSubscriptionsApiResponse> {
+  const query = new URLSearchParams();
+  if (params.page) query.set("page", params.page.toString());
+  if (params.limit) query.set("limit", params.limit.toString());
+  if (params.status && params.status !== "ALL") query.set("status", params.status);
+  if (params.planType && params.planType !== "ALL") query.set("planType", params.planType);
+  if (params.search) query.set("search", params.search);
+
+  const endpoint = `/admin/plans/subscriptions?${query.toString()}`;
+  const cacheKey = `admin-subscriptions:${query.toString()}`;
+
+  if (options) {
+    const { cachedData, promise } = swrFetch(
+      cacheKey,
+      async () => {
+        try {
+          const res = await apiClient<CustomerSubscriptionsApiResponse>(endpoint, {
+            skipAuthRedirect: true,
+          });
+          return res;
+        } catch {
+          const cached = getCachedData<CustomerSubscriptionsApiResponse>(cacheKey);
+          return cached || { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } };
+        }
+      },
+      options
+    );
+
+    if (cachedData && !options.forceRefresh) {
+      return cachedData;
+    }
+    const res = await promise;
+    return res || getCachedData<CustomerSubscriptionsApiResponse>(cacheKey) || { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } };
+  }
+
+  try {
+    const res = await apiClient<CustomerSubscriptionsApiResponse>(endpoint, {
+      skipAuthRedirect: true,
+    });
+    setCachedData(cacheKey, res);
+    return res;
+  } catch {
+    const cached = getCachedData<CustomerSubscriptionsApiResponse>(cacheKey);
+    return cached || { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } };
+  }
+}

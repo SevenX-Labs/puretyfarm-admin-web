@@ -66,7 +66,7 @@ export default function PaymentsPage() {
   const [cashTotalCount, setCashTotalCount] = useState<number>(0);
 
   // Cash Filters
-  const [cashStatusFilter, setCashStatusFilter] = useState<CashCollectionStatus | "ALL">("PENDING");
+  const [cashStatusFilter, setCashStatusFilter] = useState<CashCollectionStatus | "ALL">("ALL");
   const [cashSearch, setCashSearch] = useState<string>("");
   const [debouncedCashSearch, setDebouncedCashSearch] = useState<string>("");
   const [cashStartDate, setCashStartDate] = useState<string>("");
@@ -337,8 +337,15 @@ export default function PaymentsPage() {
     const pendingItems = cashCollections.filter(
       (c) => c.status === "PENDING" || c.status === "COLLECTED"
     );
+    const confirmedItems = cashCollections.filter(
+      (c) => c.status === "CONFIRMED"
+    );
     const pendingCount = pendingItems.length;
     const totalUnreconciledPaise = pendingItems.reduce(
+      (sum, item) => sum + (item.amountPaise || 0),
+      0
+    );
+    const totalReconciledPaise = confirmedItems.reduce(
       (sum, item) => sum + (item.amountPaise || 0),
       0
     );
@@ -346,6 +353,8 @@ export default function PaymentsPage() {
     return {
       pendingCount,
       unreconciledFloat: totalUnreconciledPaise / 100,
+      confirmedCount: confirmedItems.length,
+      reconciledRevenue: totalReconciledPaise / 100,
     };
   }, [cashCollections]);
 
@@ -541,8 +550,30 @@ export default function PaymentsPage() {
       {activeTab === "CASH_COLLECTIONS" && (
         <div className="space-y-4">
           {/* Top Stat Cards: Equal height, clean alignment */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-stretch">
-            {/* Stat 1: Pending Collections */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-stretch">
+            {/* Stat 1: Confirmed Cash Collections */}
+            <div className="rounded-[14px] bg-[#B9E8B4] border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
+              <div>
+                <span className="text-[11px] font-black uppercase tracking-wider text-[#14532D] block">
+                  Confirmed Cash Revenue
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="font-mono text-3xl font-black text-[#14532D] tabular-nums leading-none">
+                    {formatCurrency(cashMetrics.reconciledRevenue)}
+                  </span>
+                  <span className="text-xs font-bold text-[#14532D]">({cashMetrics.confirmedCount})</span>
+                </div>
+                <p className="text-xs font-semibold text-[#14532D]/80 mt-1">
+                  Physically collected & confirmed
+                </p>
+              </div>
+
+              <div className="rounded-[10px] border-2 border-black bg-white p-2.5 shadow-[2px_2px_0px_0px_#000000] shrink-0">
+                <CheckCircle2 className="h-6 w-6 text-[#14532D] stroke-[2.5]" />
+              </div>
+            </div>
+
+            {/* Stat 2: Pending Collections */}
             <div className="rounded-[14px] bg-[#FFDF58] border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
               <div>
                 <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
@@ -564,11 +595,11 @@ export default function PaymentsPage() {
               </div>
             </div>
 
-            {/* Stat 2: Total Unreconciled Cash Float */}
+            {/* Stat 3: Total Unreconciled Cash Float */}
             <div className="rounded-[14px] bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
               <div>
                 <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
-                  Total Unreconciled Cash Float
+                  Pending Cash Float
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-mono text-3xl font-black text-[#1A1A1A] tabular-nums leading-none">
@@ -576,12 +607,12 @@ export default function PaymentsPage() {
                   </span>
                 </div>
                 <p className="text-xs font-semibold text-[#5C5647] mt-1">
-                  Physical currency pending wallet ledger credit
+                  Float pending wallet ledger credit
                 </p>
               </div>
 
-              <div className="rounded-[10px] border-2 border-black bg-[#B8E8B8] p-2.5 shadow-[2px_2px_0px_0px_#000000] shrink-0">
-                <Building2 className="h-6 w-6 text-[#14532D] stroke-[2.5]" />
+              <div className="rounded-[10px] border-2 border-black bg-[#FAF7EC] p-2.5 shadow-[2px_2px_0px_0px_#000000] shrink-0">
+                <Building2 className="h-6 w-6 text-[#5C5647] stroke-[2.5]" />
               </div>
             </div>
           </div>
