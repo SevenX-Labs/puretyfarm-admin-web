@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { CustomerListItem, CustomerPaginationMeta, CustomerProfile, CustomersApiResponse } from "@/types/customer";
 import { fetchCustomers } from "@/services/customer-service";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
-import { getCachedData } from "@/lib/cache";
+import { getCachedData, invalidateCache } from "@/lib/cache";
 import {
   Search,
   RotateCcw,
@@ -103,6 +103,11 @@ export default function CustomersPage() {
   const loadCustomers = useCallback(
     async (forceRefresh = false) => {
       setError(null);
+
+      if (forceRefresh) {
+        invalidateCache("customers");
+        invalidateCache("customer:");
+      }
 
       // Instant 0ms cache read
       const query = new URLSearchParams();

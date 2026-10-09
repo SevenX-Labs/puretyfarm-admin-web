@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { CustomerDetail } from "@/types/customer";
 import { fetchCustomerById } from "@/services/customer-service";
-import { getCachedData } from "@/lib/cache";
+import { getCachedData, invalidateCache } from "@/lib/cache";
 import {
   Sheet,
   SheetContent,
@@ -83,12 +83,18 @@ export function CustomerDetailSheet({
           }
         })
         .catch((err: unknown) => {
-          if (isMounted && !cached) {
+          if (isMounted) {
             const msg =
               err instanceof Error
                 ? err.message
                 : "Failed to load customer details.";
-            setError(msg);
+            if (msg.includes("404") || msg.toLowerCase().includes("not found")) {
+              invalidateCache(`customer:${activeId}`);
+              setCustomer(null);
+              setError(msg);
+            } else if (!cached) {
+              setError(msg);
+            }
           }
         })
         .finally(() => {
