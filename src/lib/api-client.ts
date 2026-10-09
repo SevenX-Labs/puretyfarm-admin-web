@@ -147,7 +147,7 @@ export async function apiClient<T = unknown>(
         }
       }
 
-      let errorMsg = "Unauthorized session.";
+      let errorMsg = "Unauthorized: Session expired or invalid credentials.";
       let errorBody: unknown = null;
       try {
         errorBody = await response.json();
@@ -161,22 +161,21 @@ export async function apiClient<T = unknown>(
         // Non-JSON body — keep default message
       }
 
-      // Only redirect to /login when the request was authenticated AND the
-      // caller didn't opt out.
-      const hadToken =
-        isBrowser &&
-        Boolean(
-          getCookie("admin_access_token") ||
-            localStorage.getItem("admin_access_token")
-        );
-
-      if (isBrowser && !skipAuthRedirect && !skipAuth && hadToken) {
+      if (isBrowser) {
         deleteCookie("admin_access_token");
         deleteCookie("admin_refresh_token");
         localStorage.removeItem("admin_access_token");
         localStorage.removeItem("admin_refresh_token");
         localStorage.removeItem("pf_admin_user");
-        if (window.location.pathname !== "/login") {
+
+        // Broadcast unauthorized event to open UI modal across the admin dashboard
+        window.dispatchEvent(
+          new CustomEvent("pf:unauthorized", {
+            detail: { message: errorMsg },
+          })
+        );
+
+        if (!skipAuthRedirect && !skipAuth && window.location.pathname !== "/login") {
           window.location.href = "/login?expired=1";
         }
       }

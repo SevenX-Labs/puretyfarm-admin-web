@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { SessionExpiredModal } from "@/components/auth/session-expired-modal";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21,6 +22,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen w-full flex bg-[#FAF7EC]">
+      {/* Session Expired / Unauthorized Modal */}
+      <SessionExpiredModal />
+
       {/* Neo-Brutalist Sidebar (Desktop fixed + Mobile slide-out drawer) */}
       <Sidebar
         isMobileOpen={isMobileMenuOpen}

@@ -48,8 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Sync cookie ↔ localStorage after mount so middleware (which only reads
   // cookies) sees the token when the user came from a tab that stored the
-  // token in localStorage only, and vice versa. Must run as an effect — NOT
-  // inside a useState initializer — to be safe during SSR hydration.
+  // token in localStorage only, and vice versa.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const cookieToken = getCookie("admin_access_token");
@@ -59,6 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else if (cookieToken && !localToken) {
       localStorage.setItem("admin_access_token", cookieToken);
     }
+  }, []);
+
+  // Listen for global unauthorized events to keep auth state consistent
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setAdmin(null);
+      setIsAuthenticated(false);
+    };
+
+    window.addEventListener("pf:unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("pf:unauthorized", handleUnauthorized);
+    };
   }, []);
 
   /**
@@ -108,8 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch {
-      // NOTE: Do NOT delete cookies or log out on refresh failure!
-      // This prevents Render cold-starts or backend transient issues from logging out the owner.
+      // Background verification failure handled gracefully
     } finally {
       setIsLoading(false);
     }
@@ -131,9 +142,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         { skipAuth: true, skipAuthRedirect: true }
       );
 
-      // Backend contract: 200 with { success, accessToken, refreshToken, admin }.
-      // Guard against malformed success responses so the user sees a real
-      // error instead of a silent bounce back to /login.
       if (!res || !res.accessToken) {
         throw new Error(
           res?.message || "Login did not return an access token. Please try again."
