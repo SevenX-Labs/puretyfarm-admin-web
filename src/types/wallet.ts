@@ -30,6 +30,7 @@ export interface CreditRequestItem {
   status: CreditRequestStatus;
   refundStatus: RefundStatus;
   autoApproved: boolean;
+  source?: "ONLINE" | "CASH" | null;
   adminNote?: string | null;
   reviewedByAdminId?: string | null;
   reviewedAt?: string | null;

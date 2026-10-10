@@ -189,7 +189,7 @@ export default function WalletPage() {
       try {
         const [onlineRes, cashRes] = await Promise.all([
           fetchCreditRequests(
-            { status: "PENDING", limit: 50 },
+            { status: "PENDING", source: "ONLINE", limit: 50 },
             { forceRefresh }
           ),
           fetchCashCollections(
@@ -224,8 +224,11 @@ export default function WalletPage() {
     const list: UnifiedPendingItem[] = [];
     const seenIds = new Set<string>();
 
-    // 1. Add Online Credit Requests
+    // 1. Add Online Credit Requests (ignore any CASH source items, which are handled via cashRequests)
     for (const req of onlineRequests) {
+      if (req.source === "CASH") {
+        continue;
+      }
       if (req.status === "PENDING" && !seenIds.has(`online-${req.id}`)) {
         seenIds.add(`online-${req.id}`);
         list.push({

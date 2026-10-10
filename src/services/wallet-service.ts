@@ -16,6 +16,7 @@ import {
 
 export interface CreditRequestQueryParams {
   status?: CreditRequestStatus | "ALL";
+  source?: "ONLINE" | "CASH";
   customerSearch?: string;
   startDate?: string;
   endDate?: string;
