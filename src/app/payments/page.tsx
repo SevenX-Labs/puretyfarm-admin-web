@@ -578,29 +578,7 @@ export default function PaymentsPage() {
       {/* ========================================================= */}
       {activeTab === "CASH_COLLECTIONS" && (
         <div className="space-y-4">
-          {/* Quick Nav Banner to Wallets Approvals Hub */}
-          <div className="rounded-[12px] border-2 border-black bg-[#FAF7EC] p-3.5 sm:p-4 shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-[10px] bg-[#FFD84D] border-2 border-black flex items-center justify-center shrink-0 shadow-[1px_1px_0px_0px_#000000]">
-                <Wallet className="h-4 w-4 stroke-[2.5] text-[#1A1A1A]" />
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase text-[#1A1A1A]">
-                  Centralized Approvals in Wallets Hub
-                </p>
-                <p className="text-[11px] font-bold text-[#5C5647]">
-                  All pending Doorstep Cash collections and Online wallet top-ups are approved together in Wallets → Pending Approvals.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/wallet"
-              className="px-3.5 py-1.5 rounded-[8px] border-2 border-black bg-[#FFD84D] hover:bg-[#FFD13B] text-[#1A1A1A] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto cursor-pointer whitespace-nowrap"
-            >
-              <span>Go to Pending Approvals</span>
-              <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
-            </Link>
-          </div>
+
           {/* Top Stat Cards: Equal height, clean alignment */}
           {isCashLoading && cashCollections.length === 0 ? (
             <StatCardSkeleton count={2} />
