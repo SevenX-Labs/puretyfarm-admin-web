@@ -1091,9 +1091,13 @@ export default function WalletPage() {
                         <TableSkeleton columns={6} rows={8} />
                       ) : (
                         customers.map((c) => {
-                          const fullName = c.profile
-                            ? `${c.profile.firstName || ""} ${c.profile.lastName || ""}`.trim() || "Customer"
-                            : "Customer";
+                          const profileName = c.profile
+                            ? `${c.profile.firstName || ""} ${c.profile.lastName || ""}`.trim()
+                            : "";
+                          const displayName =
+                            profileName ||
+                            (c.email ? c.email.split("@")[0] : `Customer (${c.mobile.slice(-4)})`);
+                          const initial = (profileName || c.email || c.mobile || "C").charAt(0).toUpperCase();
 
                           return (
                             <tr key={c.id} className="hover:bg-[#FAF7EC]/50 transition-colors">
@@ -1101,10 +1105,10 @@ export default function WalletPage() {
                               <td className="py-3 px-4">
                                 <div className="flex items-center gap-2.5">
                                   <div className="h-9 w-9 rounded-full bg-[#FFD84D] border-2 border-black flex items-center justify-center font-mono font-black text-xs text-[#1A1A1A] shrink-0 shadow-[1px_1px_0px_0px_#000000]">
-                                    {fullName.charAt(0).toUpperCase()}
+                                    {initial}
                                   </div>
                                   <div>
-                                    <div className="font-black text-[#1A1A1A]">{fullName}</div>
+                                    <div className="font-black text-[#1A1A1A]">{displayName}</div>
                                     <div className="text-[10px] font-mono text-[#5C5647]">
                                       Role: CUSTOMER
                                     </div>
