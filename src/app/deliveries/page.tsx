@@ -903,7 +903,7 @@ export default function ManageDeliveriesPage() {
                               className="h-8 px-2.5 rounded-[8px] border-2 border-black bg-[#8FD694] hover:bg-[#7bc880] text-[#1A1A1A] font-black uppercase text-[10px] shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1"
                             >
                               <Check className="h-3 w-3 stroke-[3]" />
-                              <span>Deliver</span>
+                              <span>Mark Delivered</span>
                             </button>
                           )}
 
@@ -1049,7 +1049,7 @@ export default function ManageDeliveriesPage() {
                         className="flex-1 h-9 rounded-[8px] border-2 border-black bg-[#8FD694] font-black text-xs uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Check className="h-3.5 w-3.5 stroke-[3]" />
-                        <span>Deliver</span>
+                        <span>Mark Delivered</span>
                       </button>
                     )}
 

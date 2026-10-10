@@ -32,7 +32,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Truck,
-  ArrowRight,
   ShieldAlert,
   Loader2,
   PackageCheck,
@@ -200,6 +199,11 @@ export function OrderDetailSheet({
   ).filter((target) => target !== "COMPLETED");
   const canComplete = order ? canCompleteOrder(order) : false;
   const isTerminal = allowedTransitions.length === 0 && !canComplete;
+  const isDelivered = order?.status === "DELIVERED";
+  const canMarkDelivered = order
+    ? !["DELIVERED", "COMPLETED", "CANCELLED", "FAILED"].includes(order.status) &&
+      order.planDelivery?.status !== "SKIPPED"
+    : false;
 
   // Format delivery address snapshot nicely
   const addressSnap = order?.addressSnapshot || {};
@@ -288,88 +292,69 @@ export function OrderDetailSheet({
                 </div>
               )}
 
-              {/* 1. STATE MACHINE LIFECYCLE TRANSITION HUB */}
+              {/* 1. DELIVERY FULFILLMENT ACTION */}
               <div className="min-w-0 space-y-3 rounded-[14px] border-2 border-black bg-white p-3 shadow-[4px_4px_0px_0px_#000000] sm:p-4">
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-1.5">
                     <Truck className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
                     <span className="text-[11px] font-black uppercase text-[#1A1A1A] sm:text-xs">
-                      State Machine Transition Hub
+                      Delivery Fulfillment
                     </span>
                   </div>
                   <span className="w-fit rounded-[6px] border border-black/20 bg-[#FAF7EC] px-2 py-0.5 text-[10px] font-mono font-bold text-[#5C5647]">
-                    Current: {order.status.replace(/_/g, " ")}
+                    Current Status: {order.status.replace(/_/g, " ")}
                   </span>
                 </div>
 
                 {isTerminal ? (
                   <div className="rounded-[10px] border-2 border-black bg-[#FAF7EC] p-3 text-xs font-bold text-[#5C5647] flex items-center gap-2">
                     <ShieldAlert className="h-4 w-4 shrink-0 text-[#1A1A1A]" />
-                    <span>Terminal status reached. No further modifications permitted.</span>
+                    <span>Terminal status reached ({order.status}). No further modifications permitted.</span>
                   </div>
-                ) : (
+                ) : isDelivered ? (
                   <div className="space-y-3">
-                  {allowedTransitions.length > 0 && (
+                    <div className="rounded-[10px] border-2 border-black bg-[#B8E8B8] p-3 text-xs font-black text-[#1A1A1A] flex items-center gap-2 shadow-[2px_2px_0px_0px_#000000]">
+                      <CheckCircle2 className="h-4 w-4 text-[#1A1A1A] stroke-[3]" />
+                      <span>Order marked as Delivered</span>
+                    </div>
+
+                    {canComplete && (
+                      <div className="space-y-2 border-t-2 border-black/10 pt-2">
+                        <span className="block text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
+                          Close Out:
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isUpdatingStatus || isCompleteModalOpen}
+                          onClick={() => setIsCompleteModalOpen(true)}
+                          className="inline-flex max-w-full cursor-pointer items-center gap-1.5 whitespace-normal rounded-[8px] border-2 border-black bg-[#8FD694] px-3.5 py-2 text-left text-xs font-black uppercase leading-tight tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[#79c97f] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-60"
+                        >
+                          <PackageCheck className="h-3.5 w-3.5 stroke-[2.5]" />
+                          Mark as Completed
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : canMarkDelivered ? (
                   <div className="space-y-2">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647] block">
-                      Allowed Transitions:
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {allowedTransitions.map((target) => {
-                        const isCancelOrFailed = target === "CANCELLED" || target === "FAILED";
-                        const isSuccessDelivered = target === "DELIVERED" || target === "CONFIRMED";
-
-                        return (
-                          <button
-                            key={target}
-                            type="button"
-                            disabled={isUpdatingStatus}
-                            onClick={() => handleTransitionStatus(target)}
-                            className={`max-w-full whitespace-normal rounded-[8px] border-2 border-black px-3 py-2 text-left text-[11px] font-black uppercase leading-tight tracking-wider shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 text-[#1A1A1A] sm:px-4 sm:text-xs ${
-                              isCancelOrFailed
-                                ? "bg-[#FF8E72] hover:bg-[#ff7b5a]"
-                                : isSuccessDelivered
-                                ? "bg-[#8FD694] hover:bg-[#79c97f]"
-                                : "bg-[#FFDF58] hover:bg-[#fcd033]"
-                            }`}
-                          >
-                            {isUpdatingStatus ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin stroke-[2.5]" />
-                            ) : target === "DELIVERED" ? (
-                              <Truck className="h-3.5 w-3.5 stroke-[2.5]" />
-                            ) : (
-                              <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
-                            )}
-                            Mark {target === "DELIVERED" ? "Delivered" : target.replace(/_/g, " ")}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <button
+                      type="button"
+                      disabled={isUpdatingStatus}
+                      onClick={() => handleTransitionStatus("DELIVERED")}
+                      className="w-full sm:w-auto rounded-[10px] border-2 border-black bg-[#8FD694] hover:bg-[#79c97f] px-4 py-2.5 text-xs font-black uppercase leading-tight tracking-wider shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center justify-center gap-2 text-[#1A1A1A]"
+                    >
+                      {isUpdatingStatus ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin stroke-[2.5]" />
+                      ) : (
+                        <Truck className="h-3.5 w-3.5 stroke-[2.5]" />
+                      )}
+                      <span>Mark as Delivered</span>
+                    </button>
+                    <p className="text-[10px] font-bold text-[#5C5647]">
+                      Directly marks doorstep delivery. No intermediate processing stages required.
+                    </p>
                   </div>
-                  )}
-
-                  {canComplete && (
-                    <div className="space-y-2 border-t-2 border-black/10 pt-3">
-                      <span className="block text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
-                        Close Out:
-                      </span>
-                      <button
-                        type="button"
-                        disabled={isUpdatingStatus || isCompleteModalOpen}
-                        onClick={() => setIsCompleteModalOpen(true)}
-                        className="inline-flex max-w-full cursor-pointer items-center gap-1.5 whitespace-normal rounded-[8px] border-2 border-black bg-[#8FD694] px-2.5 py-1.5 text-left text-[10px] font-black uppercase leading-tight tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[#79c97f] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-60 sm:px-3.5 sm:text-xs"
-                      >
-                        <PackageCheck className="h-3.5 w-3.5 stroke-[2.5]" />
-                        Mark as Completed
-                      </button>
-                      <p className="text-[10px] font-bold leading-snug text-[#5C5647]">
-                        Final status for a delivered order. Moves no money and
-                        leaves every other delivery on this plan alone.
-                      </p>
-                    </div>
-                  )}
-                  </div>
-                )}
+                ) : null}
 
                 {order.status === "COMPLETED" && order.completedAt && (
                   <div className="flex items-center gap-2 rounded-[10px] border-2 border-black bg-[#FAF7EC] p-2.5 text-[11px] font-bold text-[#1A1A1A]">
