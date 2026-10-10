@@ -5,7 +5,6 @@ import {
   AdminOrder,
   OrderStatus,
   PaymentStatus,
-  OrderItemSnapshot,
 } from "@/types/order";
 import {
   fetchOrderDetail,
@@ -25,7 +24,6 @@ import {
 import {
   Package,
   Calendar,
-  Clock,
   MapPin,
   Phone,
   Mail,
@@ -33,17 +31,13 @@ import {
   FileCheck2,
   CheckCircle2,
   AlertTriangle,
-  XCircle,
   Truck,
-  RotateCcw,
-  Sparkles,
   ArrowRight,
   ShieldAlert,
   Loader2,
   PackageCheck,
 } from "lucide-react";
 import {
-  formatCurrency,
   formatDate,
   formatDeliveryDateOrLabel,
   formatDeliveryWindowOrLabel,
@@ -70,55 +64,62 @@ export function OrderDetailSheet({
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
 
   useEffect(() => {
-    if (isOpen && orderId) {
-      let isMounted = true;
-      setError(null);
-      setActionSuccess(null);
-      setIsCompleteModalOpen(false);
+    let isMounted = true;
+    const runAsync = async () => {
+      await Promise.resolve();
+      if (!isMounted) return;
 
-      // 0ms instant display from cache if available
-      const cached = getCachedData<AdminOrder>(`order:${orderId}`);
-      if (cached) {
-        setOrder(cached);
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
+      if (isOpen && orderId) {
+        setError(null);
+        setActionSuccess(null);
+        setIsCompleteModalOpen(false);
+
+        // 0ms instant display from cache if available
+        const cached = getCachedData<AdminOrder>(`order:${orderId}`);
+        if (cached) {
+          setOrder(cached);
+          setIsLoading(false);
+        } else {
+          setIsLoading(true);
+        }
+
+        fetchOrderDetail(orderId, {
+          onFreshData: (fresh) => {
+            if (isMounted && fresh) {
+              setOrder(fresh);
+              setIsLoading(false);
+            }
+          },
+        })
+          .then((fresh) => {
+            if (isMounted && fresh) {
+              setOrder(fresh);
+            }
+          })
+          .catch((err: unknown) => {
+            if (isMounted && !cached) {
+              const msg = err instanceof Error ? err.message : "Failed to load order details.";
+              setError(msg);
+            }
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsLoading(false);
+            }
+          });
+      } else if (!isOpen) {
+        setOrder(null);
+        setError(null);
+        setActionSuccess(null);
+        setIsCompleteModalOpen(false);
       }
+    };
 
-      fetchOrderDetail(orderId, {
-        onFreshData: (fresh) => {
-          if (isMounted && fresh) {
-            setOrder(fresh);
-            setIsLoading(false);
-          }
-        },
-      })
-        .then((fresh) => {
-          if (isMounted && fresh) {
-            setOrder(fresh);
-          }
-        })
-        .catch((err: unknown) => {
-          if (isMounted && !cached) {
-            const msg = err instanceof Error ? err.message : "Failed to load order details.";
-            setError(msg);
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setIsLoading(false);
-          }
-        });
+    runAsync();
 
-      return () => {
-        isMounted = false;
-      };
-    } else if (!isOpen) {
-      setOrder(null);
-      setError(null);
-      setActionSuccess(null);
-      setIsCompleteModalOpen(false);
-    }
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, orderId]);
 
   const handleTransitionStatus = async (targetStatus: OrderStatus) => {
@@ -324,20 +325,22 @@ export function OrderDetailSheet({
                             type="button"
                             disabled={isUpdatingStatus}
                             onClick={() => handleTransitionStatus(target)}
-                            className={`max-w-full whitespace-normal rounded-[8px] border-2 border-black px-2.5 py-1.5 text-left text-[10px] font-black uppercase leading-tight tracking-wider shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 text-[#1A1A1A] sm:px-3.5 sm:text-xs ${
+                            className={`max-w-full whitespace-normal rounded-[8px] border-2 border-black px-3 py-2 text-left text-[11px] font-black uppercase leading-tight tracking-wider shadow-[2.5px_2.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 text-[#1A1A1A] sm:px-4 sm:text-xs ${
                               isCancelOrFailed
                                 ? "bg-[#FF8E72] hover:bg-[#ff7b5a]"
                                 : isSuccessDelivered
-                                ? "bg-[#B8E8B8] hover:bg-[#9fe09f]"
+                                ? "bg-[#8FD694] hover:bg-[#79c97f]"
                                 : "bg-[#FFDF58] hover:bg-[#fcd033]"
                             }`}
                           >
                             {isUpdatingStatus ? (
-                              <Loader2 className="h-3 w-3 animate-spin stroke-[2.5]" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin stroke-[2.5]" />
+                            ) : target === "DELIVERED" ? (
+                              <Truck className="h-3.5 w-3.5 stroke-[2.5]" />
                             ) : (
-                              <ArrowRight className="h-3 w-3 stroke-[3]" />
+                              <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
                             )}
-                            Mark {target.replace(/_/g, " ")}
+                            Mark {target === "DELIVERED" ? "Delivered" : target.replace(/_/g, " ")}
                           </button>
                         );
                       })}
@@ -389,7 +392,7 @@ export function OrderDetailSheet({
                 </div>
 
                 <p className="text-[10px] font-bold text-[#5C5647]">
-                  Snapshot taken when this order was created — not the plan's
+                  Snapshot taken when this order was created — not the plan&apos;s
                   current settings.
                 </p>
 
