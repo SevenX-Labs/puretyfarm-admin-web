@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link";
 import {
   PaymentItem,
   CashCollectionItem,
@@ -23,6 +24,8 @@ import { PaymentDetailSheet } from "@/components/payments/payment-detail-sheet";
 import { CashCollectionDetailSheet } from "@/components/payments/cash-collection-detail-sheet";
 import { Input } from "@/components/ui/input";
 import {
+  Wallet,
+  ArrowRight,
   CreditCard,
   Banknote,
   Search,
@@ -56,7 +59,7 @@ import { ButtonLoader } from "@/components/ui/button-loader";
 type ActiveTab = "CASH_COLLECTIONS" | "ONLINE_PAYMENTS";
 
 export default function PaymentsPage() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("CASH_COLLECTIONS");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("ONLINE_PAYMENTS");
 
   // =========================================================================
   // STATE: PHYSICAL CASH COLLECTIONS (TAB 1)
@@ -497,26 +500,6 @@ export default function PaymentsPage() {
           <div className="grid min-w-0 flex-1 grid-cols-2 items-center rounded-[12px] border-2 border-black bg-[#FAF7EC] p-1 shadow-[2px_2px_0px_0px_#000000] sm:inline-flex sm:flex-initial">
             <button
               type="button"
-              onClick={() => setActiveTab("CASH_COLLECTIONS")}
-              aria-selected={activeTab === "CASH_COLLECTIONS"}
-              className={"min-w-0 px-1.5 max-[360px]:px-1 py-1.5 rounded-[8px] text-[10px] max-[360px]:text-[9px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 max-[360px]:gap-0.5 sm:gap-2 min-h-[40px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black whitespace-nowrap sm:px-3.5 " + (
-                activeTab === "CASH_COLLECTIONS"
-                  ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]"
-                  : "bg-transparent text-[#5C5647] hover:text-[#1A1A1A] hover:bg-black/5 border border-transparent"
-              )}
-            >
-              <Banknote className="h-3.5 w-3.5 shrink-0 stroke-[2.5] max-[360px]:h-3 max-[360px]:w-3 sm:h-4 sm:w-4" />
-              <span className="sm:hidden">Cash Hub</span>
-              <span className="hidden sm:inline">Physical Cash Hub</span>
-              {cashMetrics.pendingCount > 0 && (
-                <span className="ml-0.5 rounded-full bg-black px-1.5 py-0.2 font-mono text-[10px] font-black text-[#FFDF58]">
-                  {cashMetrics.pendingCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
               onClick={() => setActiveTab("ONLINE_PAYMENTS")}
               aria-selected={activeTab === "ONLINE_PAYMENTS"}
               className={"min-w-0 px-1.5 max-[360px]:px-1 py-1.5 rounded-[8px] text-[10px] max-[360px]:text-[9px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 max-[360px]:gap-0.5 sm:gap-2 min-h-[40px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black whitespace-nowrap sm:px-3.5 " + (
@@ -526,9 +509,21 @@ export default function PaymentsPage() {
               )}
             >
               <CreditCard className="h-3.5 w-3.5 shrink-0 stroke-[2.5] max-[360px]:h-3 max-[360px]:w-3 sm:h-4 sm:w-4" />
-              <span className="sm:hidden max-[360px]:hidden">PhonePe Ledger</span>
-              <span className="hidden max-[360px]:inline sm:hidden">PhonePe</span>
-              <span className="hidden sm:inline">PhonePe Audit Ledger</span>
+              <span>Payments Audit Ledger</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("CASH_COLLECTIONS")}
+              aria-selected={activeTab === "CASH_COLLECTIONS"}
+              className={"min-w-0 px-1.5 max-[360px]:px-1 py-1.5 rounded-[8px] text-[10px] max-[360px]:text-[9px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 max-[360px]:gap-0.5 sm:gap-2 min-h-[40px] sm:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black whitespace-nowrap sm:px-3.5 " + (
+                activeTab === "CASH_COLLECTIONS"
+                  ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]"
+                  : "bg-transparent text-[#5C5647] hover:text-[#1A1A1A] hover:bg-black/5 border border-transparent"
+              )}
+            >
+              <Banknote className="h-3.5 w-3.5 shrink-0 stroke-[2.5] max-[360px]:h-3 max-[360px]:w-3 sm:h-4 sm:w-4" />
+              <span>Cash Collection Archive</span>
             </button>
           </div>
 
@@ -583,6 +578,29 @@ export default function PaymentsPage() {
       {/* ========================================================= */}
       {activeTab === "CASH_COLLECTIONS" && (
         <div className="space-y-4">
+          {/* Quick Nav Banner to Wallets Approvals Hub */}
+          <div className="rounded-[12px] border-2 border-black bg-[#FAF7EC] p-3.5 sm:p-4 shadow-[3px_3px_0px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-[10px] bg-[#FFD84D] border-2 border-black flex items-center justify-center shrink-0 shadow-[1px_1px_0px_0px_#000000]">
+                <Wallet className="h-4 w-4 stroke-[2.5] text-[#1A1A1A]" />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase text-[#1A1A1A]">
+                  Centralized Approvals in Wallets Hub
+                </p>
+                <p className="text-[11px] font-bold text-[#5C5647]">
+                  All pending Doorstep Cash collections and Online wallet top-ups are approved together in Wallets → Pending Approvals.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/wallet"
+              className="px-3.5 py-1.5 rounded-[8px] border-2 border-black bg-[#FFD84D] hover:bg-[#FFD13B] text-[#1A1A1A] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto cursor-pointer whitespace-nowrap"
+            >
+              <span>Go to Pending Approvals</span>
+              <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
+            </Link>
+          </div>
           {/* Top Stat Cards: Equal height, clean alignment */}
           {isCashLoading && cashCollections.length === 0 ? (
             <StatCardSkeleton count={2} />
