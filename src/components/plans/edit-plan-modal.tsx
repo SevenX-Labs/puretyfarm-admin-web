@@ -12,12 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { TimePicker12h } from "@/components/ui/time-picker-12h";
-import {
-  formatDeliveryWindow,
-  parseTimeToMinutes,
-  DEFAULT_DELIVERY_START_TIME,
-  DEFAULT_DELIVERY_END_TIME,
-} from "@/lib/utils";
+import { formatDeliveryWindow, parseTimeToMinutes } from "@/lib/utils";
 import {
   Settings,
   AlertTriangle,
@@ -26,6 +21,16 @@ import {
   Clock,
   Sparkles,
 } from "lucide-react";
+
+/**
+ * Initial selection the time picker opens on when the plan has no window.
+ *
+ * This is an input seed, not a display fallback: nothing is sent to the server
+ * until the admin enables the window, and an unconfigured plan keeps reading
+ * as unconfigured everywhere else.
+ */
+const PICKER_SEED_START = "06:00";
+const PICKER_SEED_END = "11:00";
 
 interface EditPlanModalProps {
   plan: PlanConfig | null;
@@ -46,12 +51,14 @@ export function EditPlanModal({
   const [deliveryFeeRupees, setDeliveryFeeRupees] = useState<number>(0);
   const [quantityMin, setQuantityMin] = useState<number>(1);
   const [quantityMax, setQuantityMax] = useState<number>(5);
-  const [deliveryStartTime, setDeliveryStartTime] = useState<string>(
-    DEFAULT_DELIVERY_START_TIME
-  );
-  const [deliveryEndTime, setDeliveryEndTime] = useState<string>(
-    DEFAULT_DELIVERY_END_TIME
-  );
+  // Seeds for the picker, which needs *some* value to render a selection. They
+  // are only ever submitted once `windowEnabled` is true — i.e. once the admin
+  // has deliberately chosen to set a window — so an unconfigured plan is never
+  // silently given one.
+  const [deliveryStartTime, setDeliveryStartTime] = useState<string>(PICKER_SEED_START);
+  const [deliveryEndTime, setDeliveryEndTime] = useState<string>(PICKER_SEED_END);
+  /** False when the plan has no configured window and the admin hasn't set one. */
+  const [windowEnabled, setWindowEnabled] = useState<boolean>(false);
   const [maxUsages, setMaxUsages] = useState<number>(3);
 
   // Monthly frequencies & modes
@@ -71,8 +78,10 @@ export function EditPlanModal({
       setDeliveryFeeRupees((plan.deliveryFeePaise || 0) / 100);
       setQuantityMin(plan.quantityMin || 1);
       setQuantityMax(plan.quantityMax || 5);
-      setDeliveryStartTime(plan.deliveryStartTime || DEFAULT_DELIVERY_START_TIME);
-      setDeliveryEndTime(plan.deliveryEndTime || DEFAULT_DELIVERY_END_TIME);
+      const hasWindow = Boolean(plan.deliveryStartTime && plan.deliveryEndTime);
+      setWindowEnabled(hasWindow);
+      setDeliveryStartTime(plan.deliveryStartTime || PICKER_SEED_START);
+      setDeliveryEndTime(plan.deliveryEndTime || PICKER_SEED_END);
       setMaxUsages(plan.maxUsages || 3);
       setDailyEnabled(plan.dailyEnabled ?? true);
       setAlternateDaysEnabled(plan.alternateDaysEnabled ?? true);
@@ -104,17 +113,19 @@ export function EditPlanModal({
       return;
     }
 
-    // Mirrors the server rule. The window end is also the daily order
-    // cut-off, so an inverted window would push every order to the next day.
-    const startMinutes = parseTimeToMinutes(deliveryStartTime);
-    const endMinutes = parseTimeToMinutes(deliveryEndTime);
-    if (startMinutes === null || endMinutes === null) {
-      setError("Delivery window times are invalid.");
-      return;
-    }
-    if (startMinutes >= endMinutes) {
-      setError("Delivery window start must be earlier than the window end.");
-      return;
+    // Mirrors the server rule: a window must be a real interval. Only checked
+    // when a window is actually being saved.
+    if (windowEnabled) {
+      const startMinutes = parseTimeToMinutes(deliveryStartTime);
+      const endMinutes = parseTimeToMinutes(deliveryEndTime);
+      if (startMinutes === null || endMinutes === null) {
+        setError("Delivery window times are invalid.");
+        return;
+      }
+      if (startMinutes >= endMinutes) {
+        setError("Delivery window start must be earlier than the window end.");
+        return;
+      }
     }
 
     if (plan.type === "MONTHLY") {
@@ -138,8 +149,9 @@ export function EditPlanModal({
         deliveryFeePaise: Math.round(deliveryFeeRupees * 100),
         quantityMin,
         quantityMax,
-        deliveryStartTime,
-        deliveryEndTime,
+        // Omitted entirely when no window is set, so a PATCH never writes an
+        // invented schedule onto an unconfigured plan.
+        ...(windowEnabled ? { deliveryStartTime, deliveryEndTime } : {}),
       };
 
       if (plan.type === "BUY_ONCE") {
@@ -318,36 +330,54 @@ export function EditPlanModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 pt-1 min-[460px]:grid-cols-2">
-              <TimePicker12h
-                label="Window Start"
-                idPrefix="delivery-window-start"
-                value={deliveryStartTime}
-                fallback={DEFAULT_DELIVERY_START_TIME}
-                onChange={setDeliveryStartTime}
-                disabled={isSubmitting}
-              />
-              <TimePicker12h
-                label="Window End"
-                idPrefix="delivery-window-end"
-                value={deliveryEndTime}
-                fallback={DEFAULT_DELIVERY_END_TIME}
-                onChange={setDeliveryEndTime}
-                disabled={isSubmitting}
-              />
-            </div>
+            {!windowEnabled ? (
+              <div className="space-y-2 rounded-[10px] border-2 border-black bg-[#FFD9D0] p-3 text-[11px] font-bold leading-snug text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                <p>
+                  No delivery window is configured for this plan. Customers are
+                  shown &ldquo;not available&rdquo; until one is set.
+                </p>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setWindowEnabled(true)}
+                  className="cursor-pointer rounded-[8px] border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FAF7EC] disabled:opacity-60"
+                >
+                  Set Delivery Window
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-3 pt-1 min-[460px]:grid-cols-2">
+                  <TimePicker12h
+                    label="Window Start"
+                    idPrefix="delivery-window-start"
+                    value={deliveryStartTime}
+                    fallback={PICKER_SEED_START}
+                    onChange={setDeliveryStartTime}
+                    disabled={isSubmitting}
+                  />
+                  <TimePicker12h
+                    label="Window End"
+                    idPrefix="delivery-window-end"
+                    value={deliveryEndTime}
+                    fallback={PICKER_SEED_END}
+                    onChange={setDeliveryEndTime}
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-            <div className="rounded-[10px] border-2 border-black bg-[#FFE58F] p-2.5 text-[11px] font-bold leading-snug text-[#1A1A1A]">
-              Customers see{" "}
-              <span className="font-mono font-black">
-                {formatDeliveryWindow(deliveryStartTime, deliveryEndTime)}
-              </span>
-              . This window is also the daily cut-off: an order placed after{" "}
-              <span className="font-mono font-black">
-                {formatDeliveryWindow(deliveryStartTime, deliveryEndTime).split(" – ")[1]}
-              </span>{" "}
-              is scheduled for the next day.
-            </div>
+                <div className="rounded-[10px] border-2 border-black bg-[#FFE58F] p-2.5 text-[11px] font-bold leading-snug text-[#1A1A1A]">
+                  Customers see{" "}
+                  <span className="font-mono font-black">
+                    {formatDeliveryWindow(deliveryStartTime, deliveryEndTime) ??
+                      "—"}
+                  </span>
+                  . This is when the van arrives. It is separate from the daily
+                  order cut-off, which is a business-wide policy shown on the
+                  Plans screen.
+                </div>
+              </>
+            )}
           </div>
 
           {/* BUY_ONCE specific: Max Usages */}

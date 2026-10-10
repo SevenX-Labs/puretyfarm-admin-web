@@ -10,6 +10,7 @@ import {
   RequestStatus,
   ChangeRequestItem,
   ChangeRequestsApiResponse,
+  OrderCutoffPolicy,
 } from "@/types/plan-delivery";
 import {
   getAllPlans,
@@ -17,7 +18,6 @@ import {
   updatePlanConfig,
   fetchChangeRequests,
   approveChangeRequest,
-  DEFAULT_PLANS,
 } from "@/services/plan-delivery-service";
 import { RejectRequestModal } from "@/components/plans/reject-request-modal";
 import { EditPlanModal } from "@/components/plans/edit-plan-modal";
@@ -56,7 +56,11 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { formatCurrency, formatDate, formatDeliveryWindow } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  formatDeliveryWindowOrLabel,
+} from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 
 type TabMode = "SUBSCRIPTIONS" | "REQUESTS" | "PLANS";
@@ -181,7 +185,11 @@ export default function PlansAndDeliveryPage() {
   // ==========================================
   // TAB 2: PLAN CONFIGURATIONS STATE
   // ==========================================
-  const [plans, setPlans] = useState<PlanConfig[]>(DEFAULT_PLANS);
+  // Starts empty on purpose: seeding with DEFAULT_PLANS meant the skeleton
+  // never rendered and placeholder prices/windows were shown as though they
+  // were the server's configuration.
+  const [plans, setPlans] = useState<PlanConfig[]>([]);
+  const [orderCutoff, setOrderCutoff] = useState<OrderCutoffPolicy | null>(null);
   const [plansLoading, setPlansLoading] = useState<boolean>(true);
   const [isRefreshingPlans, setIsRefreshingPlans] = useState<boolean>(false);
   const [plansError, setPlansError] = useState<string | null>(null);
@@ -263,15 +271,17 @@ export default function PlansAndDeliveryPage() {
       const data = await getAllPlans({
         forceRefresh,
         onFreshData: (fresh) => {
-          if (fresh && fresh.length > 0) {
-            setPlans(fresh);
+          if (fresh?.plans?.length) {
+            setPlans(fresh.plans);
+            setOrderCutoff(fresh.orderCutoff);
             setPlansLoading(false);
           }
         },
       });
 
-      if (data && data.length > 0) {
-        setPlans(data);
+      if (data?.plans?.length) {
+        setPlans(data.plans);
+        setOrderCutoff(data.orderCutoff);
       }
     } catch (err: unknown) {
       console.error("Error fetching plan configurations:", err);
@@ -1271,6 +1281,51 @@ export default function PlansAndDeliveryPage() {
             />
           )}
 
+          {/* ORDER CUT-OFF — a business-wide policy, not a per-plan window.
+              Rendered from the server's response so this screen can never
+              disagree with the rule the backend actually applies. */}
+          <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-black uppercase text-[#1A1A1A]">
+                <Clock className="h-3.5 w-3.5 stroke-[2.5]" />
+                Daily Order Cut-Off
+              </span>
+              {plansLoading && !orderCutoff ? (
+                <span className="h-6 w-28 animate-pulse rounded-[6px] bg-[#E5E0D8]" />
+              ) : orderCutoff ? (
+                <span className="rounded-[6px] border-2 border-black bg-[#FFDF58] px-2.5 py-1 font-mono text-xs font-black text-[#1A1A1A]">
+                  {orderCutoff.timeLabel} {orderCutoff.timezone}
+                </span>
+              ) : (
+                <span className="rounded-[6px] border-2 border-black bg-[#FFD9D0] px-2.5 py-1 font-mono text-xs font-black text-[#1A1A1A]">
+                  Unavailable
+                </span>
+              )}
+            </div>
+            {orderCutoff ? (
+              <p className="mt-2 text-[11px] font-bold leading-snug text-[#5C5647]">
+                Orders placed before {orderCutoff.timeLabel} deliver in{" "}
+                {orderCutoff.leadDaysBeforeCutoff} day
+                {orderCutoff.leadDaysBeforeCutoff === 1 ? "" : "s"}; from{" "}
+                {orderCutoff.timeLabel} onwards they deliver in{" "}
+                {orderCutoff.leadDaysAfterCutoff} days. This is separate from
+                each plan&apos;s delivery window below, which is when the van
+                arrives.
+              </p>
+            ) : (
+              <p className="mt-2 text-[11px] font-bold leading-snug text-[#5C5647]">
+                The cut-off policy could not be loaded.{" "}
+                <button
+                  type="button"
+                  onClick={() => fetchPlansData(true)}
+                  className="cursor-pointer underline decoration-2"
+                >
+                  Retry
+                </button>
+              </p>
+            )}
+          </div>
+
           {/* 3-Column Plan Grid */}
           <div
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
@@ -1293,6 +1348,7 @@ export default function PlansAndDeliveryPage() {
               ))
             ) : (
               plans.map((plan) => {
+                const isUnconfigured = plan.isConfigured === false;
                 const isBuyOnce = plan.type === "BUY_ONCE";
                 const isSevenDay = plan.type === "SEVEN_DAY_TRIAL";
                 const isMonthly = plan.type === "MONTHLY";
@@ -1350,6 +1406,17 @@ export default function PlansAndDeliveryPage() {
                         </div>
                       </div>
 
+                      {isUnconfigured && (
+                        <div className="mb-3 flex items-start gap-2 rounded-[10px] border-2 border-black bg-[#FFD9D0] p-2.5 text-[11px] font-black text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 stroke-[2.5]" />
+                          <span className="leading-snug">
+                            This plan has no saved configuration yet. The values
+                            below are placeholders — save the plan to set its
+                            real prices and delivery window.
+                          </span>
+                        </div>
+                      )}
+
                       <div className="space-y-3 rounded-[10px] border-2 border-black/10 bg-[#FAF7EC] p-3 text-xs font-bold text-[#1A1A1A] mb-5">
                         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-black/10 pb-2">
                           <span className="text-[#5C5647] flex items-center gap-1">
@@ -1367,9 +1434,10 @@ export default function PlansAndDeliveryPage() {
                             Delivery Window:
                           </span>
                           <span className="font-mono font-black">
-                            {formatDeliveryWindow(
+                            {formatDeliveryWindowOrLabel(
                               plan.deliveryStartTime,
-                              plan.deliveryEndTime
+                              plan.deliveryEndTime,
+                              "Not configured"
                             )}
                           </span>
                         </div>

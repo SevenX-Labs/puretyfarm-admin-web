@@ -33,9 +33,8 @@ export function formatDate(dateStr: string | Date): string {
 /** 24-hour "HH:MM" — the format the API stores and accepts. */
 export const DELIVERY_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-/** Default delivery window, mirroring the server's PlanConfig fallback. */
-export const DEFAULT_DELIVERY_START_TIME = "06:00";
-export const DEFAULT_DELIVERY_END_TIME = "11:00";
+/** Shown wherever operational data the backend has not configured would go. */
+export const NOT_CONFIGURED_LABEL = "Not configured";
 
 /** Parses a 24h "HH:MM" time into minutes since midnight, or null if malformed. */
 export function parseTimeToMinutes(
@@ -47,31 +46,63 @@ export function parseTimeToMinutes(
 }
 
 /**
- * Renders a 24h "HH:MM" time as 12h "h:mm AM/PM".
+ * Renders a 24h "HH:MM" time as 12h "h:mm AM/PM", or null if there is nothing
+ * valid to render.
  *
- * Delivery windows are stored in 24h form but are always read by people, so
- * every surface shows AM/PM. Unparseable input is passed through rather than
- * rendered as a misleading "12:00 AM".
+ * Returns null rather than a placeholder time so callers must decide how to
+ * present missing configuration. Silently emitting "12:00 AM" for a null
+ * window is how an unset field starts looking like a real delivery promise.
  */
-export function formatTime(timeStr: string | null | undefined): string {
+export function formatTime(timeStr: string | null | undefined): string | null {
   const minutes = parseTimeToMinutes(timeStr);
-  if (minutes === null) return timeStr || "";
+  if (minutes === null) return null;
   const h24 = Math.floor(minutes / 60);
   const mm = String(minutes % 60).padStart(2, "0");
   return `${h24 % 12 || 12}:${mm} ${h24 >= 12 ? "PM" : "AM"}`;
 }
 
 /**
- * Renders a delivery window as "6:00 AM – 11:00 AM", falling back to the
- * default window when the plan has none configured.
+ * Renders a delivery window as "6:00 AM – 11:00 AM", or null when either end
+ * is missing or malformed.
+ *
+ * There is deliberately no default window: the delivery window is operational
+ * data owned by the backend, so an unconfigured plan must read as unconfigured.
  */
 export function formatDeliveryWindow(
   start: string | null | undefined,
   end: string | null | undefined
+): string | null {
+  const from = formatTime(start);
+  const to = formatTime(end);
+  if (!from || !to) return null;
+  return `${from} – ${to}`;
+}
+
+/**
+ * Renders a server-provided delivery date, or an explicit label when there
+ * isn't one.
+ *
+ * Never substitutes another timestamp. `formatDate(null)` yields
+ * "1 Jan 1970", and falling back to `createdAt` presents the day the order was
+ * placed as the day it will arrive — both read as real delivery dates.
+ */
+export function formatDeliveryDateOrLabel(
+  dateStr: string | null | undefined,
+  label: string = "Not scheduled"
 ): string {
-  return `${formatTime(start || DEFAULT_DELIVERY_START_TIME)} – ${formatTime(
-    end || DEFAULT_DELIVERY_END_TIME
-  )}`;
+  if (!dateStr) return label;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return label;
+  return formatDate(d);
+}
+
+/** Window for display, falling back to an explicit "not configured" label. */
+export function formatDeliveryWindowOrLabel(
+  start: string | null | undefined,
+  end: string | null | undefined,
+  label: string = NOT_CONFIGURED_LABEL
+): string {
+  return formatDeliveryWindow(start, end) ?? label;
 }
 
 export function formatPaise(paise: number | null | undefined): string {

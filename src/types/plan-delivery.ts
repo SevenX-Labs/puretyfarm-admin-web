@@ -15,8 +15,12 @@ export interface PlanConfig {
   quantityMin: number;
   quantityMax: number;
   deliveryFeePaise: number; // In integer paise
-  deliveryStartTime: string; // e.g. "06:00"
-  deliveryEndTime: string; // e.g. "08:00"
+  /**
+   * Configured delivery window, 24h "HH:MM". Null means the admin has not set
+   * one — render it as "not configured", never as a plausible default.
+   */
+  deliveryStartTime: string | null;
+  deliveryEndTime: string | null;
   maxUsages?: number; // For BUY_ONCE (1-100)
   trialDurationDays?: number; // For SEVEN_DAY_TRIAL (usually 7)
   dailyEnabled?: boolean; // For MONTHLY
@@ -27,6 +31,11 @@ export interface PlanConfig {
   quantityModes?: string[];
   createdAt?: string;
   updatedAt?: string;
+  /**
+   * False for a plan type the server has no PlanConfig row for. Such a card is
+   * a placeholder: its prices and window are not real configuration.
+   */
+  isConfigured?: boolean;
 }
 
 export interface ChangeRequestCustomer {
@@ -60,9 +69,31 @@ export interface ChangeRequestsApiResponse {
   };
 }
 
+/**
+ * The server's order cut-off policy. A business-wide rule, deliberately
+ * separate from each plan's delivery window, and never restated client-side.
+ */
+export interface OrderCutoffPolicy {
+  /** 24h "HH:MM" in `timezone`. */
+  time: string;
+  /** Human-readable form, e.g. "11:00 PM". */
+  timeLabel: string;
+  /** IANA zone the cut-off is evaluated in. */
+  timezone: string;
+  leadDaysBeforeCutoff: number;
+  leadDaysAfterCutoff: number;
+}
+
 export interface PlansApiResponse {
   plans: PlanConfig[];
   unconfigured?: string[];
+  orderCutoff?: OrderCutoffPolicy;
+}
+
+export interface PlansResult {
+  plans: PlanConfig[];
+  /** Null when the server did not send a policy; show "unavailable", not a guess. */
+  orderCutoff: OrderCutoffPolicy | null;
 }
 
 export interface CustomerSubscriptionItem {

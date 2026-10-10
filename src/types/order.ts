@@ -65,9 +65,14 @@ export interface AdminOrder {
   taxPaise: number;
   deliveryFeePaise: number;
   totalPaise: number;
-  deliveryDate: string;
-  deliveryStartTime: string;
-  deliveryEndTime: string;
+  /** Server-scheduled delivery date, or null when none is set. */
+  deliveryDate: string | null;
+  /**
+   * Window snapshotted onto the order when it was created. Null when the plan
+   * had no configured window — show that, do not substitute today's config.
+   */
+  deliveryStartTime: string | null;
+  deliveryEndTime: string | null;
   addressSnapshot: OrderAddressSnapshot;
   actualPricePerLitrePaise: number;
   sellingPricePerLitrePaise: number;

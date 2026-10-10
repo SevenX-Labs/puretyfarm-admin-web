@@ -37,7 +37,11 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { formatCurrency, formatDate, formatDeliveryWindow } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDeliveryDateOrLabel,
+  formatDeliveryWindowOrLabel,
+} from "@/lib/utils";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -612,9 +616,10 @@ export default function OrdersPage() {
                 </tr>
               ) : (
                 orders.map((order) => {
-                  const windowTime = formatDeliveryWindow(
+                  const windowTime = formatDeliveryWindowOrLabel(
                     order.deliveryStartTime,
-                    order.deliveryEndTime
+                    order.deliveryEndTime,
+                    "Window not set"
                   );
 
                   const planBadge = getPlanBadge(order.planType);
@@ -672,7 +677,7 @@ export default function OrdersPage() {
                       {/* DELIVERY WINDOW + DATE */}
                       <td className="py-3.5 px-4 border-r-2 border-black align-middle font-mono text-xs">
                         <div className="font-bold text-[#1A1A1A]">
-                          {formatDate(order.deliveryDate)}
+                          {formatDeliveryDateOrLabel(order.deliveryDate)}
                         </div>
                         <div className="text-[11px] text-[#5C5647] flex items-center gap-1 mt-0.5">
                           <Clock className="h-3 w-3 shrink-0" />
@@ -766,9 +771,10 @@ export default function OrdersPage() {
             />
           ) : (
             orders.map((order) => {
-              const windowTime = formatDeliveryWindow(
+              const windowTime = formatDeliveryWindowOrLabel(
                 order.deliveryStartTime,
-                order.deliveryEndTime
+                order.deliveryEndTime,
+                "Window not set"
               );
               const planBadge = getPlanBadge(order.planType);
               const isPrepaidPlan = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
@@ -834,7 +840,7 @@ export default function OrdersPage() {
                       <div className="mt-1 flex min-w-0 items-start gap-1.5 font-mono text-[11px] font-bold text-[#1A1A1A]">
                         <Calendar className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         <span className="min-w-0 break-words">
-                          {formatDate(order.deliveryDate)}
+                          {formatDeliveryDateOrLabel(order.deliveryDate)}
                         </span>
                       </div>
                       <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-[#5C5647]">

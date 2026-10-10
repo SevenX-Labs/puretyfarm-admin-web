@@ -7,6 +7,8 @@ import {
   RequestStatus,
   RequestType,
   PlansApiResponse,
+  PlansResult,
+  OrderCutoffPolicy,
 } from "@/types/plan-delivery";
 import {
   swrFetch,
@@ -16,6 +18,14 @@ import {
   invalidateCache,
 } from "@/lib/cache";
 
+/**
+ * Shape placeholders for the three fixed plan types.
+ *
+ * Used only to keep the grid's three cards present when the server has no row
+ * for a plan yet. The delivery window is deliberately null: it is operational
+ * data the business configures, and a plausible-looking "06:00-08:00" here was
+ * being rendered as though it were the real configured schedule.
+ */
 export const DEFAULT_PLANS: PlanConfig[] = [
   {
     type: "BUY_ONCE",
@@ -25,8 +35,8 @@ export const DEFAULT_PLANS: PlanConfig[] = [
     quantityMin: 1,
     quantityMax: 5,
     deliveryFeePaise: 0,
-    deliveryStartTime: "06:00",
-    deliveryEndTime: "08:00",
+    deliveryStartTime: null,
+    deliveryEndTime: null,
     maxUsages: 3,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -39,8 +49,8 @@ export const DEFAULT_PLANS: PlanConfig[] = [
     quantityMin: 1,
     quantityMax: 3,
     deliveryFeePaise: 0,
-    deliveryStartTime: "06:00",
-    deliveryEndTime: "08:00",
+    deliveryStartTime: null,
+    deliveryEndTime: null,
     trialDurationDays: 7,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -53,8 +63,8 @@ export const DEFAULT_PLANS: PlanConfig[] = [
     quantityMin: 1,
     quantityMax: 10,
     deliveryFeePaise: 0,
-    deliveryStartTime: "06:00",
-    deliveryEndTime: "08:00",
+    deliveryStartTime: null,
+    deliveryEndTime: null,
     dailyEnabled: true,
     alternateDaysEnabled: true,
     fixedQuantityEnabled: true,
@@ -76,6 +86,16 @@ const EMPTY_REQUESTS_RESPONSE: ChangeRequestsApiResponse = {
   },
 };
 
+/** Reads the server's cut-off policy, or null when it did not send one. */
+function normalizeOrderCutoff(res: unknown): OrderCutoffPolicy | null {
+  if (!res || typeof res !== "object") return null;
+  const cutoff = (res as Record<string, unknown>).orderCutoff;
+  if (!cutoff || typeof cutoff !== "object") return null;
+  const c = cutoff as Record<string, unknown>;
+  if (typeof c.time !== "string" || typeof c.timezone !== "string") return null;
+  return cutoff as OrderCutoffPolicy;
+}
+
 /**
  * Normalizes plans response array
  */
@@ -92,40 +112,52 @@ function normalizePlans(res: unknown): PlanConfig[] {
     }
   }
 
-  // Ensure all 3 fixed plan types exist
+  // Keep all three cards present even when the server has no row for a plan
+  // type, but flag the placeholder so the UI never presents its numbers as
+  // real configuration.
   const planOrder: PlanType[] = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"];
-  const finalPlans: PlanConfig[] = planOrder.map((type) => {
+  return planOrder.map((type) => {
     const found = list.find((p) => p.type === type);
-    if (found) return found;
-    const fallback = DEFAULT_PLANS.find((p) => p.type === type)!;
-    return fallback;
+    if (found) return { ...found, isConfigured: true };
+    return { ...DEFAULT_PLANS.find((p) => p.type === type)!, isConfigured: false };
   });
-
-  return finalPlans;
 }
 
 /**
- * Fetch all plan configurations with SWR cache
+ * Fetch all plan configurations, plus the server's order cut-off policy.
+ *
+ * A failed request now rejects instead of resolving with `DEFAULT_PLANS`. The
+ * old behaviour made an outage indistinguishable from real configuration: the
+ * page showed ₹95/L and a 06:00-08:00 window that nobody had set. Cached data
+ * from a previous successful load is still served — that is stale, not
+ * invented — but with nothing cached the caller gets the error and renders a
+ * retry.
  */
 export async function getAllPlans(
-  options?: SwrOptions<PlanConfig[]>
-): Promise<PlanConfig[]> {
+  options?: SwrOptions<PlansResult>
+): Promise<PlansResult> {
   const cacheKey = "plans:all";
+
+  const load = async (): Promise<PlansResult> => {
+    const res = await apiClient<PlansApiResponse | PlanConfig[]>("/admin/plans", {
+      skipAuthRedirect: true,
+    });
+    return {
+      plans: normalizePlans(res),
+      orderCutoff: normalizeOrderCutoff(res),
+    };
+  };
 
   if (options) {
     const { cachedData, promise } = swrFetch(
       cacheKey,
       async () => {
         try {
-          const res = await apiClient<PlansApiResponse | PlanConfig[]>("/admin/plans", {
-            skipAuthRedirect: true,
-          });
-          const normalized = normalizePlans(res);
-          return normalized;
-        } catch {
-          const cached = getCachedData<PlanConfig[]>(cacheKey);
-          if (cached && cached.length > 0) return cached;
-          return DEFAULT_PLANS;
+          return await load();
+        } catch (err) {
+          const cached = getCachedData<PlansResult>(cacheKey);
+          if (cached) return cached;
+          throw err;
         }
       },
       options
@@ -134,20 +166,17 @@ export async function getAllPlans(
     if (cachedData && !options.forceRefresh) {
       return cachedData;
     }
-    const res = await promise;
-    return (Array.isArray(res) ? res : getCachedData<PlanConfig[]>(cacheKey)) || DEFAULT_PLANS;
+    return await promise;
   }
 
   try {
-    const res = await apiClient<PlansApiResponse | PlanConfig[]>("/admin/plans", {
-      skipAuthRedirect: true,
-    });
-    const normalized = normalizePlans(res);
-    setCachedData(cacheKey, normalized);
-    return normalized;
-  } catch {
-    const cached = getCachedData<PlanConfig[]>(cacheKey);
-    return cached || DEFAULT_PLANS;
+    const result = await load();
+    setCachedData(cacheKey, result);
+    return result;
+  } catch (err) {
+    const cached = getCachedData<PlansResult>(cacheKey);
+    if (cached) return cached;
+    throw err;
   }
 }
 

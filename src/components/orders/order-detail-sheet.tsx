@@ -42,7 +42,12 @@ import {
   Loader2,
   PackageCheck,
 } from "lucide-react";
-import { formatCurrency, formatDate, formatDeliveryWindow } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  formatDeliveryDateOrLabel,
+  formatDeliveryWindowOrLabel,
+} from "@/lib/utils";
 
 interface OrderDetailSheetProps {
   orderId?: string | null;
@@ -383,13 +388,18 @@ export function OrderDetailSheet({
                   </span>
                 </div>
 
+                <p className="text-[10px] font-bold text-[#5C5647]">
+                  Snapshot taken when this order was created — not the plan's
+                  current settings.
+                </p>
+
                 <div className="grid grid-cols-1 gap-3 pt-1 text-xs font-bold min-[420px]:grid-cols-2">
                   <div>
                     <span className="text-[10px] font-black uppercase text-[#5C5647] block">
                       Target Delivery Date
                     </span>
                     <span className="break-words font-mono text-sm font-black text-[#1A1A1A]">
-                      {order.deliveryDate || formatDate(order.createdAt)}
+                      {formatDeliveryDateOrLabel(order.deliveryDate)}
                     </span>
                   </div>
 
@@ -398,9 +408,10 @@ export function OrderDetailSheet({
                       Delivery Window
                     </span>
                     <span className="break-words font-mono text-sm font-black text-[#1A1A1A]">
-                      {formatDeliveryWindow(
+                      {formatDeliveryWindowOrLabel(
                         order.deliveryStartTime,
-                        order.deliveryEndTime
+                        order.deliveryEndTime,
+                        "Window not set"
                       )}
                     </span>
                   </div>
