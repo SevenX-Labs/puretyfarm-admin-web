@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Users,
   Package,
+  Truck,
   CalendarDays,
   Wallet,
   CreditCard,
@@ -33,6 +34,11 @@ const NAV_ITEMS = [
     name: "Orders",
     href: "/orders",
     icon: Package,
+  },
+  {
+    name: "Manage Deliveries",
+    href: "/deliveries",
+    icon: Truck,
   },
   {
     name: "Plans & Subscriptions",

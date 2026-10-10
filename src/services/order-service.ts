@@ -46,6 +46,7 @@ export interface OrderQueryParams {
   orderNumber?: string;
   startDate?: string;
   endDate?: string;
+  deliveryDate?: string;
   page?: number;
   limit?: number;
 }
