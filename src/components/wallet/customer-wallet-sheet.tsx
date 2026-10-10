@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { CustomerWalletDetail } from "@/types/wallet";
 import { fetchCustomerWallet } from "@/services/wallet-service";
 import { getCachedData } from "@/lib/cache";
@@ -18,6 +18,15 @@ import {
   User,
   AlertTriangle,
   Info,
+  RefreshCw,
+  Copy,
+  Check,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Clock,
+  ShieldCheck,
+  ShieldAlert,
+  FileText,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -34,6 +43,8 @@ export function CustomerWalletSheet({
 }: CustomerWalletSheetProps) {
   const [wallet, setWallet] = useState<CustomerWalletDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [copiedId, setCopiedId] = useState<boolean>(false);
 
   // Instant 0ms cached display
   const cachedWallet = userId ? getCachedData<CustomerWalletDetail>(`wallet:customer:${userId}`) : null;
@@ -41,127 +52,183 @@ export function CustomerWalletSheet({
   const displayWallet = isOpen && activeWallet?.customer?.id === userId ? activeWallet : null;
   const isLoading = Boolean(isOpen && userId && !displayWallet);
 
-  useEffect(() => {
-    if (!isOpen || !userId) return;
-    let isMounted = true;
-    const cached = getCachedData<CustomerWalletDetail>(`wallet:customer:${userId}`);
+  const loadWallet = useCallback(
+    async (forceRefresh = false) => {
+      if (!userId) return;
+      if (forceRefresh) setIsRefreshing(true);
+      setError(null);
 
-    fetchCustomerWallet(userId, {
-      onFreshData: (fresh) => {
-        if (isMounted && fresh) {
-          setWallet(fresh);
-          setError(null);
-        }
-      },
-    })
-      .then((data) => {
-        if (isMounted && data) {
+      try {
+        const data = await fetchCustomerWallet(userId, {
+          forceRefresh,
+          onFreshData: (fresh) => {
+            if (fresh) {
+              setWallet(fresh);
+              setError(null);
+            }
+          },
+        });
+        if (data) {
           setWallet(data);
           setError(null);
         }
-      })
-      .catch((err: unknown) => {
-        if (isMounted && !cached) {
-          const msg = err instanceof Error ? err.message : "Failed to load customer wallet.";
-          setError(msg);
-        }
-      });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to load customer wallet.";
+        setError(msg);
+      } finally {
+        setIsRefreshing(false);
+      }
+    },
+    [userId]
+  );
 
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, userId]);
+  useEffect(() => {
+    if (!isOpen || !userId) {
+      setWallet(null);
+      setError(null);
+      return;
+    }
+    loadWallet(false);
+  }, [isOpen, userId, loadWallet]);
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md md:max-w-xl p-0 overflow-y-auto bg-[#FAF7EC] border-l-2 border-black shadow-[-5px_0px_0px_0px_#000000]"
+        className="w-full sm:max-w-md md:max-w-xl p-0 overflow-y-auto bg-[#FAF7EC] border-l-2 border-black shadow-[-6px_0px_0px_0px_#000000]"
       >
         {/* Header Strip */}
-        <div className="p-5 border-b-2 border-black bg-white">
+        <div className="p-5 border-b-2 border-black bg-white sticky top-0 z-20">
           <SheetHeader>
-            <div className="flex items-center gap-2">
-              <span className="rounded-[6px] border-2 border-black bg-[#FFD84D] px-2.5 py-1 text-xs font-mono font-black text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1.5">
-                <Wallet className="h-3.5 w-3.5 stroke-[2.5]" />
-                PREPAID WALLET
-              </span>
-              <span className="rounded-[6px] border border-black bg-white px-2 py-0.5 text-[10px] font-mono text-[#5C5647]">
-                BALANCE HISTORY
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="rounded-[6px] border-2 border-black bg-[#FFD84D] px-2.5 py-1 text-xs font-mono font-black text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1.5">
+                  <Wallet className="h-3.5 w-3.5 stroke-[2.5]" />
+                  CUSTOMER LEDGER
+                </span>
+                <span className="rounded-[6px] border border-black bg-[#FAF7EC] px-2 py-0.5 text-[10px] font-mono font-bold text-[#5C5647]">
+                  REAL-TIME LEDGER
+                </span>
+              </div>
+
+              {userId && (
+                <button
+                  type="button"
+                  onClick={() => loadWallet(true)}
+                  disabled={isRefreshing}
+                  className="rounded-[6px] border-2 border-black bg-white hover:bg-[#FAF7EC] p-1.5 text-xs font-black shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                  title="Refresh Wallet"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin text-amber-700" : "text-[#1A1A1A]"}`}
+                  />
+                </button>
+              )}
             </div>
 
-            <SheetTitle className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] mt-3">
-              Customer Wallet Details
+            <SheetTitle className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] mt-2">
+              Customer Wallet Ledger
             </SheetTitle>
             <SheetDescription className="text-xs font-bold text-[#5C5647]">
-              Current balance and a list of all money added or spent.
+              Current verified prepaid balance and transaction history.
             </SheetDescription>
           </SheetHeader>
         </div>
 
         {/* Content Body */}
-        <div className="p-5 space-y-5">
-          {isLoading && !activeWallet ? (
-            <div className="space-y-4 animate-pulse">
-              <div className="h-28 bg-[#E5E0D8] rounded-[14px] border-2 border-black/30" />
-              <div className="h-20 bg-[#E5E0D8] rounded-[14px] border-2 border-black/30" />
-              <div className="h-56 bg-[#E5E0D8] rounded-[14px] border-2 border-black/30" />
+        <div className="p-5 space-y-4">
+          {isLoading ? (
+            <div className="space-y-4 py-8">
+              <div className="h-28 bg-white border-2 border-black rounded-[14px] p-4 animate-pulse" />
+              <div className="h-24 bg-white border-2 border-black rounded-[14px] p-4 animate-pulse" />
+              <div className="h-48 bg-white border-2 border-black rounded-[14px] p-4 animate-pulse" />
             </div>
           ) : error && !displayWallet ? (
-            <div className="rounded-[10px] border-2 border-black bg-[#FFD9D0] p-4 text-xs font-black text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0 stroke-[2.5]" />
-              <span>{error}</span>
+            <div className="rounded-[14px] border-2 border-black bg-[#FFD9D0] p-5 shadow-[4px_4px_0px_0px_#000000] text-center space-y-3">
+              <AlertTriangle className="h-8 w-8 text-[#8C2E1D] mx-auto" />
+              <h4 className="text-sm font-black uppercase text-[#1A1A1A]">
+                Failed to Load Wallet
+              </h4>
+              <p className="text-xs font-bold text-[#5C5647]">{error}</p>
+              <button
+                type="button"
+                onClick={() => loadWallet(true)}
+                className="px-4 py-2 bg-white border-2 border-black rounded-[8px] text-xs font-black uppercase shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FAF7EC] cursor-pointer"
+              >
+                Retry
+              </button>
             </div>
           ) : displayWallet ? (
             <>
-              {/* Massive Live Balance Banner */}
-              <div className="rounded-[14px] border-2 border-black bg-[#FFDF58] p-5 shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A]">
-                    Total Live Wallet Balance
+              {/* Primary Balance Display Card */}
+              <div className="rounded-[14px] border-2 border-black bg-white p-5 shadow-[4px_4px_0px_0px_#000000] relative overflow-hidden">
+                <div className="flex items-center justify-between border-b border-black/10 pb-2.5">
+                  <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                    Available Wallet Float
                   </span>
-                  {/* Auto-Credit Status Pill */}
                   {displayWallet.autoCreditEnabled ? (
-                    <span className="bg-[#B8E8B8] border border-black text-xs font-mono font-bold px-2 py-0.5 rounded shadow-[1px_1px_0px_0px_#000000] text-emerald-950 inline-flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-emerald-600 inline-block" />
-                      ● AUTO-CREDIT ACTIVE
+                    <span className="inline-flex items-center gap-1 rounded-full border border-black bg-[#B8E8B8] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
+                      <ShieldCheck className="h-3 w-3 stroke-[2.5]" />
+                      AUTO-CREDIT ACTIVE
                     </span>
                   ) : (
-                    <span className="bg-[#FFE58F] border border-black text-xs font-mono font-bold px-2 py-0.5 rounded shadow-[1px_1px_0px_0px_#000000] text-amber-950 inline-flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-amber-600 inline-block" />
-                      ● FIRST CREDIT PENDING APPROVAL
+                    <span className="inline-flex items-center gap-1 rounded-full border border-black bg-[#FFDF58] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
+                      <ShieldAlert className="h-3 w-3 stroke-[2.5]" />
+                      MANUAL REVIEW REQUIRED
                     </span>
                   )}
                 </div>
 
                 <div className="mt-3 flex items-baseline justify-between">
-                  <span className="font-mono text-3xl sm:text-4xl font-black tabular-nums text-[#1A1A1A]">
-                    {formatCurrency(displayWallet.balancePaise / 100)}
-                  </span>
-                  <span className="text-[10px] font-mono font-black uppercase bg-black text-[#FFDF58] px-2 py-0.5 rounded-[4px]">
+                  <div>
+                    <span className="font-mono text-3xl sm:text-4xl font-black tabular-nums text-[#1A1A1A]">
+                      {formatCurrency(displayWallet.balancePaise / 100)}
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-[#5C5647] block mt-0.5">
+                      ({displayWallet.balancePaise.toLocaleString()} paise)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono font-black uppercase bg-[#1A1A1A] text-[#FFDF58] px-2.5 py-1 rounded-[6px] shadow-[1px_1px_0px_0px_#000000]">
                     Current Balance
                   </span>
                 </div>
               </div>
 
-              {/* Architecture Info Banner */}
-              <div className="rounded-[10px] border-2 border-black bg-[#FFFDF7] p-3 text-xs font-bold text-[#1A1A1A] flex items-start gap-2 shadow-[2px_2px_0px_0px_#000000]">
-                <Info className="h-4 w-4 shrink-0 text-[#1A1A1A] mt-0.5" />
-                <p className="text-[11px] leading-relaxed text-[#5C5647]">
-                  <strong className="text-[#1A1A1A]">Per-Wallet Policy:</strong> First top-ups ALWAYS require manual admin verification to flip auto-credit to active. Subsequent verified online top-ups credit immediately; physical cash collections always wait for manual confirmation.
-                </p>
-              </div>
-
               {/* Customer Profile Card */}
               <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[3px_3px_0px_0px_#000000] space-y-2">
-                <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-1.5">
-                  <User className="h-3.5 w-3.5 stroke-[2.5]" />
-                  Account Holder Information
-                </span>
+                <div className="flex items-center justify-between border-b border-black/10 pb-1.5">
+                  <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 stroke-[2.5]" />
+                    Customer Profile
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(displayWallet.customer.id)}
+                    className="text-[10px] font-mono font-bold text-[#5C5647] hover:text-[#1A1A1A] flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedId ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-700" />
+                        <span className="text-emerald-700">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        <span>ID: {displayWallet.customer.id.slice(0, 8)}...</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
                 <div className="text-xs font-bold space-y-1">
                   <div className="font-black text-sm text-[#1A1A1A]">
-                    {displayWallet.customer?.name}
+                    {displayWallet.customer?.name || "Customer"}
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#5C5647]">
                     <span className="font-mono flex items-center gap-1">
@@ -178,14 +245,17 @@ export function CustomerWalletSheet({
                 </div>
               </div>
 
-              {/* Summary Cards: 2-Column Grid */}
+              {/* Summary Cards: Credits vs Debits */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-[12px] border-2 border-black bg-[#B8E8B8]/40 p-3.5 shadow-[2px_2px_0px_0px_#000000] flex flex-col justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[#1A1A1A]">
-                    Total Credits
-                  </span>
-                  <div className="mt-1">
-                    <span className="font-mono text-xl font-black text-[#1A1A1A]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#1A1A1A]">
+                      Total Credits
+                    </span>
+                    <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-800 stroke-[3]" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="font-mono text-lg sm:text-xl font-black text-[#1A1A1A]">
                       {formatCurrency(displayWallet.summary.totalCreditsPaise / 100)}
                     </span>
                     <p className="text-[10px] font-mono text-[#5C5647] mt-0.5">
@@ -195,11 +265,14 @@ export function CustomerWalletSheet({
                 </div>
 
                 <div className="rounded-[12px] border-2 border-black bg-[#FF8E72]/30 p-3.5 shadow-[2px_2px_0px_0px_#000000] flex flex-col justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[#1A1A1A]">
-                    Total Debits
-                  </span>
-                  <div className="mt-1">
-                    <span className="font-mono text-xl font-black text-[#1A1A1A]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#1A1A1A]">
+                      Total Debits
+                    </span>
+                    <ArrowUpRight className="h-3.5 w-3.5 text-[#8C2E1D] stroke-[3]" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="font-mono text-lg sm:text-xl font-black text-[#1A1A1A]">
                       {formatCurrency(displayWallet.summary.totalDebitsPaise / 100)}
                     </span>
                     <p className="text-[10px] font-mono text-[#5C5647] mt-0.5">
@@ -209,31 +282,46 @@ export function CustomerWalletSheet({
                 </div>
               </div>
 
-              {/* Recent Transactions Table */}
+              {/* Manual Adjustment Status Notice */}
+              <div className="rounded-[10px] border-2 border-black bg-[#FAF7EC] p-3 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] space-y-1">
+                <div className="flex items-center gap-1.5 font-mono text-[10px] font-black uppercase text-[#5C5647]">
+                  <Info className="h-3.5 w-3.5 text-[#1A1A1A] stroke-[2.5]" />
+                  <span>Manual Ledger Adjustments</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-[#5C5647]">
+                  Direct arbitrary wallet credit/debit is not exposed as a backend endpoint (no <code className="font-mono bg-white px-1 py-0.5 rounded border border-black/20">POST /admin/wallet/customers/:id/adjust</code>). All balance modifications must originate through verified customer online recharge requests or confirmed doorstep cash collections.
+                </p>
+              </div>
+
+              {/* Transaction History Section */}
               <div className="rounded-[14px] border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
                 <div className="p-3.5 bg-[#FAF7EC] border-b-2 border-black flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-[#1A1A1A]">
-                    Transaction History
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 stroke-[2.5] text-[#1A1A1A]" />
+                    <span className="text-xs font-black uppercase tracking-wider text-[#1A1A1A]">
+                      Transaction Ledger
+                    </span>
+                  </div>
                   <span className="font-mono text-[10px] font-bold text-[#5C5647]">
-                    {displayWallet.recentTransactions.length} Entries
+                    {displayWallet.recentTransactions.length} Recorded Entries
                   </span>
                 </div>
 
                 <div className="divide-y-2 divide-black/10 max-h-96 overflow-y-auto">
                   {displayWallet.recentTransactions.length === 0 ? (
-                    <div className="py-8 text-center text-xs font-bold text-[#5C5647]">
-                      No transactions found for this customer.
+                    <div className="py-8 text-center text-xs font-bold text-[#5C5647] space-y-1">
+                      <p className="text-[#1A1A1A] font-black uppercase text-xs">No Transactions Yet</p>
+                      <p className="text-[11px]">This customer has not performed any wallet top-ups or order deductions.</p>
                     </div>
                   ) : (
                     displayWallet.recentTransactions.map((tx) => {
                       const isCredit = tx.type === "CREDIT";
                       return (
-                        <div key={tx.id} className="p-3.5 hover:bg-[#FAF7EC]/60 transition-colors space-y-1">
+                        <div key={tx.id} className="p-3.5 hover:bg-[#FAF7EC]/60 transition-colors space-y-1.5">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span
-                                className={`rounded-[4px] border border-black px-1.5 py-0.2 text-[9px] font-mono font-black uppercase ${
+                                className={`rounded-[4px] border border-black px-2 py-0.5 text-[9px] font-mono font-black uppercase ${
                                   isCredit
                                     ? "bg-[#B8E8B8] text-[#1A1A1A]"
                                     : "bg-[#FFD9D0] text-[#1A1A1A]"
@@ -241,7 +329,8 @@ export function CustomerWalletSheet({
                               >
                                 {tx.type}
                               </span>
-                              <span className="font-mono text-[11px] font-bold text-[#5C5647]">
+                              <span className="font-mono text-[11px] font-bold text-[#5C5647] flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
                                 {formatDate(tx.createdAt)}
                               </span>
                             </div>
@@ -266,7 +355,7 @@ export function CustomerWalletSheet({
                           </div>
 
                           {tx.referenceId && (
-                            <div className="text-[10px] font-mono text-[#5C5647]">
+                            <div className="text-[10px] font-mono text-[#5C5647] bg-[#FAF7EC] px-2 py-0.5 rounded border border-black/10 inline-block">
                               Ref: {tx.referenceId}
                             </div>
                           )}
@@ -275,6 +364,12 @@ export function CustomerWalletSheet({
                     })
                   )}
                 </div>
+
+                {displayWallet.recentTransactions.length > 0 && (
+                  <div className="p-2.5 bg-[#FAF7EC] border-t border-black/10 text-center text-[10px] font-mono text-[#5C5647]">
+                    Showing ledger entries returned by backend API
+                  </div>
+                )}
               </div>
             </>
           ) : null}
