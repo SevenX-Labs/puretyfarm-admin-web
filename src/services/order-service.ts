@@ -236,3 +236,58 @@ export async function completeOrder(id: string): Promise<CompleteOrderResponse> 
   invalidateCache(`order:${id}`);
   return res;
 }
+
+export interface BulkOperationResultItem {
+  orderId: string;
+  orderNumber: string;
+  success: boolean;
+  status?: OrderStatus;
+  oldQuantity?: number;
+  newQuantity?: number;
+  reason?: string;
+}
+
+export interface BulkOperationResponse {
+  totalCount: number;
+  successCount: number;
+  failureCount: number;
+  results: BulkOperationResultItem[];
+}
+
+/**
+ * Bulk updates delivery status for multiple orders.
+ */
+export async function bulkUpdateOrderStatus(
+  orderIds: string[],
+  status: OrderStatus
+): Promise<BulkOperationResponse> {
+  const res = await apiClient<BulkOperationResponse>(
+    "/admin/orders/bulk/status",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ orderIds, status }),
+    }
+  );
+
+  invalidateCache("orders:");
+  return res;
+}
+
+/**
+ * Bulk updates milk quantity for upcoming eligible orders.
+ */
+export async function bulkUpdateOrderQuantity(
+  orderIds: string[],
+  quantity: number
+): Promise<BulkOperationResponse> {
+  const res = await apiClient<BulkOperationResponse>(
+    "/admin/orders/bulk/quantity",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ orderIds, quantity }),
+    }
+  );
+
+  invalidateCache("orders:");
+  return res;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   AdminOrder,
   OrderStatus,
@@ -10,6 +10,10 @@ import {
 } from "@/types/order";
 import { fetchOrders, OrderQueryParams } from "@/services/order-service";
 import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
+import { BulkMarkDeliveredModal } from "@/components/orders/bulk-mark-delivered-modal";
+import { BulkUpdateQuantityModal } from "@/components/orders/bulk-update-quantity-modal";
+import { BulkResultsModal } from "@/components/orders/bulk-results-modal";
+import { BulkOperationResponse } from "@/services/order-service";
 import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -17,13 +21,10 @@ import { ErrorState } from "@/components/ui/error-state";
 import {
   Package,
   Search,
-  RefreshCw,
   SlidersHorizontal,
   Calendar,
   Clock,
   RotateCcw,
-  ChevronLeft,
-  ChevronRight,
   ArrowRight,
   CheckCircle2,
   AlertTriangle,
@@ -75,6 +76,63 @@ export default function OrdersPage() {
   // Drawer state
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
+
+  // Bulk Management State
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [isBulkDeliveredOpen, setIsBulkDeliveredOpen] = useState<boolean>(false);
+  const [isBulkQuantityOpen, setIsBulkQuantityOpen] = useState<boolean>(false);
+  const [bulkResults, setBulkResults] = useState<BulkOperationResponse | null>(null);
+  const [isBulkResultsOpen, setIsBulkResultsOpen] = useState<boolean>(false);
+  const [bulkActionTitle, setBulkActionTitle] = useState<string>("Bulk Action");
+
+  const isEligibleForBulk = (order: AdminOrder) => {
+    return (
+      !["DELIVERED", "COMPLETED", "CANCELLED", "FAILED"].includes(order.status) &&
+      order.planDelivery?.status !== "SKIPPED"
+    );
+  };
+
+  const eligibleVisibleOrders = orders.filter(isEligibleForBulk);
+  const selectedVisibleOrders = orders.filter((o) => selectedOrderIds.includes(o.id));
+  const isAllEligibleSelected =
+    eligibleVisibleOrders.length > 0 &&
+    eligibleVisibleOrders.every((o) => selectedOrderIds.includes(o.id));
+  const isIndeterminate =
+    selectedVisibleOrders.length > 0 && !isAllEligibleSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllEligibleSelected) {
+      setSelectedOrderIds((prev) =>
+        prev.filter((id) => !eligibleVisibleOrders.some((o) => o.id === id))
+      );
+    } else {
+      const newSet = new Set(selectedOrderIds);
+      eligibleVisibleOrders.forEach((o) => newSet.add(o.id));
+      setSelectedOrderIds(Array.from(newSet));
+    }
+  };
+
+  const handleToggleSelectOrder = (orderId: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
+  };
+
+  const handleBulkDeliveredCompleted = (res: BulkOperationResponse) => {
+    setBulkResults(res);
+    setBulkActionTitle("Bulk Mark as Delivered");
+    setIsBulkResultsOpen(true);
+    setSelectedOrderIds([]);
+    loadOrders(currentPage, true);
+  };
+
+  const handleBulkQuantityCompleted = (res: BulkOperationResponse) => {
+    setBulkResults(res);
+    setBulkActionTitle("Bulk Quantity Update");
+    setIsBulkResultsOpen(true);
+    setSelectedOrderIds([]);
+    loadOrders(currentPage, true);
+  };
 
   // Copy order number handler
   const handleCopyOrderNumber = (e: React.MouseEvent, orderNum: string) => {
@@ -584,6 +642,18 @@ export default function OrdersPage() {
           <table className="w-full text-left text-sm border-collapse" aria-busy={isLoading}>
             <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black font-mono">
               <tr>
+                <th className="py-3.5 px-3 border-r-2 border-black w-12 text-center">
+                  <input
+                    type="checkbox"
+                    ref={(el) => {
+                      if (el) el.indeterminate = isIndeterminate;
+                    }}
+                    checked={isAllEligibleSelected}
+                    onChange={handleToggleSelectAll}
+                    aria-label="Select all eligible deliveries"
+                    className="h-4 w-4 rounded border-2 border-black accent-[#FFDF58] cursor-pointer"
+                  />
+                </th>
                 <th className="py-3.5 px-4 border-r-2 border-black w-36">Order #</th>
                 <th className="py-3.5 px-4 border-r-2 border-black">Customer</th>
                 <th className="py-3.5 px-4 border-r-2 border-black w-40">Delivery Window</th>
@@ -597,10 +667,10 @@ export default function OrdersPage() {
 
             <tbody className="divide-y-2 divide-black bg-white">
               {isLoading ? (
-                <TableSkeleton columns={8} rows={6} />
+                <TableSkeleton columns={9} rows={6} />
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-0">
+                  <td colSpan={9} className="p-0">
                     <EmptyState
                       icon={<Package className="h-6 w-6 stroke-[2.5]" />}
                       title={hasActiveFilters ? "No orders match active filters" : "No orders found"}
@@ -635,6 +705,20 @@ export default function OrdersPage() {
                       key={order.id}
                       className="hover:bg-[#FAF7EC]/80 transition-colors group"
                     >
+                      {/* ROW SELECT CHECKBOX */}
+                      <td
+                        className="py-3.5 px-3 border-r-2 border-black text-center align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedOrderIds.includes(order.id)}
+                          onChange={() => handleToggleSelectOrder(order.id)}
+                          aria-label={`Select order ${order.orderNumber}`}
+                          className="h-4 w-4 rounded border-2 border-black accent-[#FFDF58] cursor-pointer"
+                        />
+                      </td>
+
                       {/* ORDER # with Copy Button */}
                       <td className="py-3.5 px-4 border-r-2 border-black align-middle">
                         <div className="flex items-center gap-1.5">
@@ -909,6 +993,49 @@ export default function OrdersPage() {
         </div>
       </div>
 
+      {/* FLOATING BULK ACTIONS TOOLBAR */}
+      {selectedOrderIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[92%] sm:w-auto bg-white border-[3px] border-black rounded-[14px] p-2.5 sm:p-3 shadow-[6px_6px_0px_0px_#000000] flex flex-wrap items-center justify-between gap-2.5 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded-[8px] border-2 border-black bg-[#FFDF58] px-2.5 py-1 text-xs font-mono font-black text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]">
+              {selectedOrderIds.length} Selected
+            </span>
+            <span className="text-xs font-bold text-[#5C5647] hidden sm:inline">
+              Deliveries chosen
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBulkQuantityOpen(true)}
+              className="h-8 px-3 rounded-[8px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFDF58] text-[#1A1A1A] font-black uppercase text-xs shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>Update Qty</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsBulkDeliveredOpen(true)}
+              className="h-8 px-3.5 rounded-[8px] border-2 border-black bg-[#8FD694] hover:bg-[#79c97f] text-[#1A1A1A] font-black uppercase text-xs shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Truck className="h-3.5 w-3.5" />
+              <span>Mark Delivered</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedOrderIds([])}
+              className="h-8 px-2.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FFD9D0] text-[#1A1A1A] font-black uppercase text-xs shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+              title="Clear selection"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* DETAIL DRAWER */}
       <OrderDetailSheet
         orderId={selectedOrderId}
@@ -922,6 +1049,28 @@ export default function OrdersPage() {
             current.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
           );
         }}
+      />
+
+      {/* BULK ACTION MODALS */}
+      <BulkMarkDeliveredModal
+        isOpen={isBulkDeliveredOpen}
+        onClose={() => setIsBulkDeliveredOpen(false)}
+        selectedOrders={orders.filter((o) => selectedOrderIds.includes(o.id))}
+        onCompleted={handleBulkDeliveredCompleted}
+      />
+
+      <BulkUpdateQuantityModal
+        isOpen={isBulkQuantityOpen}
+        onClose={() => setIsBulkQuantityOpen(false)}
+        selectedOrders={orders.filter((o) => selectedOrderIds.includes(o.id))}
+        onCompleted={handleBulkQuantityCompleted}
+      />
+
+      <BulkResultsModal
+        isOpen={isBulkResultsOpen}
+        onClose={() => setIsBulkResultsOpen(false)}
+        results={bulkResults}
+        actionTitle={bulkActionTitle}
       />
     </div>
   );

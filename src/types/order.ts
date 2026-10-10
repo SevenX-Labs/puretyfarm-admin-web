@@ -77,6 +77,11 @@ export interface AdminOrder {
   actualPricePerLitrePaise: number;
   sellingPricePerLitrePaise: number;
   invoice?: OrderInvoice | null;
+  planDelivery?: {
+    id: string;
+    status: "SCHEDULED" | "DELIVERED" | "SKIPPED";
+    quantityLitres: number;
+  } | null;
   /** Set only once an admin has completed the order. */
   completedAt?: string | null;
   customer: OrderCustomer;
