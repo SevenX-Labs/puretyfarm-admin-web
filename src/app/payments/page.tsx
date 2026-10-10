@@ -747,21 +747,22 @@ export default function PaymentsPage() {
               <table className="w-full text-left text-sm border-collapse">
                 <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase text-[11px] font-black tracking-wider border-b-2 border-black">
                   <tr>
-                    <th className="py-3 px-4 border-r-2 border-black w-48">Customer</th>
-                    <th className="py-3 px-4 border-r-2 border-black text-right w-36">Amount (₹)</th>
+                    <th className="py-3 px-4 border-r-2 border-black w-48">Transaction / ID</th>
+                    <th className="py-3 px-4 border-r-2 border-black w-44">Customer</th>
+                    <th className="py-3 px-4 border-r-2 border-black text-right w-32">Amount (₹)</th>
                     <th className="py-3 px-4 border-r-2 border-black">Purpose</th>
-                    <th className="py-3 px-4 border-r-2 border-black text-center w-36">Status</th>
-                    <th className="py-3 px-4 border-r-2 border-black w-44">Collection Date</th>
-                    <th className="py-3 px-4 text-center w-52">Actions</th>
+                    <th className="py-3 px-4 border-r-2 border-black text-center w-32">Status</th>
+                    <th className="py-3 px-4 border-r-2 border-black w-36">Collection Date</th>
+                    <th className="py-3 px-4 text-center w-28">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y-2 divide-black bg-white">
                   {isCashLoading && cashCollections.length === 0 ? (
-                    <TableSkeleton colSpan={6} rows={5} />
+                    <TableSkeleton colSpan={7} rows={5} />
                   ) : cashCollections.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-4">
+                      <td colSpan={7} className="p-4">
                         <EmptyState
                           icon={<Banknote className="h-6 w-6 stroke-[2.5]" />}
                           title="No Cash Collections Found"
@@ -787,6 +788,30 @@ export default function PaymentsPage() {
                           key={item.id}
                           className="hover:bg-[#FFFDF8] transition-colors"
                         >
+                          {/* Transaction / ID */}
+                          <td className="py-3 px-4 border-r-2 border-black">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-xs font-black text-[#1A1A1A] truncate max-w-[120px]">
+                                {item.walletCredit?.transactionId || item.id.slice(0, 10) + "..."}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(item.walletCredit?.transactionId || item.id, item.id)}
+                                title="Copy ID"
+                                className="text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer"
+                              >
+                                {copiedTxnId === item.id ? (
+                                  <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                            <span className="font-mono text-[10px] text-[#5C5647] block truncate max-w-[130px]" title={item.id}>
+                              ID: {item.id}
+                            </span>
+                          </td>
+
                           {/* Customer */}
                           <td className="py-3 px-4 border-r-2 border-black">
                             <span className="font-black text-[#1A1A1A] block">
@@ -805,11 +830,18 @@ export default function PaymentsPage() {
                           {/* Purpose */}
                           <td className="py-3 px-4 border-r-2 border-black">
                             <div className="flex flex-col gap-1">
-                              <span className="inline-block max-w-[200px] truncate rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-bold text-[#1A1A1A]">
-                                {isPlan ? "Plan Payment" : "Wallet Top-up"}
-                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-block rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-bold text-[#1A1A1A]">
+                                  {isPlan ? "Plan Payment" : "Wallet Top-up"}
+                                </span>
+                                {item.planSelection?.planType && (
+                                  <span className="text-[11px] font-bold text-[#5C5647]">
+                                    ({item.planSelection.planType})
+                                  </span>
+                                )}
+                              </div>
                               {item.adminNote && (
-                                <span className="text-[10px] text-[#5C5647] truncate max-w-[200px]">
+                                <span className="text-[10px] text-[#5C5647] truncate max-w-[200px]" title={item.adminNote}>
                                   Note: {item.adminNote}
                                 </span>
                               )}

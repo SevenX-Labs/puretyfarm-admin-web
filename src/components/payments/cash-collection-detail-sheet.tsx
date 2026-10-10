@@ -137,9 +137,25 @@ export function CashCollectionDetailSheet({
           <SheetHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="rounded-[6px] border-2 border-black bg-white px-2.5 py-1 text-xs font-mono font-black text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]">
-                  {collection?.id || "CASH"}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="rounded-[6px] border-2 border-black bg-white px-2.5 py-1 text-xs font-mono font-black text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]">
+                    {collection?.id || "CASH"}
+                  </span>
+                  {collection?.id && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(collection.id, "header-id")}
+                      title="Copy Collection ID"
+                      className="rounded border border-black p-1 hover:bg-[#FAF7EC] bg-white cursor-pointer shadow-[1px_1px_0px_0px_#000000]"
+                    >
+                      {copiedKey === "header-id" ? (
+                        <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />
+                      ) : (
+                        <Copy className="h-3 w-3 text-[#1A1A1A]" />
+                      )}
+                    </button>
+                  )}
+                </div>
                 {statusBadge && (
                   <span
                     className={`inline-flex items-center gap-1 rounded-[6px] px-2.5 py-1 text-xs font-black uppercase tracking-wider ${statusBadge.className}`}
@@ -212,7 +228,100 @@ export function CashCollectionDetailSheet({
                 </div>
               </div>
 
-              {/* 2. CUSTOMER SNAPSHOT */}
+              {/* 2. TRANSACTION & RECONCILIATION IDENTIFIERS */}
+              <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2.5">
+                <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
+                  <Receipt className="h-3.5 w-3.5 stroke-[2.5]" />
+                  Transaction & Collection Identifiers
+                </span>
+
+                <div className="space-y-2 text-xs font-bold">
+                  {/* Collection ID */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#5C5647]">Collection Record ID:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-[#1A1A1A] text-[11px] truncate max-w-[180px]">
+                        {collection.id}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(collection.id, "record-id")}
+                        className="rounded border border-black p-1 hover:bg-[#FAF7EC] cursor-pointer"
+                      >
+                        {copiedKey === "record-id" ? (
+                          <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-[#1A1A1A]" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Payment Method */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#5C5647]">Payment Mode:</span>
+                    <span className="inline-block rounded-md border border-black/30 bg-[#FAF7EC] px-2 py-0.5 text-[11px] font-mono font-bold text-[#1A1A1A]">
+                      Physical Cash (Depot / Doorstep)
+                    </span>
+                  </div>
+
+                  {/* Purpose */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#5C5647]">Purpose:</span>
+                    <span className="font-mono text-[#1A1A1A]">
+                      {isPlan ? "Subscription Plan Payment" : "Customer Wallet Top-up"}
+                    </span>
+                  </div>
+
+                  {/* Linked Wallet Credit Request ID */}
+                  {collection.walletCreditRequestId && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#5C5647]">Wallet Credit Request ID:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[#1A1A1A] text-[11px] truncate max-w-[160px]">
+                          {collection.walletCreditRequestId}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(collection.walletCreditRequestId!, "credit-req-id")}
+                          className="rounded border border-black p-1 hover:bg-[#FAF7EC] cursor-pointer"
+                        >
+                          {copiedKey === "credit-req-id" ? (
+                            <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-[#1A1A1A]" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Linked Plan Selection ID */}
+                  {collection.planSelectionId && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#5C5647]">Plan Selection ID:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[#1A1A1A] text-[11px] truncate max-w-[160px]">
+                          {collection.planSelectionId}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(collection.planSelectionId!, "plan-id")}
+                          className="rounded border border-black p-1 hover:bg-[#FAF7EC] cursor-pointer"
+                        >
+                          {copiedKey === "plan-id" ? (
+                            <Check className="h-3 w-3 text-emerald-600 stroke-[3]" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-[#1A1A1A]" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. CUSTOMER SNAPSHOT */}
               <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2">
                 <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
                   <User className="h-3.5 w-3.5 stroke-[2.5]" />
@@ -230,7 +339,7 @@ export function CashCollectionDetailSheet({
                 </div>
               </div>
 
-              {/* 3. RECONCILIATION AUDIT INFO */}
+              {/* 4. RECONCILIATION AUDIT INFO */}
               <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2.5">
                 <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
                   <Receipt className="h-3.5 w-3.5 stroke-[2.5]" />
@@ -273,7 +382,7 @@ export function CashCollectionDetailSheet({
                 </div>
               </div>
 
-              {/* 4. LINKED WALLET OR PLAN DETAILS */}
+              {/* 5. LINKED WALLET OR PLAN DETAILS */}
               {collection.walletCredit && (
                 <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2">
                   <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
