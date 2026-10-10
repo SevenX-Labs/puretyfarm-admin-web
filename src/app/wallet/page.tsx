@@ -58,8 +58,6 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
-import { ErrorState } from "@/components/ui/error-state";
 import { ButtonLoader } from "@/components/ui/button-loader";
 
 type PrimaryTab = "PENDING_APPROVALS" | "CUSTOMER_LEDGER";
@@ -631,11 +629,7 @@ export default function WalletPage() {
 
           {/* Pending Approvals Table / Grid */}
           <div className="bg-white border-2 border-black rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
-            {isApprovalsLoading ? (
-              <div className="p-6">
-                <TableSkeleton rows={6} />
-              </div>
-            ) : approvalsError ? (
+            {approvalsError && !isApprovalsLoading ? (
               <div className="p-8 text-center space-y-3">
                 <AlertTriangle className="h-8 w-8 text-[#8C2E1D] mx-auto" />
                 <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
@@ -652,7 +646,7 @@ export default function WalletPage() {
                   Retry Loading
                 </button>
               </div>
-            ) : paginatedPendingList.length === 0 ? (
+            ) : !isApprovalsLoading && paginatedPendingList.length === 0 ? (
               <div className="p-12 text-center space-y-3">
                 <div className="h-12 w-12 rounded-[12px] bg-[#B8E8B8] border-2 border-black flex items-center justify-center mx-auto shadow-[3px_3px_0px_0px_#000000]">
                   <Check className="h-6 w-6 stroke-[3] text-emerald-900" />
@@ -695,302 +689,318 @@ export default function WalletPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y-2 divide-black/10 text-xs font-bold text-[#1A1A1A]">
-                      {paginatedPendingList.map((item) => {
-                        const isOnline = item.paymentMethod === "ONLINE";
+                      {isApprovalsLoading ? (
+                        <TableSkeleton columns={7} rows={6} />
+                      ) : (
+                        paginatedPendingList.map((item) => {
+                          const isOnline = item.paymentMethod === "ONLINE";
 
-                        return (
-                          <tr key={`${item.source}-${item.id}`} className="hover:bg-[#FAF7EC]/50 transition-colors">
-                            {/* Type / Channel */}
-                            <td className="py-3 px-4">
-                              {isOnline ? (
-                                <span className="inline-flex items-center gap-1 rounded-[6px] border border-black bg-[#B8E8B8] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
-                                  <Globe className="h-3 w-3 stroke-[2.5]" />
-                                  ONLINE GATEWAY
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 rounded-[6px] border border-black bg-[#FFDF58] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
-                                  <Banknote className="h-3 w-3 stroke-[2.5]" />
-                                  DOORSTEP CASH
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Request ID */}
-                            <td className="py-3 px-4 font-mono text-[11px]">
-                              <button
-                                type="button"
-                                onClick={(e) => handleCopyId(e, item.id)}
-                                className="hover:underline flex items-center gap-1 text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer"
-                                title="Click to copy ID"
-                              >
-                                <span>{item.id.slice(0, 8)}...</span>
-                                <Copy className="h-3 w-3 opacity-60" />
-                              </button>
-                            </td>
-
-                            {/* Customer */}
-                            <td className="py-3 px-4">
-                              <div className="font-black text-[#1A1A1A]">
-                                {item.customer.name}
-                              </div>
-                              <div className="font-mono text-[10px] text-[#5C5647]">
-                                {item.customer.mobile || "No phone"}
-                              </div>
-                            </td>
-
-                            {/* Amount */}
-                            <td className="py-3 px-4 font-mono text-sm font-black tabular-nums text-[#1A1A1A]">
-                              {formatCurrency(item.amountPaise / 100)}
-                            </td>
-
-                            {/* Date */}
-                            <td className="py-3 px-4 font-mono text-[11px] text-[#5C5647]">
-                              <div>{formatDate(item.createdAt)}</div>
-                              <div className="text-[10px]">
-                                {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              </div>
-                            </td>
-
-                            {/* Status */}
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center gap-1 rounded-full border border-black bg-[#FFD84D] px-2.5 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
-                                <Clock className="h-3 w-3 stroke-[2.5]" />
-                                PENDING APPROVAL
-                              </span>
-                            </td>
-
-                            {/* Actions */}
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                          return (
+                            <tr key={`${item.source}-${item.id}`} className="hover:bg-[#FAF7EC]/50 transition-colors">
+                              {/* Type / Channel */}
+                              <td className="py-3 px-4">
                                 {isOnline ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => item.rawCredit && handleApproveOnline(item.rawCredit)}
-                                      disabled={approvingId === item.id}
-                                      className="px-3 py-1.5 rounded-[6px] border-2 border-black bg-[#8FD694] hover:bg-[#7bc880] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                      title="Approve Online Top-up"
-                                    >
-                                      <ButtonLoader loading={approvingId === item.id}>
-                                        <Check className="h-3 w-3 stroke-[3]" />
-                                        <span>Approve</span>
-                                      </ButtonLoader>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (item.rawCredit) {
-                                          setSelectedForReject(item.rawCredit);
-                                          setIsRejectOpen(true);
-                                        }
-                                      }}
-                                      disabled={approvingId === item.id}
-                                      className="px-2.5 py-1.5 rounded-[6px] border-2 border-black bg-[#FFD9D0] hover:bg-[#ffc8be] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                      title="Reject Online Request"
-                                    >
-                                      <X className="h-3 w-3 stroke-[3]" />
-                                      <span>Reject</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedForOnlineDetail(item.id);
-                                        setIsOnlineDetailOpen(true);
-                                      }}
-                                      className="p-1.5 rounded-[6px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-                                      title="View Details"
-                                    >
-                                      <Eye className="h-3.5 w-3.5 text-[#1A1A1A]" />
-                                    </button>
-                                  </>
+                                  <span className="inline-flex items-center gap-1 rounded-[6px] border border-black bg-[#B8E8B8] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
+                                    <Globe className="h-3 w-3 stroke-[2.5]" />
+                                    ONLINE GATEWAY
+                                  </span>
                                 ) : (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (item.rawCash) {
-                                          setSelectedForConfirmCash(item.rawCash);
-                                          setIsConfirmCashOpen(true);
-                                        }
-                                      }}
-                                      className="px-3 py-1.5 rounded-[6px] border-2 border-black bg-[#8FD694] hover:bg-[#7bc880] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 cursor-pointer"
-                                      title="Confirm Physical Cash Receipt"
-                                    >
-                                      <Check className="h-3 w-3 stroke-[3]" />
-                                      <span>Confirm Cash</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (item.rawCash) {
-                                          setSelectedForCancelCash(item.rawCash);
-                                          setIsCancelCashOpen(true);
-                                        }
-                                      }}
-                                      className="px-2.5 py-1.5 rounded-[6px] border-2 border-black bg-[#FFD9D0] hover:bg-[#ffc8be] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 cursor-pointer"
-                                      title="Cancel Cash Collection"
-                                    >
-                                      <X className="h-3 w-3 stroke-[3]" />
-                                      <span>Cancel</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedForCashDetail(item.id);
-                                        setIsCashDetailOpen(true);
-                                      }}
-                                      className="p-1.5 rounded-[6px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-                                      title="View Cash Details"
-                                    >
-                                      <Eye className="h-3.5 w-3.5 text-[#1A1A1A]" />
-                                    </button>
-                                  </>
+                                  <span className="inline-flex items-center gap-1 rounded-[6px] border border-black bg-[#FFDF58] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
+                                    <Banknote className="h-3 w-3 stroke-[2.5]" />
+                                    DOORSTEP CASH
+                                  </span>
                                 )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              </td>
+
+                              {/* Request ID */}
+                              <td className="py-3 px-4 font-mono text-[11px]">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleCopyId(e, item.id)}
+                                  className="hover:underline flex items-center gap-1 text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer"
+                                  title="Click to copy ID"
+                                >
+                                  <span>{item.id.slice(0, 8)}...</span>
+                                  <Copy className="h-3 w-3 opacity-60" />
+                                </button>
+                              </td>
+
+                              {/* Customer */}
+                              <td className="py-3 px-4">
+                                <div className="font-black text-[#1A1A1A]">
+                                  {item.customer.name}
+                                </div>
+                                <div className="font-mono text-[10px] text-[#5C5647]">
+                                  {item.customer.mobile || "No phone"}
+                                </div>
+                              </td>
+
+                              {/* Amount */}
+                              <td className="py-3 px-4 font-mono text-sm font-black tabular-nums text-[#1A1A1A]">
+                                {formatCurrency(item.amountPaise / 100)}
+                              </td>
+
+                              {/* Date */}
+                              <td className="py-3 px-4 font-mono text-[11px] text-[#5C5647]">
+                                <div>{formatDate(item.createdAt)}</div>
+                                <div className="text-[10px]">
+                                  {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </div>
+                              </td>
+
+                              {/* Status */}
+                              <td className="py-3 px-4">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-black bg-[#FFD84D] px-2.5 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
+                                  <Clock className="h-3 w-3 stroke-[2.5]" />
+                                  PENDING APPROVAL
+                                </span>
+                              </td>
+
+                              {/* Actions */}
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {isOnline ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => item.rawCredit && handleApproveOnline(item.rawCredit)}
+                                        disabled={approvingId === item.id}
+                                        className="px-3 py-1.5 rounded-[6px] border-2 border-black bg-[#8FD694] hover:bg-[#7bc880] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                        title="Approve Online Top-up"
+                                      >
+                                        <ButtonLoader loading={approvingId === item.id}>
+                                          <Check className="h-3 w-3 stroke-[3]" />
+                                          <span>Approve</span>
+                                        </ButtonLoader>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (item.rawCredit) {
+                                            setSelectedForReject(item.rawCredit);
+                                            setIsRejectOpen(true);
+                                          }
+                                        }}
+                                        disabled={approvingId === item.id}
+                                        className="px-2.5 py-1.5 rounded-[6px] border-2 border-black bg-[#FFD9D0] hover:bg-[#ffc8be] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                        title="Reject Online Request"
+                                      >
+                                        <X className="h-3 w-3 stroke-[3]" />
+                                        <span>Reject</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedForOnlineDetail(item.id);
+                                          setIsOnlineDetailOpen(true);
+                                        }}
+                                        className="p-1.5 rounded-[6px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                                        title="View Details"
+                                      >
+                                        <Eye className="h-3.5 w-3.5 text-[#1A1A1A]" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (item.rawCash) {
+                                            setSelectedForConfirmCash(item.rawCash);
+                                            setIsConfirmCashOpen(true);
+                                          }
+                                        }}
+                                        className="px-3 py-1.5 rounded-[6px] border-2 border-black bg-[#8FD694] hover:bg-[#7bc880] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 cursor-pointer"
+                                        title="Confirm Physical Cash Receipt"
+                                      >
+                                        <Check className="h-3 w-3 stroke-[3]" />
+                                        <span>Confirm Cash</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (item.rawCash) {
+                                            setSelectedForCancelCash(item.rawCash);
+                                            setIsCancelCashOpen(true);
+                                          }
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-[6px] border-2 border-black bg-[#FFD9D0] hover:bg-[#ffc8be] font-black text-xs uppercase shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 cursor-pointer"
+                                        title="Cancel Cash Collection"
+                                      >
+                                        <X className="h-3 w-3 stroke-[3]" />
+                                        <span>Cancel</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedForCashDetail(item.id);
+                                          setIsCashDetailOpen(true);
+                                        }}
+                                        className="p-1.5 rounded-[6px] border-2 border-black bg-white hover:bg-[#FAF7EC] text-xs shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                                        title="View Cash Details"
+                                      >
+                                        <Eye className="h-3.5 w-3.5 text-[#1A1A1A]" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
 
                 {/* Mobile View Cards */}
                 <div className="lg:hidden divide-y-2 divide-black/10 p-4 space-y-3">
-                  {paginatedPendingList.map((item) => {
-                    const isOnline = item.paymentMethod === "ONLINE";
+                  {isApprovalsLoading ? (
+                    Array.from({ length: 4 }).map((_, idx) => (
+                      <div key={idx} className="bg-[#FAF7EC] border-2 border-black rounded-[12px] p-4 space-y-3 animate-pulse">
+                        <div className="h-5 bg-stone-200 rounded w-28" />
+                        <div className="h-4 bg-stone-200 rounded w-44" />
+                        <div className="h-9 bg-stone-200 rounded w-full" />
+                      </div>
+                    ))
+                  ) : (
+                    paginatedPendingList.map((item) => {
+                      const isOnline = item.paymentMethod === "ONLINE";
 
-                    return (
-                      <div key={`${item.source}-${item.id}`} className="bg-[#FAF7EC] border-2 border-black rounded-[12px] p-4 space-y-3 shadow-[2px_2px_0px_0px_#000000]">
-                        <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-2">
-                          <div>
-                            {isOnline ? (
-                              <span className="inline-flex items-center gap-1 rounded-[6px] border border-black bg-[#B8E8B8] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
-                                <Globe className="h-3 w-3" />
-                                ONLINE GATEWAY
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-[6px] border border-black bg-[#FFDF58] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
-                                <Banknote className="h-3 w-3" />
-                                DOORSTEP CASH
-                              </span>
-                            )}
-                            <div className="font-mono text-[10px] text-[#5C5647] mt-1">
-                              ID: {item.id.slice(0, 10)}...
+                      return (
+                        <div key={`${item.source}-${item.id}`} className="bg-[#FAF7EC] border-2 border-black rounded-[12px] p-4 space-y-3 shadow-[2px_2px_0px_0px_#000000]">
+                          <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-2">
+                            <div>
+                              {isOnline ? (
+                                <span className="inline-flex items-center gap-1 rounded-[6px] border border-black bg-[#B8E8B8] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
+                                  <Globe className="h-3 w-3" />
+                                  ONLINE GATEWAY
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-[6px] border border-black bg-[#FFDF58] px-2 py-0.5 text-[9px] font-mono font-black uppercase text-[#1A1A1A]">
+                                  <Banknote className="h-3 w-3" />
+                                  DOORSTEP CASH
+                                </span>
+                              )}
+                              <div className="font-mono text-[10px] text-[#5C5647] mt-1">
+                                ID: {item.id.slice(0, 10)}...
+                              </div>
+                            </div>
+                            <span className="font-mono text-lg font-black text-[#1A1A1A]">
+                              {formatCurrency(item.amountPaise / 100)}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-bold space-y-0.5">
+                            <div className="text-[#1A1A1A] font-black">{item.customer.name}</div>
+                            <div className="text-[#5C5647] font-mono text-[11px]">{item.customer.mobile}</div>
+                            <div className="text-[10px] font-mono text-[#5C5647]">
+                              Requested: {formatDate(item.createdAt)}
                             </div>
                           </div>
-                          <span className="font-mono text-lg font-black text-[#1A1A1A]">
-                            {formatCurrency(item.amountPaise / 100)}
-                          </span>
-                        </div>
 
-                        <div className="text-xs font-bold space-y-0.5">
-                          <div className="text-[#1A1A1A] font-black">{item.customer.name}</div>
-                          <div className="text-[#5C5647] font-mono text-[11px]">{item.customer.mobile}</div>
-                          <div className="text-[10px] font-mono text-[#5C5647]">
-                            Requested: {formatDate(item.createdAt)}
+                          {/* Actions */}
+                          <div className="pt-1 flex flex-wrap gap-2">
+                            {isOnline ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => item.rawCredit && handleApproveOnline(item.rawCredit)}
+                                  disabled={approvingId === item.id}
+                                  className="flex-1 min-h-[40px] rounded-[8px] border-2 border-black bg-[#8FD694] font-black text-xs uppercase flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                                >
+                                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                  <span>Approve</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (item.rawCredit) {
+                                      setSelectedForReject(item.rawCredit);
+                                      setIsRejectOpen(true);
+                                    }
+                                  }}
+                                  disabled={approvingId === item.id}
+                                  className="px-3 min-h-[40px] rounded-[8px] border-2 border-black bg-[#FFD9D0] font-black text-xs uppercase flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                                >
+                                  <X className="h-3.5 w-3.5 stroke-[3]" />
+                                  <span>Reject</span>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (item.rawCash) {
+                                      setSelectedForConfirmCash(item.rawCash);
+                                      setIsConfirmCashOpen(true);
+                                    }
+                                  }}
+                                  className="flex-1 min-h-[40px] rounded-[8px] border-2 border-black bg-[#8FD694] font-black text-xs uppercase flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                  <span>Confirm Cash</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (item.rawCash) {
+                                      setSelectedForCancelCash(item.rawCash);
+                                      setIsCancelCashOpen(true);
+                                    }
+                                  }}
+                                  className="px-3 min-h-[40px] rounded-[8px] border-2 border-black bg-[#FFD9D0] font-black text-xs uppercase flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <X className="h-3.5 w-3.5 stroke-[3]" />
+                                  <span>Cancel</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
-
-                        {/* Actions */}
-                        <div className="pt-1 flex flex-wrap gap-2">
-                          {isOnline ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => item.rawCredit && handleApproveOnline(item.rawCredit)}
-                                disabled={approvingId === item.id}
-                                className="flex-1 min-h-[40px] rounded-[8px] border-2 border-black bg-[#8FD694] font-black text-xs uppercase flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
-                              >
-                                <Check className="h-3.5 w-3.5 stroke-[3]" />
-                                <span>Approve</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (item.rawCredit) {
-                                    setSelectedForReject(item.rawCredit);
-                                    setIsRejectOpen(true);
-                                  }
-                                }}
-                                disabled={approvingId === item.id}
-                                className="px-3 min-h-[40px] rounded-[8px] border-2 border-black bg-[#FFD9D0] font-black text-xs uppercase flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
-                              >
-                                <X className="h-3.5 w-3.5 stroke-[3]" />
-                                <span>Reject</span>
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (item.rawCash) {
-                                    setSelectedForConfirmCash(item.rawCash);
-                                    setIsConfirmCashOpen(true);
-                                  }
-                                }}
-                                className="flex-1 min-h-[40px] rounded-[8px] border-2 border-black bg-[#8FD694] font-black text-xs uppercase flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                <Check className="h-3.5 w-3.5 stroke-[3]" />
-                                <span>Confirm Cash</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (item.rawCash) {
-                                    setSelectedForCancelCash(item.rawCash);
-                                    setIsCancelCashOpen(true);
-                                  }
-                                }}
-                                className="px-3 min-h-[40px] rounded-[8px] border-2 border-black bg-[#FFD9D0] font-black text-xs uppercase flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                <X className="h-3.5 w-3.5 stroke-[3]" />
-                                <span>Cancel</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Pagination */}
-                <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <span>
-                    Showing <strong className="font-mono">{paginatedPendingList.length}</strong> of{" "}
-                    <strong className="font-mono">{filteredPendingList.length}</strong> pending items
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={approvalsPage <= 1}
-                      onClick={() => setApprovalsPage((p) => p - 1)}
-                      className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
-                    >
-                      <ChevronLeft className="h-3 w-3 stroke-[3]" />
-                      Prev
-                    </button>
-                    <span className="font-mono text-xs font-black px-2">
-                      Page {approvalsPage} of {totalPendingPages}
+                {!isApprovalsLoading && paginatedPendingList.length > 0 && (
+                  <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span>
+                      Showing <strong className="font-mono">{paginatedPendingList.length}</strong> of{" "}
+                      <strong className="font-mono">{filteredPendingList.length}</strong> pending items
                     </span>
-                    <button
-                      type="button"
-                      disabled={approvalsPage >= totalPendingPages}
-                      onClick={() => setApprovalsPage((p) => p + 1)}
-                      className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
-                    >
-                      Next
-                      <ChevronRight className="h-3 w-3 stroke-[3]" />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={approvalsPage <= 1}
+                        onClick={() => setApprovalsPage((p) => p - 1)}
+                        className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
+                      >
+                        <ChevronLeft className="h-3 w-3 stroke-[3]" />
+                        Prev
+                      </button>
+                      <span className="font-mono text-xs font-black px-2">
+                        Page {approvalsPage} of {totalPendingPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={approvalsPage >= totalPendingPages}
+                        onClick={() => setApprovalsPage((p) => p + 1)}
+                        className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
+                      >
+                        Next
+                        <ChevronRight className="h-3 w-3 stroke-[3]" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
           </div>
@@ -1034,11 +1044,7 @@ export default function WalletPage() {
 
           {/* Customer Directory Table */}
           <div className="bg-white border-2 border-black rounded-[14px] shadow-[4px_4px_0px_0px_#000000] overflow-hidden">
-            {isCustomersLoading ? (
-              <div className="p-6">
-                <TableSkeleton rows={8} />
-              </div>
-            ) : customersError ? (
+            {customersError && !isCustomersLoading ? (
               <div className="p-8 text-center space-y-3">
                 <AlertTriangle className="h-8 w-8 text-[#8C2E1D] mx-auto" />
                 <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
@@ -1053,7 +1059,7 @@ export default function WalletPage() {
                   Retry Loading
                 </button>
               </div>
-            ) : customers.length === 0 ? (
+            ) : !isCustomersLoading && customers.length === 0 ? (
               <div className="p-12 text-center space-y-3">
                 <Users className="h-10 w-10 text-[#5C5647] mx-auto" />
                 <h3 className="text-sm font-black uppercase text-[#1A1A1A]">
@@ -1081,154 +1087,170 @@ export default function WalletPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y-2 divide-black/10 text-xs font-bold text-[#1A1A1A]">
-                      {customers.map((c) => {
-                        const fullName = c.profile
-                          ? `${c.profile.firstName || ""} ${c.profile.lastName || ""}`.trim() || "Customer"
-                          : "Customer";
+                      {isCustomersLoading ? (
+                        <TableSkeleton columns={6} rows={8} />
+                      ) : (
+                        customers.map((c) => {
+                          const fullName = c.profile
+                            ? `${c.profile.firstName || ""} ${c.profile.lastName || ""}`.trim() || "Customer"
+                            : "Customer";
 
-                        return (
-                          <tr key={c.id} className="hover:bg-[#FAF7EC]/50 transition-colors">
-                            {/* Customer Profile */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2.5">
-                                <div className="h-9 w-9 rounded-full bg-[#FFD84D] border-2 border-black flex items-center justify-center font-mono font-black text-xs text-[#1A1A1A] shrink-0 shadow-[1px_1px_0px_0px_#000000]">
-                                  {fullName.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <div className="font-black text-[#1A1A1A]">{fullName}</div>
-                                  <div className="text-[10px] font-mono text-[#5C5647]">
-                                    Role: CUSTOMER
+                          return (
+                            <tr key={c.id} className="hover:bg-[#FAF7EC]/50 transition-colors">
+                              {/* Customer Profile */}
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="h-9 w-9 rounded-full bg-[#FFD84D] border-2 border-black flex items-center justify-center font-mono font-black text-xs text-[#1A1A1A] shrink-0 shadow-[1px_1px_0px_0px_#000000]">
+                                    {fullName.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className="font-black text-[#1A1A1A]">{fullName}</div>
+                                    <div className="text-[10px] font-mono text-[#5C5647]">
+                                      Role: CUSTOMER
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            </td>
+                              </td>
 
-                            {/* Contact */}
-                            <td className="py-3 px-4">
-                              <div className="font-mono text-[#1A1A1A]">{c.mobile}</div>
-                              {c.email && (
-                                <div className="text-[10px] text-[#5C5647]">{c.email}</div>
-                              )}
-                            </td>
+                              {/* Contact */}
+                              <td className="py-3 px-4">
+                                <div className="font-mono text-[#1A1A1A]">{c.mobile}</div>
+                                {c.email && (
+                                  <div className="text-[10px] text-[#5C5647]">{c.email}</div>
+                                )}
+                              </td>
 
-                            {/* Customer ID */}
-                            <td className="py-3 px-4 font-mono text-[11px]">
-                              <button
-                                type="button"
-                                onClick={(e) => handleCopyId(e, c.id)}
-                                className="hover:underline flex items-center gap-1 text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer"
-                                title="Copy ID"
-                              >
-                                <span>{c.id.slice(0, 8)}...</span>
-                                <Copy className="h-3 w-3 opacity-60" />
-                              </button>
-                            </td>
+                              {/* Customer ID */}
+                              <td className="py-3 px-4 font-mono text-[11px]">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleCopyId(e, c.id)}
+                                  className="hover:underline flex items-center gap-1 text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer"
+                                  title="Copy ID"
+                                >
+                                  <span>{c.id.slice(0, 8)}...</span>
+                                  <Copy className="h-3 w-3 opacity-60" />
+                                </button>
+                              </td>
 
-                            {/* Registered Date */}
-                            <td className="py-3 px-4 font-mono text-[11px] text-[#5C5647]">
-                              {formatDate(c.createdAt)}
-                            </td>
+                              {/* Registered Date */}
+                              <td className="py-3 px-4 font-mono text-[11px] text-[#5C5647]">
+                                {formatDate(c.createdAt)}
+                              </td>
 
-                            {/* Plans & Addresses count */}
-                            <td className="py-3 px-4 font-mono text-[11px] text-[#5C5647]">
-                              <span>{c.counts?.planSelections || 0} plan(s)</span> •{" "}
-                              <span>{c.counts?.addresses || 0} address(es)</span>
-                            </td>
+                              {/* Plans & Addresses count */}
+                              <td className="py-3 px-4 font-mono text-[11px] text-[#5C5647]">
+                                <span>{c.counts?.planSelections || 0} plan(s)</span> •{" "}
+                                <span>{c.counts?.addresses || 0} address(es)</span>
+                              </td>
 
-                            {/* Action Button: View Ledger */}
-                            <td className="py-3 px-4 text-right">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenCustomerLedger(c.id)}
-                                className="px-3.5 py-1.5 rounded-[8px] border-2 border-black bg-[#FFD84D] hover:bg-[#FFD13B] text-[#1A1A1A] font-black text-xs uppercase shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
-                              >
-                                <Wallet className="h-3.5 w-3.5 stroke-[2.5]" />
-                                <span>View Ledger & Float</span>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              {/* Action Button: View Ledger */}
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenCustomerLedger(c.id)}
+                                  className="px-3.5 py-1.5 rounded-[8px] border-2 border-black bg-[#FFD84D] hover:bg-[#FFD13B] text-[#1A1A1A] font-black text-xs uppercase shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
+                                >
+                                  <Wallet className="h-3.5 w-3.5 stroke-[2.5]" />
+                                  <span>View Ledger & Float</span>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
 
                 {/* Mobile Customer Cards */}
                 <div className="lg:hidden divide-y-2 divide-black/10 p-4 space-y-3">
-                  {customers.map((c) => {
-                    const fullName = c.profile
-                      ? `${c.profile.firstName || ""} ${c.profile.lastName || ""}`.trim() || "Customer"
-                      : "Customer";
-
-                    return (
-                      <div key={c.id} className="bg-[#FAF7EC] border-2 border-black rounded-[12px] p-4 space-y-3 shadow-[2px_2px_0px_0px_#000000]">
-                        <div className="flex items-center justify-between border-b border-black/10 pb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="h-8 w-8 rounded-full bg-[#FFD84D] border-2 border-black flex items-center justify-center font-mono font-black text-xs text-[#1A1A1A]">
-                              {fullName.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-black text-xs text-[#1A1A1A]">{fullName}</div>
-                              <div className="font-mono text-[10px] text-[#5C5647]">{c.mobile}</div>
-                            </div>
-                          </div>
-                          <span className="font-mono text-[10px] text-[#5C5647]">
-                            ID: {c.id.slice(0, 6)}...
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCustomerLedger(c.id)}
-                          className="w-full min-h-[40px] rounded-[8px] border-2 border-black bg-[#FFD84D] hover:bg-[#FFD13B] text-[#1A1A1A] font-black text-xs uppercase shadow-[2px_2px_0px_0px_#000000] flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <Wallet className="h-3.5 w-3.5 stroke-[2.5]" />
-                          <span>View Ledger & Float</span>
-                        </button>
+                  {isCustomersLoading ? (
+                    Array.from({ length: 4 }).map((_, idx) => (
+                      <div key={idx} className="bg-[#FAF7EC] border-2 border-black rounded-[12px] p-4 space-y-3 animate-pulse">
+                        <div className="h-5 bg-stone-200 rounded w-28" />
+                        <div className="h-4 bg-stone-200 rounded w-44" />
+                        <div className="h-9 bg-stone-200 rounded w-full" />
                       </div>
-                    );
-                  })}
+                    ))
+                  ) : (
+                    customers.map((c) => {
+                      const fullName = c.profile
+                        ? `${c.profile.firstName || ""} ${c.profile.lastName || ""}`.trim() || "Customer"
+                        : "Customer";
+
+                      return (
+                        <div key={c.id} className="bg-[#FAF7EC] border-2 border-black rounded-[12px] p-4 space-y-3 shadow-[2px_2px_0px_0px_#000000]">
+                          <div className="flex items-center justify-between border-b border-black/10 pb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full bg-[#FFD84D] border-2 border-black flex items-center justify-center font-mono font-black text-xs text-[#1A1A1A]">
+                                {fullName.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-black text-xs text-[#1A1A1A]">{fullName}</div>
+                                <div className="font-mono text-[10px] text-[#5C5647]">{c.mobile}</div>
+                              </div>
+                            </div>
+                            <span className="font-mono text-[10px] text-[#5C5647]">
+                              ID: {c.id.slice(0, 6)}...
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCustomerLedger(c.id)}
+                            className="w-full min-h-[40px] rounded-[8px] border-2 border-black bg-[#FFD84D] hover:bg-[#FFD13B] text-[#1A1A1A] font-black text-xs uppercase shadow-[2px_2px_0px_0px_#000000] flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Wallet className="h-3.5 w-3.5 stroke-[2.5]" />
+                            <span>View Ledger & Float</span>
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Customer Pagination */}
-                <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <span>
-                    Showing <strong className="font-mono">{customers.length}</strong> of{" "}
-                    <strong className="font-mono">{customerTotalCount}</strong> customer records
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={customerPage <= 1 || isCustomersLoading}
-                      onClick={() => {
-                        const prev = customerPage - 1;
-                        setCustomerPage(prev);
-                        loadCustomers(prev, false);
-                      }}
-                      className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
-                    >
-                      <ChevronLeft className="h-3 w-3 stroke-[3]" />
-                      Prev
-                    </button>
-                    <span className="font-mono text-xs font-black px-2">
-                      Page {customerPage} of {customerTotalPages || 1}
+                {!isCustomersLoading && customers.length > 0 && (
+                  <div className="p-3.5 bg-[#FAF7EC] border-t-2 border-black text-xs font-bold text-[#1A1A1A] flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span>
+                      Showing <strong className="font-mono">{customers.length}</strong> of{" "}
+                      <strong className="font-mono">{customerTotalCount}</strong> customer records
                     </span>
-                    <button
-                      type="button"
-                      disabled={customerPage >= customerTotalPages || isCustomersLoading}
-                      onClick={() => {
-                        const next = customerPage + 1;
-                        setCustomerPage(next);
-                        loadCustomers(next, false);
-                      }}
-                      className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
-                    >
-                      Next
-                      <ChevronRight className="h-3 w-3 stroke-[3]" />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={customerPage <= 1 || isCustomersLoading}
+                        onClick={() => {
+                          const prev = customerPage - 1;
+                          setCustomerPage(prev);
+                          loadCustomers(prev, false);
+                        }}
+                        className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
+                      >
+                        <ChevronLeft className="h-3 w-3 stroke-[3]" />
+                        Prev
+                      </button>
+                      <span className="font-mono text-xs font-black px-2">
+                        Page {customerPage} of {customerTotalPages || 1}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={customerPage >= customerTotalPages || isCustomersLoading}
+                        onClick={() => {
+                          const next = customerPage + 1;
+                          setCustomerPage(next);
+                          loadCustomers(next, false);
+                        }}
+                        className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
+                      >
+                        Next
+                        <ChevronRight className="h-3 w-3 stroke-[3]" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
           </div>
