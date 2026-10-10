@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { CustomerSubscriptionItem } from "@/types/plan-delivery";
 import { approveSubscription } from "@/services/plan-delivery-service";
 import { ApiError } from "@/lib/api-client";
+import { formatDeliveryWindow } from "@/lib/utils";
 import {
   Calendar,
   Clock,
@@ -79,9 +80,32 @@ export function ApprovePlanModal({
 
   if (!subscription) return null;
 
+  // Authoritative delivery window from the server's Plan Configuration.
+  // Previously this modal printed a literal "6:00 AM - 8:00 AM", a value the
+  // API never sent and which matched no configured plan.
+  const planConfig = subscription.planConfig ?? null;
+  const deliveryWindow = formatDeliveryWindow(
+    planConfig?.deliveryStartTime,
+    planConfig?.deliveryEndTime
+  );
+  // Approval is blocked without a usable configuration: materialising a
+  // schedule would snapshot a null window onto every dispatch order.
+  const configBlocker = !planConfig
+    ? `No saved Plan Configuration for ${subscription.planType}. Configure the plan before scheduling deliveries.`
+    : !planConfig.isActive
+    ? `The ${subscription.planType} plan configuration is inactive. Reactivate it before scheduling deliveries.`
+    : !deliveryWindow
+    ? `No delivery window is configured for ${subscription.planType}. Set the window in Plan Configuration before scheduling deliveries.`
+    : null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (configBlocker) {
+      setError(configBlocker);
+      return;
+    }
 
     if (!firstDeliveryDate || !firstDeliveryDate.trim()) {
       setError("First delivery date is required.");
@@ -139,6 +163,16 @@ export function ApprovePlanModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          {configBlocker && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-[8px] border-2 border-black bg-[#FFE58F] p-3 text-xs font-black text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
+            >
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 stroke-[2.5]" />
+              <span className="block leading-snug">{configBlocker}</span>
+            </div>
+          )}
+
           {error && (
             <div
               role="alert"
@@ -191,7 +225,7 @@ export function ApprovePlanModal({
                 <Clock className="h-3.5 w-3.5 stroke-[2.5]" /> Delivery Window:
               </span>
               <span className="font-mono text-xs font-black text-[#1A1A1A]">
-                6:00 AM – 8:00 AM (Morning)
+                {deliveryWindow ?? "Not configured"}
               </span>
             </div>
           </div>
@@ -244,8 +278,8 @@ export function ApprovePlanModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="rounded-[8px] border-2 border-black bg-[#FFDF58] hover:bg-[#fcd033] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 justify-center"
+              disabled={isSubmitting || Boolean(configBlocker)}
+              className="rounded-[8px] border-2 border-black bg-[#FFDF58] hover:bg-[#fcd033] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 justify-center disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? (
                 <>

@@ -438,17 +438,34 @@ export default function PlansAndDeliveryPage() {
       };
     }
 
-    if (type === "CHANGE_SCHEDULE") {
+    if (type === "CHANGE_PLAN") {
+      const planType = config.planType || config.plan;
+      return {
+        main: planType ? String(planType).replace(/_/g, " ") : "Plan Change",
+      };
+    }
+
+    if (type === "CHANGE_SCHEDULE" || type === "CHANGE_FREQUENCY") {
       const freq = config.frequency || config.schedule || config.cadence;
       const time = config.timeWindow || config.deliveryWindow;
       const effective = config.effectiveDate || config.startDate;
+      const mode = config.quantityMode;
+      const qty =
+        config.quantityMode === "ALTERNATING"
+          ? [config.quantityA, config.quantityB].filter((v) => v != null).join("L / ") +
+            (config.quantityA != null ? "L" : "")
+          : config.quantity != null
+          ? `${config.quantity}L`
+          : undefined;
+      const metaParts = [
+        time,
+        mode ? String(mode).replace(/_/g, " ") : undefined,
+        qty,
+        effective ? `Effective: ${effective}` : undefined,
+      ].filter(Boolean);
       return {
         main: freq ? `${String(freq).replace(/_/g, " ")}` : "Schedule Shift",
-        meta: time
-          ? `${time}${effective ? ` • Effective: ${effective}` : ""}`
-          : effective
-          ? `Effective: ${effective}`
-          : undefined,
+        meta: metaParts.length > 0 ? metaParts.join(" • ") : undefined,
       };
     }
 
@@ -485,10 +502,17 @@ export default function PlansAndDeliveryPage() {
           label: "Qty Change",
         };
       case "CHANGE_SCHEDULE":
+      case "CHANGE_FREQUENCY":
         return {
           className: "bg-[#F3E8FF] border border-black text-[#581C87]",
           icon: <CalendarRange className="h-3 w-3 stroke-[2.5]" />,
           label: "Schedule Change",
+        };
+      case "CHANGE_PLAN":
+        return {
+          className: "bg-[#FFF9D6] border border-black text-[#713F12]",
+          icon: <Calendar className="h-3 w-3 stroke-[2.5]" />,
+          label: "Plan Change",
         };
       default:
         return {

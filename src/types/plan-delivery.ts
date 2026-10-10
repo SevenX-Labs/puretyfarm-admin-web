@@ -1,10 +1,17 @@
 export type PlanType = "BUY_ONCE" | "SEVEN_DAY_TRIAL" | "MONTHLY";
+/**
+ * Mirrors the backend `ChangeRequestType` enum. SKIP is not a request type —
+ * skipping is immediate customer self-service — but is left in the union for
+ * backward compatibility with older persisted rows.
+ */
 export type RequestType =
   | "PAUSE"
   | "RESUME"
-  | "SKIP"
   | "CHANGE_QUANTITY"
-  | "CHANGE_SCHEDULE";
+  | "CHANGE_FREQUENCY"
+  | "CHANGE_PLAN"
+  | "CHANGE_SCHEDULE"
+  | "SKIP";
 export type RequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
 export interface PlanConfig {
@@ -111,6 +118,26 @@ export interface CustomerSubscriptionItem {
   paidAt: string | null;
   createdAt: string;
   deliveriesCount: number;
+  /**
+   * Authoritative Plan Configuration for this subscription's plan type, or
+   * null when the plan has no saved configuration. A null window means "not
+   * configured" — never substitute a default.
+   */
+  planConfig?: {
+    planType: PlanType;
+    isActive: boolean;
+    deliveryStartTime: string | null;
+    deliveryEndTime: string | null;
+    quantityMin: number;
+    quantityMax: number;
+    sellingPricePerLitre: number;
+    deliveryFeePaise: number;
+  } | null;
+  cashCollection?: {
+    id: string;
+    status: string;
+    amountPaise: number;
+  } | null;
   customer: {
     id: string;
     mobile: string;
