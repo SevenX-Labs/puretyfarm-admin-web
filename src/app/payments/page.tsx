@@ -487,7 +487,7 @@ export default function PaymentsPage() {
             PAYMENTS & CASH COLLECTION
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-[#5C5647] mt-0.5">
-            Reconcile physical depot cash floats, audit PayU gateway logs, and manage refunds.
+            Reconcile physical depot cash floats, audit PhonePe gateway logs, and manage refunds.
           </p>
         </div>
 
@@ -526,9 +526,9 @@ export default function PaymentsPage() {
               )}
             >
               <CreditCard className="h-3.5 w-3.5 shrink-0 stroke-[2.5] max-[360px]:h-3 max-[360px]:w-3 sm:h-4 sm:w-4" />
-              <span className="sm:hidden max-[360px]:hidden">PayU Ledger</span>
-              <span className="hidden max-[360px]:inline sm:hidden">PayU</span>
-              <span className="hidden sm:inline">PayU Audit Ledger</span>
+              <span className="sm:hidden max-[360px]:hidden">PhonePe Ledger</span>
+              <span className="hidden max-[360px]:inline sm:hidden">PhonePe</span>
+              <span className="hidden sm:inline">PhonePe Audit Ledger</span>
             </button>
           </div>
 
@@ -1125,7 +1125,7 @@ export default function PaymentsPage() {
       )}
 
       {/* ========================================================= */}
-      {/* TAB 2: PAYU ONLINE PAYMENTS AUDIT LEDGER                  */}
+      {/* TAB 2: PHONEPE ONLINE PAYMENTS AUDIT LEDGER                  */}
       {/* ========================================================= */}
       {activeTab === "ONLINE_PAYMENTS" && (
         <div className="space-y-4">

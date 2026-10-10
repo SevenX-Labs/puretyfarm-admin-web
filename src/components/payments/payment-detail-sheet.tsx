@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PaymentItem, PaymentTransactionStatus } from "@/types/payment";
-import { fetchPaymentDetail, retryPayuRefund } from "@/services/payment-service";
+import { fetchPaymentDetail, retryPhonePeRefund } from "@/services/payment-service";
 import { getCachedData } from "@/lib/cache";
 import {
   Sheet,
@@ -121,18 +121,18 @@ export function PaymentDetailSheet({
     setActionSuccess(null);
 
     try {
-      const res = await retryPayuRefund(creditReqId);
+      const res = await retryPhonePeRefund(creditReqId);
       const updated: PaymentItem = {
         ...payment,
         status: "REFUND_PENDING",
         updatedAt: new Date().toISOString(),
       };
       setPayment(updated);
-      setActionSuccess(res.message || "PayU refund retry initiated successfully. Status set to REFUND_PENDING.");
+      setActionSuccess(res.message || "PhonePe refund retry initiated successfully. Status set to REFUND_PENDING.");
       onPaymentUpdated?.(updated);
     } catch (err: unknown) {
       console.error("Refund retry error:", err);
-      const msg = err instanceof Error ? err.message : "Failed to trigger PayU refund retry.";
+      const msg = err instanceof Error ? err.message : "Failed to trigger PhonePe refund retry.";
       setError(msg);
     } finally {
       setIsRetryingRefund(false);
@@ -243,7 +243,7 @@ export function PaymentDetailSheet({
               <div className="rounded-[10px] border-2 border-black bg-white p-3 text-xs font-bold text-[#5C5647] flex items-center gap-2 shadow-[2px_2px_0px_0px_#000000]">
                 <ShieldCheck className="h-4 w-4 shrink-0 text-[#1A1A1A]" />
                 <span>
-                  Online payments are read-only. Status transitions strictly via verified PayU callbacks and webhooks.
+                  Online payments are read-only. Status transitions strictly via verified PhonePe callbacks and webhooks.
                 </span>
               </div>
 
@@ -280,13 +280,13 @@ export function PaymentDetailSheet({
                 </div>
               </div>
 
-              {/* 2. MANUAL PAYU REFUND RETRY BLOCK */}
+              {/* 2. MANUAL PHONEPE REFUND RETRY BLOCK */}
               {canRetryRefund && (
                 <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
                   <div className="flex items-center justify-between border-b border-black/10 pb-2">
                     <span className="text-xs font-black uppercase text-red-600 flex items-center gap-1.5">
                       <AlertCircle className="h-4 w-4 stroke-[2.5]" />
-                      PayU Refund Status & Fallback
+                      PhonePe Refund Status & Fallback
                     </span>
                     <span className="rounded-[4px] border border-black bg-[#FF8E72] px-2 py-0.5 text-[10px] font-mono font-bold text-[#1A1A1A]">
                       Credit Rejected
@@ -294,7 +294,7 @@ export function PaymentDetailSheet({
                   </div>
 
                   <p className="text-xs font-bold text-[#5C5647]">
-                    The linked credit request was rejected by an admin, but the automated PayU refund call failed or requires retry.
+                    The linked credit request was rejected by an admin, but the automated PhonePe refund call failed or requires retry.
                   </p>
 
                   <div className="rounded-[8px] border border-black/20 bg-[#FAF7EC] p-3 text-xs font-bold space-y-1">
@@ -318,17 +318,17 @@ export function PaymentDetailSheet({
                     {isRetryingRefund ? (
                       <>
                         <Loader2 className="h-3.5 w-3.5 animate-spin stroke-[2.5]" />
-                        <span>Triggering PayU Refund API...</span>
+                        <span>Triggering PhonePe Refund API...</span>
                       </>
                     ) : payment.status === "REFUND_PENDING" ? (
                       <>
                         <Clock className="h-3.5 w-3.5 stroke-[2.5]" />
-                        <span>Awaiting PayU Confirmation</span>
+                        <span>Awaiting PhonePe Confirmation</span>
                       </>
                     ) : (
                       <>
                         <RotateCcw className="h-3.5 w-3.5 stroke-[2.5]" />
-                        <span>Retry PayU Refund</span>
+                        <span>Retry PhonePe Refund</span>
                       </>
                     )}
                   </button>
@@ -426,11 +426,11 @@ export function PaymentDetailSheet({
                 </div>
               </div>
 
-              {/* 5. SANITIZED PAYU GATEWAY PAYLOAD */}
+              {/* 5. SANITIZED PHONEPE GATEWAY PAYLOAD */}
               <div className="rounded-[14px] border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] space-y-2.5">
                 <span className="text-xs font-black uppercase text-[#1A1A1A] flex items-center gap-1.5 border-b border-black/10 pb-2">
                   <Building2 className="h-3.5 w-3.5 stroke-[2.5]" />
-                  PayU Gateway Payload
+                  PhonePe Gateway Payload
                 </span>
 
                 <div className="grid grid-cols-2 gap-2 text-xs font-bold">

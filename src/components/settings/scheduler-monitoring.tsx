@@ -21,9 +21,9 @@ const SYSTEM_CRON_JOBS: ScheduledJobInfo[] = [
     targetMethod: "PaymentsService.expireStalePayments()",
     status: "ACTIVE",
     description:
-      "Scans for abandoned PayU Hosted Checkouts exceeding expiration timestamps (expiresAt < now). Automatically cancels expired pending credit requests so customers are not blocked by the one-pending-request database constraint.",
+      "Scans for abandoned PhonePe Online Checkouts exceeding expiration timestamps (expiresAt < now). Automatically cancels expired pending credit requests so customers are not blocked by the one-pending-request database constraint.",
     purpose:
-      "Solves the 'one-pending-credit-per-wallet' unique index blockage when customers abandon PayU checkout tabs without completing payment.",
+      "Solves the 'one-pending-credit-per-wallet' unique index blockage when customers abandon PhonePe checkout tabs without completing payment.",
     safetyGuards: [
       "Idempotent conditional SQL updateMany (Cannot double-expire or conflict with live webhooks)",
       "Zero financial write (Never creates credits or edits wallet balances)",
@@ -240,7 +240,7 @@ export function SchedulerMonitoring() {
                 ACTIVE & SAFEGUARDED
               </div>
               <p className="text-[10px] font-bold text-emerald-900 mt-1">
-                Prevents abandoned PayU checkouts from locking customer wallets
+                Prevents abandoned PhonePe checkouts from locking customer wallets
               </p>
             </div>
           </div>
@@ -300,7 +300,7 @@ export function SchedulerMonitoring() {
               Browser Tab Abandoned
             </div>
             <p className="text-[11px] font-bold text-[#5C5647] leading-relaxed">
-              Customer closes PayU window or internet drops. No webhook callback arrives. The slot stays locked by DB partial unique index.
+              Customer closes PhonePe window or internet drops. No webhook callback arrives. The slot stays locked by DB partial unique index.
             </p>
           </div>
 

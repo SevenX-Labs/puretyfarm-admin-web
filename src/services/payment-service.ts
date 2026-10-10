@@ -391,7 +391,7 @@ export async function cancelCashCollection(
 /**
  * Trigger manual PayU refund retry for rejected credit requests whose auto-refund failed
  */
-export async function retryPayuRefund(
+export async function retryPhonePeRefund(
   creditRequestId: string
 ): Promise<{ success: boolean; message: string; payment: any }> {
   const res = await apiClient<{ success: boolean; message: string; payment: any }>(
@@ -406,3 +406,5 @@ export async function retryPayuRefund(
   invalidateCache("credit-requests:");
   return res;
 }
+
+export const retryPayuRefund = retryPhonePeRefund;

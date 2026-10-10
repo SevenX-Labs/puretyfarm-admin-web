@@ -122,7 +122,7 @@ export function RejectRequestModal({
             <div className="rounded-[8px] border-2 border-black bg-[#FFFDF7] p-3 text-xs font-bold text-[#1A1A1A] flex items-start gap-2 shadow-[2px_2px_0px_0px_#000000]">
               <AlertCircle className="h-4 w-4 shrink-0 text-[#FF8E72] mt-0.5" />
               <span className="leading-relaxed">
-                <strong>Notice:</strong> Rejecting will automatically trigger a PayU refund request for online payments. For cash payments, refunds are handled offline.
+                <strong>Notice:</strong> Rejecting will automatically trigger a PhonePe refund request for online payments. For cash payments, refunds are handled offline.
               </span>
             </div>
 

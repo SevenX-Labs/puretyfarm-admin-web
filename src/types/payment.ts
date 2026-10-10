@@ -25,7 +25,7 @@ export interface PaymentItem {
   transactionId: string;
   providerPaymentId?: string | null;
   providerRefundId?: string | null;
-  provider: "PAYU" | "CASH" | string;
+  provider: "PHONEPE" | "CASH" | string;
   purpose: PaymentPurpose;
   paymentMethod: PaymentMethod;
   amountPaise: number;
