@@ -1,17 +1,19 @@
 export type PlanType = "BUY_ONCE" | "SEVEN_DAY_TRIAL" | "MONTHLY";
 /**
- * Mirrors the backend `ChangeRequestType` enum. SKIP is not a request type —
- * skipping is immediate customer self-service — but is left in the union for
- * backward compatibility with older persisted rows.
+ * Mirrors the backend `ChangeRequestType` Prisma enum exactly — these five are
+ * the only values the server ever writes.
+ *
+ * `CHANGE_SCHEDULE` is deliberately absent: the customer `change-schedule`
+ * endpoint persists `CHANGE_FREQUENCY`, so no row ever carries it. `SKIP` is
+ * absent too — skipping a single day is immediate customer self-service and
+ * never creates a request.
  */
 export type RequestType =
   | "PAUSE"
   | "RESUME"
   | "CHANGE_QUANTITY"
   | "CHANGE_FREQUENCY"
-  | "CHANGE_PLAN"
-  | "CHANGE_SCHEDULE"
-  | "SKIP";
+  | "CHANGE_PLAN";
 export type RequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
 export interface PlanConfig {
@@ -162,5 +164,22 @@ export interface CustomerSubscriptionsApiResponse {
     limit: number;
     total: number;
     totalPages: number;
+  };
+}
+
+/** Result of approving a change request. */
+export interface ApproveRequestResult {
+  success: boolean;
+  message: string;
+  /**
+   * Caveats about what the approval did NOT do — e.g. a plan change that did
+   * not reprice, or prepaid orders left at their old amount. Empty for a
+   * self-contained change.
+   */
+  warnings?: string[];
+  request?: {
+    id: string;
+    status: RequestStatus;
+    requestType: RequestType;
   };
 }

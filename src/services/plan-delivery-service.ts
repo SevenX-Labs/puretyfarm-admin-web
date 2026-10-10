@@ -9,6 +9,7 @@ import {
   PlansApiResponse,
   PlansResult,
   OrderCutoffPolicy,
+  ApproveRequestResult,
 } from "@/types/plan-delivery";
 import {
   swrFetch,
@@ -324,9 +325,9 @@ export async function fetchChangeRequests(
  */
 export async function approveChangeRequest(
   requestId: string
-): Promise<{ success: boolean; message: string }> {
+): Promise<ApproveRequestResult> {
   try {
-    const res = await apiClient<{ success: boolean; message: string }>(
+    const res = await apiClient<ApproveRequestResult>(
       `/admin/manage-delivery/requests/${requestId}/approve`,
       {
         method: "POST",

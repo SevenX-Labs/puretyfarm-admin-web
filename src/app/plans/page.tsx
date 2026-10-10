@@ -11,15 +11,16 @@ import {
   ChangeRequestItem,
   ChangeRequestsApiResponse,
   OrderCutoffPolicy,
+  ApproveRequestResult,
 } from "@/types/plan-delivery";
 import {
   getAllPlans,
   fetchAdminSubscriptions,
   updatePlanConfig,
   fetchChangeRequests,
-  approveChangeRequest,
 } from "@/services/plan-delivery-service";
 import { RejectRequestModal } from "@/components/plans/reject-request-modal";
+import { ApproveRequestModal } from "@/components/plans/approve-request-modal";
 import { ApprovePlanModal } from "@/components/plans/approve-plan-modal";
 import { EditPlanModal } from "@/components/plans/edit-plan-modal";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
@@ -27,7 +28,6 @@ import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { ButtonLoader } from "@/components/ui/button-loader";
 import {
   Calendar,
   Clock,
@@ -49,7 +49,6 @@ import {
   RotateCcw,
   PauseCircle,
   PlayCircle,
-  SkipForward,
   Scale,
   CalendarRange,
   XCircle,
@@ -176,7 +175,10 @@ export default function PlansAndDeliveryPage() {
   const [totalRequests, setTotalRequests] = useState<number>(0);
 
   // In-flight action IDs
-  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  // Change-request approval confirmation
+  const [approveRequestTarget, setApproveRequestTarget] =
+    useState<ChangeRequestItem | null>(null);
 
   // Approve Plan Modal State
   const [isApprovePlanModalOpen, setIsApprovePlanModalOpen] = useState(false);
@@ -324,26 +326,34 @@ export default function PlansAndDeliveryPage() {
     fetchSubscriptionsData(subPage, true);
   };
 
-  const handleApprove = async (request: ChangeRequestItem) => {
-    setApprovingId(request.id);
-    try {
-      await approveChangeRequest(request.id);
-      showNotice(
-        `Successfully approved ${request.requestType} for ${request.customer?.name || "customer"}.`
-      );
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === request.id
-            ? { ...r, status: "APPROVED", reviewedAt: new Date().toISOString() }
-            : r
-        )
-      );
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to approve request.";
-      showNotice(msg, "error");
-    } finally {
-      setApprovingId(null);
-    }
+  /**
+   * Applies the result of a confirmed approval.
+   *
+   * The request/response round trip lives in ApproveRequestModal; this only
+   * reflects the saved outcome. Server warnings (a plan change that did not
+   * reprice, prepaid orders left at their old amount) are surfaced rather than
+   * swallowed, so the UI never implies dependent changes were applied.
+   */
+  const handleApproveSuccess = (
+    result: ApproveRequestResult,
+    request: ChangeRequestItem
+  ) => {
+    const warnings = result.warnings ?? [];
+    showNotice(
+      warnings.length > 0
+        ? `Approved ${request.requestType.replace(/_/g, " ")} — ${warnings.join(" ")}`
+        : `Successfully approved ${request.requestType.replace(/_/g, " ")} for ${request.customer?.name || "customer"}.`,
+      warnings.length > 0 ? "info" : "success"
+    );
+    setRequests((prev) =>
+      prev.map((r) =>
+        r.id === request.id
+          ? { ...r, status: "APPROVED", reviewedAt: new Date().toISOString() }
+          : r
+      )
+    );
+    // Deliveries and plan state changed server-side; re-read rather than guess.
+    fetchSubscriptionsData(subPage, true);
   };
 
   const handleOpenRejectModal = (request: ChangeRequestItem) => {
@@ -422,13 +432,6 @@ export default function PlansAndDeliveryPage() {
       return { main: "Date Range Scheduled" };
     }
 
-    if (type === "SKIP") {
-      const date = config.skipDate || config.date;
-      return {
-        main: date ? `Skip delivery on ${date}` : "Single Day Skip",
-      };
-    }
-
     if (type === "CHANGE_QUANTITY") {
       const qty = config.quantity ?? config.liters ?? config.qty;
       const effective = config.effectiveDate || config.startDate;
@@ -445,7 +448,7 @@ export default function PlansAndDeliveryPage() {
       };
     }
 
-    if (type === "CHANGE_SCHEDULE" || type === "CHANGE_FREQUENCY") {
+    if (type === "CHANGE_FREQUENCY") {
       const freq = config.frequency || config.schedule || config.cadence;
       const time = config.timeWindow || config.deliveryWindow;
       const effective = config.effectiveDate || config.startDate;
@@ -489,19 +492,12 @@ export default function PlansAndDeliveryPage() {
           icon: <PlayCircle className="h-3 w-3 stroke-[2.5]" />,
           label: "Resume",
         };
-      case "SKIP":
-        return {
-          className: "bg-[#FFF9D6] border border-black text-[#854D0E]",
-          icon: <SkipForward className="h-3 w-3 stroke-[2.5]" />,
-          label: "Skip Day",
-        };
       case "CHANGE_QUANTITY":
         return {
           className: "bg-[#E0F2FE] border border-black text-[#075985]",
           icon: <Scale className="h-3 w-3 stroke-[2.5]" />,
           label: "Qty Change",
         };
-      case "CHANGE_SCHEDULE":
       case "CHANGE_FREQUENCY":
         return {
           className: "bg-[#F3E8FF] border border-black text-[#581C87]",
@@ -1239,14 +1235,12 @@ export default function PlansAndDeliveryPage() {
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
                                   type="button"
-                                  disabled={approvingId === req.id}
-                                  onClick={() => handleApprove(req)}
+                                  onClick={() => setApproveRequestTarget(req)}
                                   aria-label={`Approve ${req.requestType} for ${req.customer?.name}`}
                                   className="rounded-[8px] border-2 border-black bg-[#B8E8B8] hover:bg-[#9fe09f] font-black text-xs px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1 text-[#14532D] disabled:opacity-50"
                                 >
-                                  <ButtonLoader loading={approvingId === req.id} icon={<Check className="h-3 w-3 stroke-[3]" />}>
-                                    Approve
-                                  </ButtonLoader>
+                                  <Check className="h-3 w-3 stroke-[3]" />
+                                  <span>Approve</span>
                                 </button>
 
                                 <button
@@ -1610,6 +1604,31 @@ export default function PlansAndDeliveryPage() {
         }}
         subscription={selectedSubForApprove}
         onSuccess={handleApprovePlanSuccess}
+      />
+
+      {/* Change-request approval confirmation. Current-vs-requested summaries
+          reuse the table's own formatter so the dialog cannot drift from it. */}
+      <ApproveRequestModal
+        request={approveRequestTarget}
+        isOpen={Boolean(approveRequestTarget)}
+        onClose={() => setApproveRequestTarget(null)}
+        current={
+          approveRequestTarget
+            ? formatConfiguration(
+                approveRequestTarget.currentConfiguration,
+                approveRequestTarget.requestType
+              )
+            : { main: "—" }
+        }
+        requested={
+          approveRequestTarget
+            ? formatConfiguration(
+                approveRequestTarget.requestedConfiguration,
+                approveRequestTarget.requestType
+              )
+            : { main: "—" }
+        }
+        onSuccess={handleApproveSuccess}
       />
 
       {/* Rejection Modal */}
