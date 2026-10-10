@@ -76,7 +76,7 @@ export default function PaymentsPage() {
   const [cashTotalCount, setCashTotalCount] = useState<number>(0);
 
   // Cash Filters
-  const [cashStatusFilter, setCashStatusFilter] = useState<CashCollectionStatus | "ALL">("PENDING");
+  const [cashStatusFilter, setCashStatusFilter] = useState<CashCollectionStatus | "ALL">("ALL");
   const [cashSearch, setCashSearch] = useState<string>("");
   const [debouncedCashSearch, setDebouncedCashSearch] = useState<string>("");
   const [cashStartDate, setCashStartDate] = useState<string>("");
@@ -361,7 +361,7 @@ export default function PaymentsPage() {
   // Active filters check
   const hasActiveCashFilters = useMemo(() => {
     return (
-      cashStatusFilter !== "PENDING" ||
+      cashStatusFilter !== "ALL" ||
       debouncedCashSearch.length > 0 ||
       Boolean(cashStartDate) ||
       Boolean(cashEndDate)
@@ -606,20 +606,20 @@ export default function PaymentsPage() {
             <StatCardSkeleton count={2} />
           ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-stretch">
-            {/* Stat 1: Pending Collections */}
+            {/* Stat 1: Total Reconciled Records */}
             <div className="rounded-[14px] bg-[#FFDF58] border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
               <div>
                 <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
-                  Pending Collections
+                  Total Cash Collections
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-mono text-3xl font-black text-[#1A1A1A] tabular-nums leading-none">
-                    {cashMetrics.pendingCount}
+                    {cashTotalCount || cashCollections.length}
                   </span>
-                  <span className="text-xs font-bold text-[#1A1A1A]">collections</span>
+                  <span className="text-xs font-bold text-[#1A1A1A]">historical records</span>
                 </div>
                 <p className="text-xs font-semibold text-[#423918] mt-1">
-                  Depot deliveries awaiting confirmation
+                  Physical depot collections archive
                 </p>
               </div>
 
@@ -628,19 +628,19 @@ export default function PaymentsPage() {
               </div>
             </div>
 
-            {/* Stat 2: Total Unreconciled Cash Float */}
+            {/* Stat 2: Total Cash Archive View */}
             <div className="rounded-[14px] bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_#000000] flex items-center justify-between min-h-[96px]">
               <div>
                 <span className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A] block">
-                  Total Unreconciled Cash Float
+                  Reconciliation Status
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="font-mono text-3xl font-black text-[#1A1A1A] tabular-nums leading-none">
-                    {formatCurrency(cashMetrics.unreconciledFloat)}
+                  <span className="font-mono text-2xl font-black text-[#1A1A1A] tabular-nums leading-none">
+                    AUDITED ARCHIVE
                   </span>
                 </div>
                 <p className="text-xs font-semibold text-[#5C5647] mt-1">
-                  Physical currency pending wallet ledger credit
+                  Historical collection logs and depot receipts
                 </p>
               </div>
 
@@ -648,7 +648,6 @@ export default function PaymentsPage() {
                 <Building2 className="h-6 w-6 text-[#14532D] stroke-[2.5]" />
               </div>
             </div>
-          
           </div>
           )}
 
@@ -666,11 +665,10 @@ export default function PaymentsPage() {
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 {(
                   [
-                    { key: "PENDING", label: "Pending" },
-                    { key: "COLLECTED", label: "Collected" },
-                    { key: "CONFIRMED", label: "Confirmed" },
-                    { key: "CANCELLED", label: "Cancelled" },
                     { key: "ALL", label: "All Collections" },
+                    { key: "CONFIRMED", label: "Confirmed" },
+                    { key: "COLLECTED", label: "Collected" },
+                    { key: "CANCELLED", label: "Cancelled" },
                   ] as const
                 ).map((tab) => {
                   const isActive = cashStatusFilter === tab.key;
@@ -685,13 +683,6 @@ export default function PaymentsPage() {
                           : "bg-white text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
                       )}
                     >
-                      {(tab.key === "PENDING" || tab.key === "COLLECTED") && (
-                        <span
-                          className={"h-2 w-2 rounded-full " + (
-                            isActive ? "bg-black" : "bg-[#FFDF58]"
-                          )}
-                        />
-                      )}
                       {tab.label}
                     </button>
                   );
@@ -1061,44 +1052,17 @@ export default function PaymentsPage() {
                     </div>
 
                     {/* Actions (Min 44px) */}
-                    {isPending ? (
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConfirmItem(item);
-                            setIsConfirmOpen(true);
-                          }}
-                          className="min-h-[44px] rounded-[8px] border-2 border-black bg-[#FFDF58] active:bg-[#fcd033] font-black text-xs uppercase text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center justify-center gap-1 cursor-pointer"
-                        >
-                          <Check className="h-3.5 w-3.5 stroke-[3]" />
-                          Confirm
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCancelItem(item);
-                            setIsCancelOpen(true);
-                          }}
-                          className="min-h-[44px] rounded-[8px] border-2 border-black/30 bg-white active:bg-[#FFD9D0] font-bold text-xs uppercase text-[#7F1D1D] flex items-center justify-center gap-1 cursor-pointer"
-                        >
-                          <X className="h-3.5 w-3.5 stroke-[2.5]" />
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedCashCollectionId(item.id);
-                          setIsCashDetailOpen(true);
-                        }}
-                        className="w-full min-h-[44px] rounded-[8px] border-2 border-black bg-white active:bg-[#FAF7EC] font-bold text-xs uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000] flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        <Eye className="h-3.5 w-3.5 stroke-[2.5]" />
-                        Inspect Details
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCashCollectionId(item.id);
+                        setIsCashDetailOpen(true);
+                      }}
+                      className="w-full min-h-[44px] rounded-[8px] border-2 border-black bg-white active:bg-[#FAF7EC] font-bold text-xs uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000] flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Eye className="h-3.5 w-3.5 stroke-[2.5]" />
+                      Inspect Details
+                    </button>
                   </div>
                 );
               })
