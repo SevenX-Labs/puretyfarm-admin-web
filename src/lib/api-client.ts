@@ -229,11 +229,28 @@ export async function apiClient<T = unknown>(
       }
 
       if (isBrowser) {
+        try {
+          const userRaw = localStorage.getItem("pf_admin_user");
+          if (userRaw) {
+            const u = JSON.parse(userRaw);
+            if (u && u.email) {
+              localStorage.setItem("pf_last_admin_email", u.email);
+            }
+          }
+        } catch {
+          // ignore parsing error
+        }
+
         deleteCookie("admin_access_token");
         deleteCookie("admin_refresh_token");
         localStorage.removeItem("admin_access_token");
         localStorage.removeItem("admin_refresh_token");
         localStorage.removeItem("pf_admin_user");
+
+        console.warn(
+          "[Puretyfarm Admin Auth] 401 Unauthorized encountered. Dispatching unauthorized event to prompt re-login and live data refresh.",
+          { endpoint: normalizedEndpoint, status: response.status, error: errorMsg }
+        );
 
         // Broadcast unauthorized event to open UI modal across the admin dashboard
         const currentPath = window.location.pathname + window.location.search;

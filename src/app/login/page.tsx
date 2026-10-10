@@ -27,7 +27,11 @@ export default function LoginPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("expired") === "1") {
-        setSessionNotice("Your session has expired. Please sign in again to continue.");
+        setSessionNotice("Your session has expired or is unauthorized. Please sign in again to restore live data.");
+      }
+      const lastEmail = localStorage.getItem("pf_last_admin_email");
+      if (lastEmail) {
+        setEmail(lastEmail);
       }
       const ret = params.get("returnUrl");
       if (ret && ret.startsWith("/") && !ret.startsWith("//")) {

@@ -10,6 +10,7 @@ import React, {
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
+import { invalidateCache } from "@/lib/cache";
 import type {
   AdminUser,
   AuthContextType,
@@ -18,7 +19,7 @@ import type {
 } from "@/types/auth";
 
 export interface ExtendedAuthContextType extends Omit<AuthContextType, "login"> {
-  login: (email: string, password: string, returnUrl?: string) => Promise<void>;
+  login: (email: string, password: string, returnUrl?: string | null) => Promise<void>;
   isSessionExpired: boolean;
 }
 
@@ -140,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Authenticates admin with email & password, sets cookies & localStorage, and navigates to returnUrl or '/'.
    */
-  const login = async (email: string, password: string, returnUrl?: string): Promise<void> => {
+  const login = async (email: string, password: string, returnUrl?: string | null): Promise<void> => {
     setIsLoading(true);
     try {
       const res = await apiClient.post<LoginResponse>(
@@ -161,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCookie("admin_access_token", res.accessToken, 30);
       if (typeof window !== "undefined") {
         localStorage.setItem("admin_access_token", res.accessToken);
+        localStorage.setItem("pf_last_admin_email", email);
       }
       if (res.refreshToken) {
         setCookie("admin_refresh_token", res.refreshToken, 60);
@@ -184,11 +186,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("pf_admin_user", JSON.stringify(adminUser));
       }
 
-      const destination =
-        returnUrl && returnUrl.startsWith("/") && !returnUrl.startsWith("//")
-          ? returnUrl
-          : "/";
-      router.push(destination);
+      // Invalidate all cached data to guarantee instant fresh live data on next load/render
+      invalidateCache();
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("pf:auth-restored"));
+      }
+
+      if (returnUrl !== null && returnUrl !== undefined && returnUrl !== "") {
+        const destination =
+          returnUrl.startsWith("/") && !returnUrl.startsWith("//")
+            ? returnUrl
+            : "/";
+        router.push(destination);
+      }
     } finally {
       setIsLoading(false);
     }
