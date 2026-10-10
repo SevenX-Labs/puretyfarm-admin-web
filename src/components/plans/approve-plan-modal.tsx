@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ import {
   ShieldAlert,
   User,
   CreditCard,
+  ArrowUpRight,
 } from "lucide-react";
 
 interface ApprovePlanModalProps {
@@ -80,16 +82,19 @@ export function ApprovePlanModal({
 
   if (!subscription) return null;
 
-  // Authoritative delivery window from the server's Plan Configuration.
-  // Previously this modal printed a literal "6:00 AM - 8:00 AM", a value the
-  // API never sent and which matched no configured plan.
+  // Authoritative delivery window from the server Plan Configuration.
   const planConfig = subscription.planConfig ?? null;
   const deliveryWindow = formatDeliveryWindow(
     planConfig?.deliveryStartTime,
     planConfig?.deliveryEndTime
   );
-  // Approval is blocked without a usable configuration: materialising a
-  // schedule would snapshot a null window onto every dispatch order.
+
+  // Check if payment is unconfirmed
+  const isPaymentPending =
+    subscription.status === "PENDING_PAYMENT" ||
+    (!subscription.paidAt && subscription.paymentMethod === "CASH");
+
+  // Approval is blocked without a usable configuration
   const configBlocker = !planConfig
     ? `No saved Plan Configuration for ${subscription.planType}. Configure the plan before scheduling deliveries.`
     : !planConfig.isActive
@@ -101,6 +106,11 @@ export function ApprovePlanModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (isPaymentPending) {
+      setError("Physical cash payment has not been confirmed yet. Please confirm payment in Wallets -> Pending Approvals before scheduling deliveries.");
+      return;
+    }
 
     if (configBlocker) {
       setError(configBlocker);
@@ -123,13 +133,34 @@ export function ApprovePlanModal({
     try {
       const res = await approveSubscription(subscription.id, {
         firstDeliveryDate,
-        note,
+        note: note.trim() || undefined,
       });
-      onSuccess(res);
+
+      onSuccess({
+        subscriptionId: subscription.id,
+        startDate: res.startDate,
+        endDate: res.endDate,
+      });
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to approve subscription plan.";
-      setError(msg);
+      if (err instanceof ApiError) {
+        if (err.data && typeof err.data === "object" && "message" in err.data) {
+          setError(String((err.data as any).message));
+        } else if (
+          err.message.includes("P2028") ||
+          err.message.includes("CASH_NOT_CONFIRMED") ||
+          err.message.includes("Database operation failed")
+        ) {
+          setError(
+            "Physical cash receipt has not been confirmed yet. Please confirm cash in Wallets -> Pending Approvals before approving this schedule."
+          );
+        } else {
+          setError(err.message);
+        }
+      } else {
+        const msg = err instanceof Error ? err.message : "Failed to approve subscription schedule.";
+        setError(msg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -163,6 +194,31 @@ export function ApprovePlanModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          {isPaymentPending && (
+            <div
+              role="alert"
+              className="flex items-start gap-2.5 rounded-[8px] border-2 border-black bg-[#FFD9D0] p-3 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 stroke-[2.5] text-[#7F1D1D]" />
+              <div className="space-y-1.5 flex-1">
+                <span className="block font-black text-[#7F1D1D] uppercase tracking-wider text-[11px]">
+                  Payment Pending Confirmation
+                </span>
+                <p className="text-xs text-[#1A1A1A] font-medium leading-relaxed">
+                  Physical cash collection has not been confirmed yet. Please confirm the cash receipt first before scheduling delivery batches.
+                </p>
+                <Link
+                  href="/wallet"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1 text-xs font-black text-[#1A1A1A] underline hover:text-[#7F1D1D]"
+                >
+                  <span>Go to Wallets &rarr; Pending Approvals</span>
+                  <ArrowUpRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          )}
+
           {configBlocker && (
             <div
               role="alert"
@@ -215,7 +271,13 @@ export function ApprovePlanModal({
               <span className="text-xs font-bold text-[#5C5647] flex items-center gap-1">
                 <CreditCard className="h-3 w-3" /> Payment Status:
               </span>
-              <span className="rounded-[4px] border border-black bg-white px-2 py-0.5 text-[10px] font-mono font-black text-[#1A1A1A]">
+              <span
+                className={`rounded-[4px] border-2 border-black px-2 py-0.5 text-[10px] font-mono font-black ${
+                  isPaymentPending
+                    ? "bg-[#FFD9D0] text-[#7F1D1D]"
+                    : "bg-[#B8E8B8] text-[#14532D]"
+                }`}
+              >
                 {subscription.paymentMethod || "PAID"} ({subscription.status})
               </span>
             </div>
@@ -241,10 +303,11 @@ export function ApprovePlanModal({
               <Input
                 type="date"
                 required
+                disabled={isPaymentPending}
                 min={todayIst}
                 value={firstDeliveryDate}
                 onChange={(e) => setFirstDeliveryDate(e.target.value)}
-                className="pl-9 h-10 text-xs font-bold border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]"
+                className="pl-9 h-10 text-xs font-bold border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] disabled:opacity-50"
               />
             </div>
             <p className="text-[10.5px] text-[#5C5647] font-semibold leading-tight">
@@ -259,11 +322,12 @@ export function ApprovePlanModal({
             </label>
             <textarea
               value={note}
+              disabled={isPaymentPending}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Customer requested first delivery starting from Tuesday."
               maxLength={1000}
               rows={2}
-              className="w-full rounded-[8px] border-2 border-black bg-white p-2.5 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] focus:outline-none placeholder:text-[#5C5647]/60"
+              className="w-full rounded-[8px] border-2 border-black bg-white p-2.5 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] focus:outline-none placeholder:text-[#5C5647]/60 disabled:opacity-50"
             />
           </div>
 
@@ -278,7 +342,7 @@ export function ApprovePlanModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || Boolean(configBlocker)}
+              disabled={isSubmitting || Boolean(configBlocker) || isPaymentPending}
               className="rounded-[8px] border-2 border-black bg-[#FFDF58] hover:bg-[#fcd033] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 justify-center disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? (
