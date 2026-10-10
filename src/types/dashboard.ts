@@ -17,6 +17,7 @@ export interface DashboardOrders {
   processing: number;
   outForDelivery: number;
   delivered: number;
+  completed: number;
   cancelled: number;
   failed: number;
 }

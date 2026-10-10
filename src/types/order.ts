@@ -4,6 +4,7 @@ export type OrderStatus =
   | "PROCESSING"
   | "OUT_FOR_DELIVERY"
   | "DELIVERED"
+  | "COMPLETED"
   | "CANCELLED"
   | "FAILED";
 
@@ -71,6 +72,8 @@ export interface AdminOrder {
   actualPricePerLitrePaise: number;
   sellingPricePerLitrePaise: number;
   invoice?: OrderInvoice | null;
+  /** Set only once an admin has completed the order. */
+  completedAt?: string | null;
   customer: OrderCustomer;
   createdAt: string;
   updatedAt: string;

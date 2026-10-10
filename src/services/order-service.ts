@@ -19,10 +19,24 @@ export const ORDER_STATE_MACHINE: Record<OrderStatus, OrderStatus[]> = {
   CONFIRMED: ["PROCESSING", "CANCELLED"],
   PROCESSING: ["OUT_FOR_DELIVERY", "CANCELLED", "FAILED"],
   OUT_FOR_DELIVERY: ["DELIVERED", "FAILED"],
-  DELIVERED: [],
+  DELIVERED: ["COMPLETED"],
+  COMPLETED: [],
   CANCELLED: [],
   FAILED: [],
 };
+
+/**
+ * Mirrors the backend's COMPLETION_ELIGIBLE_STATUSES.
+ *
+ * This only decides whether the button is worth showing — the server
+ * re-checks the status and the order's delivery record before writing, so a
+ * stale list here can never complete an order that should not be completed.
+ */
+export const COMPLETION_ELIGIBLE_STATUSES: OrderStatus[] = ["DELIVERED"];
+
+export function canCompleteOrder(order: Pick<AdminOrder, "status">): boolean {
+  return COMPLETION_ELIGIBLE_STATUSES.includes(order.status);
+}
 
 export interface OrderQueryParams {
   status?: OrderStatus | "ALL";
@@ -191,6 +205,31 @@ export async function updateOrderStatus(
       method: "PATCH",
       body: JSON.stringify({ status }),
     }
+  );
+
+  invalidateCache("orders:");
+  invalidateCache(`order:${id}`);
+  return res;
+}
+
+export interface CompleteOrderResponse {
+  success: boolean;
+  message: string;
+  /** True when the order was already completed and nothing changed. */
+  alreadyCompleted?: boolean;
+  order: AdminOrder;
+}
+
+/**
+ * Closes a delivered order.
+ *
+ * Sends no body: the backend derives the target status from the route and
+ * decides eligibility itself from the order and its delivery record.
+ */
+export async function completeOrder(id: string): Promise<CompleteOrderResponse> {
+  const res = await apiClient<CompleteOrderResponse>(
+    `/admin/orders/${id}/complete`,
+    { method: "PATCH" }
   );
 
   invalidateCache("orders:");

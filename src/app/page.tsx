@@ -500,6 +500,11 @@ export default function DashboardOverviewPage() {
                       title={`Delivered: ${orders.delivered || 0}`}
                     />
                     <div
+                      style={{ width: `${((orders.completed || 0) / orders.total) * 100}%` }}
+                      className="bg-[#5FB266] h-full"
+                      title={`Completed: ${orders.completed || 0}`}
+                    />
+                    <div
                       style={{ width: `${((orders.outForDelivery || 0) / orders.total) * 100}%` }}
                       className="bg-[#D8CEF6] h-full"
                       title={`Out for Delivery: ${orders.outForDelivery || 0}`}
@@ -542,6 +547,10 @@ export default function DashboardOverviewPage() {
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#8FD694] border border-black shrink-0" />
                   <span>Done: {orders?.delivered || 0}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#5FB266] border border-black shrink-0" />
+                  <span>Compl: {orders?.completed || 0}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#FF8E72] border border-black shrink-0" />

@@ -56,7 +56,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDeliveryWindow } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 
 type TabMode = "SUBSCRIPTIONS" | "REQUESTS" | "PLANS";
@@ -1367,7 +1367,10 @@ export default function PlansAndDeliveryPage() {
                             Delivery Window:
                           </span>
                           <span className="font-mono font-black">
-                            {plan.deliveryStartTime} - {plan.deliveryEndTime}
+                            {formatDeliveryWindow(
+                              plan.deliveryStartTime,
+                              plan.deliveryEndTime
+                            )}
                           </span>
                         </div>
 

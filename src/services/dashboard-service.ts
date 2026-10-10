@@ -25,6 +25,7 @@ export const DEFAULT_DASHBOARD_DATA: DashboardOverviewResponse = {
     processing: 0,
     outForDelivery: 0,
     delivered: 0,
+    completed: 0,
     cancelled: 0,
     failed: 0,
   },

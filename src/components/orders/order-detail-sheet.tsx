@@ -10,8 +10,10 @@ import {
 import {
   fetchOrderDetail,
   updateOrderStatus,
+  canCompleteOrder,
   ORDER_STATE_MACHINE,
 } from "@/services/order-service";
+import { CompleteOrderModal } from "./complete-order-modal";
 import { getCachedData } from "@/lib/cache";
 import {
   Sheet,
@@ -38,8 +40,9 @@ import {
   ArrowRight,
   ShieldAlert,
   Loader2,
+  PackageCheck,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDeliveryWindow } from "@/lib/utils";
 
 interface OrderDetailSheetProps {
   orderId?: string | null;
@@ -59,12 +62,14 @@ export function OrderDetailSheet({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen && orderId) {
       let isMounted = true;
       setError(null);
       setActionSuccess(null);
+      setIsCompleteModalOpen(false);
 
       // 0ms instant display from cache if available
       const cached = getCachedData<AdminOrder>(`order:${orderId}`);
@@ -107,6 +112,7 @@ export function OrderDetailSheet({
       setOrder(null);
       setError(null);
       setActionSuccess(null);
+      setIsCompleteModalOpen(false);
     }
   }, [isOpen, orderId]);
 
@@ -131,8 +137,18 @@ export function OrderDetailSheet({
     }
   };
 
+  const handleCompleted = (updated: AdminOrder, message: string) => {
+    setOrder(updated);
+    setError(null);
+    setActionSuccess(message);
+    onStatusUpdated?.(updated);
+    setTimeout(() => setActionSuccess(null), 4000);
+  };
+
   const getOrderStatusBadgeClass = (status: OrderStatus) => {
     switch (status) {
+      case "COMPLETED":
+        return "bg-[#8FD694] text-[#1A1A1A] border-2 border-black font-black";
       case "DELIVERED":
         return "bg-[#B8E8B8] text-[#1A1A1A] border-2 border-black font-black";
       case "OUT_FOR_DELIVERY":
@@ -171,8 +187,13 @@ export function OrderDetailSheet({
   const displayPaymentStatus: PaymentStatus =
     order && isPrepaidPlan ? "PAID" : order?.paymentStatus || "PENDING";
 
-  const allowedTransitions = order ? ORDER_STATE_MACHINE[order.status] || [] : [];
-  const isTerminal = allowedTransitions.length === 0;
+  // COMPLETED is driven by its own confirmed action below, so it is filtered
+  // out of the one-click transition hub.
+  const allowedTransitions = (
+    order ? ORDER_STATE_MACHINE[order.status] || [] : []
+  ).filter((target) => target !== "COMPLETED");
+  const canComplete = order ? canCompleteOrder(order) : false;
+  const isTerminal = allowedTransitions.length === 0 && !canComplete;
 
   // Format delivery address snapshot nicely
   const addressSnap = order?.addressSnapshot || {};
@@ -184,6 +205,7 @@ export function OrderDetailSheet({
   ].filter((line) => line && line.trim().length > 0);
 
   return (
+    <>
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
@@ -280,6 +302,8 @@ export function OrderDetailSheet({
                     <span>Terminal status reached. No further modifications permitted.</span>
                   </div>
                 ) : (
+                  <div className="space-y-3">
+                  {allowedTransitions.length > 0 && (
                   <div className="space-y-2">
                     <span className="text-[11px] font-black uppercase tracking-wider text-[#5C5647] block">
                       Allowed Transitions:
@@ -314,6 +338,36 @@ export function OrderDetailSheet({
                       })}
                     </div>
                   </div>
+                  )}
+
+                  {canComplete && (
+                    <div className="space-y-2 border-t-2 border-black/10 pt-3">
+                      <span className="block text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
+                        Close Out:
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isUpdatingStatus || isCompleteModalOpen}
+                        onClick={() => setIsCompleteModalOpen(true)}
+                        className="inline-flex max-w-full cursor-pointer items-center gap-1.5 whitespace-normal rounded-[8px] border-2 border-black bg-[#8FD694] px-2.5 py-1.5 text-left text-[10px] font-black uppercase leading-tight tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[#79c97f] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-60 sm:px-3.5 sm:text-xs"
+                      >
+                        <PackageCheck className="h-3.5 w-3.5 stroke-[2.5]" />
+                        Mark as Completed
+                      </button>
+                      <p className="text-[10px] font-bold leading-snug text-[#5C5647]">
+                        Final status for a delivered order. Moves no money and
+                        leaves every other delivery on this plan alone.
+                      </p>
+                    </div>
+                  )}
+                  </div>
+                )}
+
+                {order.status === "COMPLETED" && order.completedAt && (
+                  <div className="flex items-center gap-2 rounded-[10px] border-2 border-black bg-[#FAF7EC] p-2.5 text-[11px] font-bold text-[#1A1A1A]">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" />
+                    <span>Completed on {formatDate(order.completedAt)}</span>
+                  </div>
                 )}
               </div>
 
@@ -344,9 +398,10 @@ export function OrderDetailSheet({
                       Delivery Window
                     </span>
                     <span className="break-words font-mono text-sm font-black text-[#1A1A1A]">
-                      {order.deliveryStartTime && order.deliveryEndTime
-                        ? `${order.deliveryStartTime} - ${order.deliveryEndTime}`
-                        : "06:00 - 08:00 AM"}
+                      {formatDeliveryWindow(
+                        order.deliveryStartTime,
+                        order.deliveryEndTime
+                      )}
                     </span>
                   </div>
                 </div>
@@ -569,5 +624,15 @@ export function OrderDetailSheet({
         </div>
       </SheetContent>
     </Sheet>
+
+    {/* Sibling of the sheet, not a child: the project keeps confirmation
+        dialogs out of the drawer's Radix tree (see the payments page). */}
+    <CompleteOrderModal
+      order={order}
+      isOpen={isCompleteModalOpen}
+      onClose={() => setIsCompleteModalOpen(false)}
+      onSuccess={handleCompleted}
+    />
+    </>
   );
 }

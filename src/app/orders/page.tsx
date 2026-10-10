@@ -33,10 +33,11 @@ import {
   XCircle,
   Truck,
   Check,
+  PackageCheck,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDeliveryWindow } from "@/lib/utils";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -197,6 +198,12 @@ export default function OrdersPage() {
 
   const getOrderStatusBadge = (status: OrderStatus) => {
     switch (status) {
+      case "COMPLETED":
+        return {
+          className: "bg-[#8FD694] border-2 border-black text-[#14532D] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <PackageCheck className="h-3 w-3 stroke-[2.5]" />,
+          label: "Completed",
+        };
       case "DELIVERED":
         return {
           className: "bg-[#8FD694] border-2 border-black text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]",
@@ -311,6 +318,7 @@ export default function OrdersPage() {
     { key: "CONFIRMED", label: "Confirmed" },
     { key: "OUT_FOR_DELIVERY", label: "Out for Delivery" },
     { key: "DELIVERED", label: "Delivered" },
+    { key: "COMPLETED", label: "Completed" },
   ];
 
   return (
@@ -381,6 +389,9 @@ export default function OrdersPage() {
               {tab.key === "OUT_FOR_DELIVERY" && (
                 <span className="w-2 h-2 rounded-full bg-[#D8CEF6] border border-black" />
               )}
+              {tab.key === "COMPLETED" && (
+                <span className="w-2 h-2 rounded-full bg-[#8FD694] border border-black" />
+              )}
               {tab.label}
             </button>
           );
@@ -431,6 +442,7 @@ export default function OrdersPage() {
               <option value="PROCESSING">Processing</option>
               <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
               <option value="DELIVERED">Delivered</option>
+              <option value="COMPLETED">Completed</option>
               <option value="CANCELLED">Cancelled</option>
               <option value="FAILED">Failed</option>
             </select>
@@ -600,10 +612,10 @@ export default function OrdersPage() {
                 </tr>
               ) : (
                 orders.map((order) => {
-                  const windowTime =
-                    order.deliveryStartTime && order.deliveryEndTime
-                      ? `${order.deliveryStartTime} - ${order.deliveryEndTime}`
-                      : "06:00 - 08:00";
+                  const windowTime = formatDeliveryWindow(
+                    order.deliveryStartTime,
+                    order.deliveryEndTime
+                  );
 
                   const planBadge = getPlanBadge(order.planType);
                   const isPrepaidPlan = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
@@ -754,10 +766,10 @@ export default function OrdersPage() {
             />
           ) : (
             orders.map((order) => {
-              const windowTime =
-                order.deliveryStartTime && order.deliveryEndTime
-                  ? `${order.deliveryStartTime} - ${order.deliveryEndTime}`
-                  : "06:00 - 08:00";
+              const windowTime = formatDeliveryWindow(
+                order.deliveryStartTime,
+                order.deliveryEndTime
+              );
               const planBadge = getPlanBadge(order.planType);
               const isPrepaidPlan = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
               const displayPaymentStatus: PaymentStatus = isPrepaidPlan ? "PAID" : order.paymentStatus;
