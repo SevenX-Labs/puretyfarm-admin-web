@@ -1333,6 +1333,9 @@ export default function WalletPage() {
           setIsWalletSheetOpen(false);
           setInspectUserId(null);
         }}
+        onBalanceChanged={() => {
+          loadCustomers(customerPage, true);
+        }}
       />
     </div>
   );

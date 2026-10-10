@@ -343,3 +343,57 @@ export async function fetchCustomerWallet(
     return cached || normalizeCustomerWalletDetail({}, userId);
   }
 }
+
+export interface ManualWalletAdjustmentPayload {
+  amountPaise: number;
+  remark: string;
+}
+
+export interface ManualWalletAdjustmentResponse {
+  success: boolean;
+  message: string;
+  walletId: string;
+  balancePaise: number;
+  transactionId?: string;
+  replayed?: boolean;
+}
+
+/**
+ * Manually credit a customer wallet
+ */
+export async function manualCreditCustomerWallet(
+  userId: string,
+  payload: ManualWalletAdjustmentPayload
+): Promise<ManualWalletAdjustmentResponse> {
+  const res = await apiClient<ManualWalletAdjustmentResponse>(
+    `/admin/wallet/customers/${userId}/credit`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+
+  invalidateCache(`wallet:customer:${userId}`);
+  invalidateCache("wallet:customer");
+  return res;
+}
+
+/**
+ * Manually debit a customer wallet
+ */
+export async function manualDebitCustomerWallet(
+  userId: string,
+  payload: ManualWalletAdjustmentPayload
+): Promise<ManualWalletAdjustmentResponse> {
+  const res = await apiClient<ManualWalletAdjustmentResponse>(
+    `/admin/wallet/customers/${userId}/debit`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+
+  invalidateCache(`wallet:customer:${userId}`);
+  invalidateCache("wallet:customer");
+  return res;
+}
