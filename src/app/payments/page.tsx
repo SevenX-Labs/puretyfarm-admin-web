@@ -1163,7 +1163,6 @@ export default function PaymentsPage() {
                   [
                     { key: "ALL", label: "All Statuses" },
                     { key: "SUCCESS", label: "Success" },
-                    { key: "PENDING", label: "Pending" },
                     { key: "REFUND_PENDING", label: "Refund Pending" },
                     { key: "REFUNDED", label: "Refunded" },
                     { key: "FAILED", label: "Failed" },
