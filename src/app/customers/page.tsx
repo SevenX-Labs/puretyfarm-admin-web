@@ -22,6 +22,19 @@ import {
   Filter,
 } from "lucide-react";
 
+function WhatsAppIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.969.54 1.861.855 2.796.855 3.18 0 5.767-2.587 5.768-5.766 0-3.18-2.587-5.742-5.768-5.742zm3.376 8.163c-.144.405-.837.774-1.17.824-.312.045-.698.072-2.112-.513-1.636-.677-2.695-2.338-2.776-2.446-.081-.108-.667-.887-.667-1.691 0-.804.423-1.201.573-1.364.15-.163.327-.204.437-.204.11 0 .219.002.315.006.101.005.236-.039.37.283.136.327.464 1.134.505 1.216.041.082.068.177.014.285-.054.108-.082.176-.163.271-.082.096-.172.213-.246.287-.082.082-.167.172-.072.335.095.163.424.7 1.037 1.246.788.7 1.453.916 1.658 1.018.204.102.327.089.449-.054.123-.143.523-.61.663-.82.14-.209.28-.175.469-.105.19.07 1.202.567 1.408.67.206.103.344.153.395.239.051.086.051.499-.093.904z" />
+    </svg>
+  );
+}
+
 function CustomerAvatarItem({
   profile,
   mobile,
@@ -400,6 +413,12 @@ export default function CustomersPage() {
                             <Phone className="h-3 w-3 text-[#5C5647] shrink-0" />
                             <span>{customer.mobile}</span>
                           </div>
+                          {customer.profile?.whatsappNumber && (
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#128C7E]">
+                              <WhatsAppIcon className="h-3 w-3 text-[#25D366] shrink-0" />
+                              <span>{customer.profile.whatsappNumber}</span>
+                            </div>
+                          )}
                           {customer.email ? (
                             <div className="flex items-center gap-1.5 text-[11px] text-[#5C5647] truncate max-w-[200px]">
                               <Mail className="h-3 w-3 shrink-0" />
@@ -552,6 +571,12 @@ export default function CustomersPage() {
                       <Phone className="h-3.5 w-3.5 shrink-0 text-[#5C5647]" />
                       <span>{customer.mobile}</span>
                     </div>
+                    {customer.profile?.whatsappNumber && (
+                      <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-[#128C7E]">
+                        <WhatsAppIcon className="h-3.5 w-3.5 shrink-0 text-[#25D366]" />
+                        <span>{customer.profile.whatsappNumber}</span>
+                      </div>
+                    )}
                     <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-[#5C5647]">
                       <Mail className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">

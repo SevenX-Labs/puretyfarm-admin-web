@@ -27,6 +27,19 @@ import {
   User,
 } from "lucide-react";
 
+function WhatsAppIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.969.54 1.861.855 2.796.855 3.18 0 5.767-2.587 5.768-5.766 0-3.18-2.587-5.742-5.768-5.742zm3.376 8.163c-.144.405-.837.774-1.17.824-.312.045-.698.072-2.112-.513-1.636-.677-2.695-2.338-2.776-2.446-.081-.108-.667-.887-.667-1.691 0-.804.423-1.201.573-1.364.15-.163.327-.204.437-.204.11 0 .219.002.315.006.101.005.236-.039.37.283.136.327.464 1.134.505 1.216.041.082.068.177.014.285-.054.108-.082.176-.163.271-.082.096-.172.213-.246.287-.082.082-.167.172-.072.335.095.163.424.7 1.037 1.246.788.7 1.453.916 1.658 1.018.204.102.327.089.449-.054.123-.143.523-.61.663-.82.14-.209.28-.175.469-.105.19.07 1.202.567 1.408.67.206.103.344.153.395.239.051.086.051.499-.093.904z" />
+    </svg>
+  );
+}
+
 interface CustomerDetailSheetProps {
   customerId?: string | null;
   customer?: { id: string } | null;
@@ -119,6 +132,9 @@ export function CustomerDetailSheet({
   const fullName = customer?.profile
     ? `${customer.profile.firstName} ${customer.profile.lastName}`.trim()
     : null;
+
+  const rawWhatsapp = customer?.profile?.whatsappNumber?.trim();
+  const cleanWhatsappDigits = rawWhatsapp ? rawWhatsapp.replace(/\D/g, "") : "";
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -223,10 +239,37 @@ export function CustomerDetailSheet({
                     </span>
                   )}
                 </div>
+
+                {/* Primary Mobile */}
                 <div className="text-xs font-mono font-bold text-[#1A1A1A] flex items-center gap-1.5 mt-0.5">
                   <Phone className="h-3 w-3 stroke-[2.5]" />
                   <span>{customer.mobile}</span>
                 </div>
+
+                {/* WhatsApp Contact */}
+                {rawWhatsapp ? (
+                  <div className="text-xs font-mono font-bold text-[#128C7E] flex items-center gap-1.5 mt-0.5">
+                    <WhatsAppIcon className="h-3.5 w-3.5 text-[#25D366] shrink-0" />
+                    <span>{rawWhatsapp}</span>
+                    {cleanWhatsappDigits && (
+                      <a
+                        href={`https://wa.me/${cleanWhatsappDigits.length === 10 ? `91${cleanWhatsappDigits}` : cleanWhatsappDigits}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-bold text-[#128C7E] hover:underline bg-[#E8F8EC] border border-[#25D366]/40 px-1.5 py-0.2 rounded"
+                      >
+                        Chat ↗
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[10px] font-mono text-[#8C827A] flex items-center gap-1 mt-0.5">
+                    <WhatsAppIcon className="h-3 w-3 text-stone-400 shrink-0" />
+                    <span className="italic">No WhatsApp number set</span>
+                  </div>
+                )}
+
+                {/* Email */}
                 {customer.email && (
                   <div className="text-xs font-mono font-medium text-[#5C5647] flex items-center gap-1.5 mt-0.5 truncate">
                     <Mail className="h-3 w-3 stroke-[2.5]" />
@@ -246,6 +289,35 @@ export function CustomerDetailSheet({
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
+                {/* WhatsApp Number in Profile */}
+                <div>
+                  <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
+                    WhatsApp Number
+                  </span>
+                  {rawWhatsapp ? (
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-mono font-black text-[#1A1A1A]">
+                        {rawWhatsapp}
+                      </span>
+                      {cleanWhatsappDigits && (
+                        <a
+                          href={`https://wa.me/${cleanWhatsappDigits.length === 10 ? `91${cleanWhatsappDigits}` : cleanWhatsappDigits}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-[#25D366] text-white p-1 rounded-full hover:opacity-90 inline-flex items-center justify-center shadow-[1px_1px_0px_0px_#1A1A1A]"
+                          title="Open WhatsApp chat"
+                        >
+                          <WhatsAppIcon className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="font-mono text-xs text-stone-400 italic">
+                      Not Specified
+                    </span>
+                  )}
+                </div>
+
                 <div>
                   <span className="text-[10px] font-bold text-[#5C5647] uppercase block">
                     Gender

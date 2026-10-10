@@ -5,6 +5,7 @@ export interface CustomerProfile {
   gender: "MALE" | "FEMALE" | "OTHER";
   dateOfBirth: string;
   profileImageUrl?: string | null;
+  whatsappNumber?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
