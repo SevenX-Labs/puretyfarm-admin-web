@@ -18,8 +18,6 @@ import {
   PaymentQueryParams,
   CashCollectionQueryParams,
 } from "@/services/payment-service";
-import { ConfirmCashModal } from "@/components/payments/confirm-cash-modal";
-import { CancelCashModal } from "@/components/payments/cancel-cash-modal";
 import { PaymentDetailSheet } from "@/components/payments/payment-detail-sheet";
 import { CashCollectionDetailSheet } from "@/components/payments/cash-collection-detail-sheet";
 import { Input } from "@/components/ui/input";
@@ -82,13 +80,7 @@ export default function PaymentsPage() {
   const [cashStartDate, setCashStartDate] = useState<string>("");
   const [cashEndDate, setCashEndDate] = useState<string>("");
 
-  // Cash Action Modals & Inspection Sheet
-  const [confirmItem, setConfirmItem] = useState<CashCollectionItem | null>(null);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-
-  const [cancelItem, setCancelItem] = useState<CashCollectionItem | null>(null);
-  const [isCancelOpen, setIsCancelOpen] = useState(false);
-
+  // Cash Inspection Sheet
   const [selectedCashCollectionId, setSelectedCashCollectionId] = useState<string | null>(null);
   const [isCashDetailOpen, setIsCashDetailOpen] = useState(false);
 
@@ -388,15 +380,7 @@ export default function PaymentsPage() {
     paymentEndDate,
   ]);
 
-  // Handle cash collection modal actions
-  const handleCashUpdated = (updated: CashCollectionItem) => {
-    setCashCollections((prev) =>
-      prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
-    );
-    showNotice("Cash collection " + updated.status.toLowerCase() + " successfully!");
-    loadCashCollections(cashPage, true);
-    refreshCashMetrics();
-  };
+
 
   const handlePaymentUpdated = (updated: PaymentItem) => {
     setPayments((prev) =>
@@ -849,44 +833,17 @@ export default function PaymentsPage() {
 
                           {/* Actions */}
                           <td className="py-3 px-4 text-center">
-                            {isPending ? (
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setConfirmItem(item);
-                                    setIsConfirmOpen(true);
-                                  }}
-                                  className="cursor-pointer rounded-[8px] border-2 border-black bg-[#FFDF58] hover:bg-[#fcd033] px-3 py-1.5 text-xs font-black uppercase text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 min-h-[34px]"
-                                >
-                                  <Check className="h-3.5 w-3.5 stroke-[3]" />
-                                  Confirm
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCancelItem(item);
-                                    setIsCancelOpen(true);
-                                  }}
-                                  className="cursor-pointer rounded-[8px] border-2 border-black/30 hover:border-black bg-white hover:bg-[#FFD9D0] px-2.5 py-1.5 text-xs font-bold uppercase text-[#7F1D1D] transition-all flex items-center gap-1 min-h-[34px]"
-                                >
-                                  <X className="h-3.5 w-3.5 stroke-[2.5]" />
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCashCollectionId(item.id);
-                                  setIsCashDetailOpen(true);
-                                }}
-                                className="cursor-pointer rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-3 py-1.5 text-xs font-bold uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all inline-flex items-center gap-1 min-h-[34px]"
-                              >
-                                <Eye className="h-3.5 w-3.5 stroke-[2.5]" />
-                                Inspect
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedCashCollectionId(item.id);
+                                setIsCashDetailOpen(true);
+                              }}
+                              className="cursor-pointer rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] px-3 py-1.5 text-xs font-bold uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all inline-flex items-center gap-1 min-h-[34px]"
+                            >
+                              <Eye className="h-3.5 w-3.5 stroke-[2.5]" />
+                              Inspect
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1565,27 +1522,7 @@ export default function PaymentsPage() {
       {/* MODALS & INSPECTION DRAWERS                               */}
       {/* ========================================================= */}
 
-      {/* Confirm Physical Cash Modal */}
-      <ConfirmCashModal
-        item={confirmItem}
-        isOpen={isConfirmOpen}
-        onClose={() => {
-          setIsConfirmOpen(false);
-          setConfirmItem(null);
-        }}
-        onSuccess={handleCashUpdated}
-      />
 
-      {/* Cancel Physical Cash Modal */}
-      <CancelCashModal
-        item={cancelItem}
-        isOpen={isCancelOpen}
-        onClose={() => {
-          setIsCancelOpen(false);
-          setCancelItem(null);
-        }}
-        onSuccess={handleCashUpdated}
-      />
 
       {/* Cash Collection Inspection Sheet */}
       <CashCollectionDetailSheet
