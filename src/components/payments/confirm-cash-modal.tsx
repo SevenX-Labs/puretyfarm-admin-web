@@ -1,9 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { CashCollectionItem } from "@/types/payment";
-import { confirmCashCollection } from "@/services/payment-service";
-import { ApiError } from "@/lib/api-client";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,94 +9,81 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { CheckCircle2, AlertTriangle, Loader2, Banknote, ShieldAlert } from "lucide-react";
+import { CashCollectionItem } from "@/types/payment";
+import { confirmCashCollection } from "@/services/payment-service";
 import { formatCurrency } from "@/lib/utils";
+import { ApiError } from "@/lib/api-client";
+import {
+  Banknote,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
+  ShieldAlert,
+} from "lucide-react";
 
-/**
- * Admin-facing copy per failure the confirm endpoint can report.
- *
- * Each one states whether the money moved, because that is the only thing the
- * admin needs in order to decide what to do next. The endpoint confirms the
- * collection, credits the wallet and activates the plan in a single
- * transaction, so a failed call changed nothing and retrying is safe — saying
- * so stops an admin hunting for a half-applied credit or confirming twice.
- */
-const ERROR_COPY: Record<string, string> = {
-  CASH_COLLECTION_NOT_FOUND:
-    "This cash collection no longer exists. Refresh the list and try again.",
-  CASH_COLLECTION_ALREADY_PROCESSED:
-    "This collection was already processed, most likely by another admin. Refresh the list to see its current status — do not confirm it again.",
-  CASH_CONFIRMATION_CONFLICT:
-    "This collection was already processed. Refresh the list to see its current status.",
-  CASH_CONFIRMATION_TIMED_OUT:
-    "The confirmation took too long and was rolled back. No cash was confirmed and nothing was credited — please try again.",
-  CASH_SHORT_FOR_PLAN:
-    "The cash recorded for this collection is less than the plan total, so the plan cannot be activated. Check the collected amount with the delivery partner before confirming.",
-  CASH_COLLECTION_NO_PURPOSE:
-    "This collection is not linked to a wallet top-up or a plan, so there is nothing to credit. Escalate it to engineering.",
-  PLAN_CONFIG_MISSING:
-    "The plan configuration needed to price this subscription is missing. Configure the plan before confirming this payment.",
-  CREDIT_REQUEST_NOT_FOUND:
-    "The wallet credit request behind this collection is missing. Escalate it to engineering.",
-  CREDIT_REQUEST_ALREADY_PROCESSED:
-    "The wallet credit request behind this collection was already processed. Refresh the list to see its current status.",
-};
+interface ConfirmCashModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  item: CashCollectionItem | null;
+  onSuccess: (updated: CashCollectionItem) => void;
+}
 
 interface ConfirmFailure {
   message: string;
   reference?: string;
-  /** Whether re-submitting is safe and worth offering. */
   retryable: boolean;
 }
 
 function describeFailure(err: unknown): ConfirmFailure {
-  if (!(err instanceof ApiError)) {
+  if (err instanceof ApiError) {
+    if (err.statusCode === 409 || err.code === "ALREADY_CONFIRMED") {
+      return {
+        message: "This cash collection was already confirmed in another session.",
+        reference: err.reference,
+        retryable: false,
+      };
+    }
+    if (err.statusCode === 400 && err.code === "CASH_SHORT_FOR_PLAN") {
+      return {
+        message: err.message || "Collected cash is less than required plan total.",
+        reference: err.reference,
+        retryable: false,
+      };
+    }
     return {
-      message:
-        err instanceof Error
-          ? err.message
-          : "Failed to confirm cash collection.",
-      retryable: false,
+      message: err.message || "Server rejected the confirmation request.",
+      reference: err.reference,
+      retryable: err.statusCode >= 500,
     };
   }
-
-  // A conflict means someone else already processed it; retrying would be
-  // wrong, not merely useless.
-  const alreadyProcessed = err.statusCode === 409;
-
-  const copy =
-    (err.code && ERROR_COPY[err.code]) ||
-    // Status 0 is a transport failure: the request may never have reached the
-    // server, but since the write is atomic nothing can be half-applied.
-    (err.statusCode === 0
-      ? "Could not reach the server, so nothing was confirmed. Check your connection and try again."
-      : err.message);
-
+  if (err instanceof Error) {
+    return {
+      message: err.message,
+      retryable: true,
+    };
+  }
   return {
-    message: copy,
-    reference: err.reference,
-    retryable:
-      !alreadyProcessed &&
-      (err.retryable === true || err.statusCode === 0 || err.statusCode >= 500),
+    message: "An unexpected error occurred while confirming cash receipt.",
+    retryable: true,
   };
 }
 
-interface ConfirmCashModalProps {
-  item: CashCollectionItem | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: (updated: CashCollectionItem) => void;
-}
-
 export function ConfirmCashModal({
-  item,
   isOpen,
   onClose,
+  item,
   onSuccess,
 }: ConfirmCashModalProps) {
-  const [note, setNote] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [note, setNote] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [failure, setFailure] = useState<ConfirmFailure | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFailure(null);
+      setNote("");
+    }
+  }, [isOpen]);
 
   if (!item) return null;
 
@@ -108,6 +92,7 @@ export function ConfirmCashModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
     setIsSubmitting(true);
     setFailure(null);
 
@@ -162,7 +147,7 @@ export function ConfirmCashModal({
               </DialogTitle>
               <DialogDescription className="text-xs font-bold text-[#5C5647]">
                 {isPlanPayment
-                  ? "Confirm cash received and activate subscription deliveries"
+                  ? "Confirm physical cash received for customer subscription plan"
                   : "Confirm cash received and credit customer wallet"}
               </DialogDescription>
             </div>
@@ -223,8 +208,8 @@ export function ConfirmCashModal({
             <ShieldAlert className="h-4 w-4 shrink-0 text-[#1A1A1A] mt-0.5" />
             <p className="leading-snug">
               {isPlanPayment
-                ? "Confirming will activate this subscription plan and materialize delivery schedules. This action cannot be reversed."
-                : "Confirming will immediately credit the customer\x27s wallet balance. This action cannot be reversed."}
+                ? "Confirming records payment for this subscription plan. The delivery schedule can subsequently be approved with a start date from the Subscriptions tab."
+                : "Confirming will immediately credit the customer's wallet balance. This action cannot be reversed."}
             </p>
           </div>
 
@@ -238,12 +223,9 @@ export function ConfirmCashModal({
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Received cash from delivery partner at depot."
               maxLength={1000}
-              rows={3}
+              rows={2}
               className="w-full rounded-[8px] border-2 border-black bg-white p-2.5 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] focus:outline-none placeholder:text-[#5C5647]/60"
             />
-            <span className="text-[10px] font-mono text-[#5C5647] block text-right">
-              {note.length} / 1000
-            </span>
           </div>
 
           <DialogFooter className="pt-2 gap-2 sm:gap-0">
@@ -271,9 +253,7 @@ export function ConfirmCashModal({
                   <span>
                     {failure?.retryable
                       ? "Retry Confirmation"
-                      : isPlanPayment
-                      ? "Confirm & Activate Plan"
-                      : "Confirm & Credit Wallet"}
+                      : "Confirm Receipt"}
                   </span>
                 </>
               )}

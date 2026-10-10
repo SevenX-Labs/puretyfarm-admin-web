@@ -20,6 +20,7 @@ import {
   approveChangeRequest,
 } from "@/services/plan-delivery-service";
 import { RejectRequestModal } from "@/components/plans/reject-request-modal";
+import { ApprovePlanModal } from "@/components/plans/approve-plan-modal";
 import { EditPlanModal } from "@/components/plans/edit-plan-modal";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { Input } from "@/components/ui/input";
@@ -177,6 +178,10 @@ export default function PlansAndDeliveryPage() {
   // In-flight action IDs
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
+  // Approve Plan Modal State
+  const [isApprovePlanModalOpen, setIsApprovePlanModalOpen] = useState(false);
+  const [selectedSubForApprove, setSelectedSubForApprove] = useState<CustomerSubscriptionItem | null>(null);
+
   // Rejection Modal State
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedRequestForReject, setSelectedRequestForReject] =
@@ -302,6 +307,23 @@ export default function PlansAndDeliveryPage() {
   // ==========================================
   // ACTIONS: APPROVE / REJECT / TOGGLE PLAN
   // ==========================================
+  const handleOpenApproveModal = (sub: CustomerSubscriptionItem) => {
+    setSelectedSubForApprove(sub);
+    setIsApprovePlanModalOpen(true);
+  };
+
+  const handleApprovePlanSuccess = (updated: { subscriptionId: string; startDate: string; endDate: string }) => {
+    setSubscriptions((prev) =>
+      prev.map((s) =>
+        s.id === updated.subscriptionId
+          ? { ...s, startDate: updated.startDate, endDate: updated.endDate, status: "CONFIRMED" }
+          : s
+      )
+    );
+    showNotice("Plan approved and delivery schedule generated successfully!");
+    fetchSubscriptionsData(subPage, true);
+  };
+
   const handleApprove = async (request: ChangeRequestItem) => {
     setApprovingId(request.id);
     try {
@@ -820,17 +842,28 @@ export default function PlansAndDeliveryPage() {
                           </td>
 
                           <td className="py-3.5 px-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCustomerId(sub.userId);
-                                setIsCustomerDetailOpen(true);
-                              }}
-                              aria-label={`View profile for ${sub.customer?.name || "customer"}`}
-                              className="bg-[#FAF7EC] hover:bg-[#FFD84D] text-[#1A1A1A] font-black text-xs px-3 py-1.5 border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-                            >
-                              View Profile
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenApproveModal(sub)}
+                                aria-label={`Approve schedule for ${sub.customer?.name || "customer"}`}
+                                className="bg-[#FFDF58] hover:bg-[#FFD84D] text-[#1A1A1A] font-black text-xs px-2.5 py-1.5 border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1"
+                              >
+                                <Calendar className="h-3.5 w-3.5 stroke-[2.5]" />
+                                <span>{sub.status === "PENDING_PAYMENT" ? "Approve" : "Set Date"}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCustomerId(sub.userId);
+                                  setIsCustomerDetailOpen(true);
+                                }}
+                                aria-label={`View profile for ${sub.customer?.name || "customer"}`}
+                                className="bg-[#FAF7EC] hover:bg-[#FAF7EC]/80 text-[#1A1A1A] font-black text-xs px-2.5 py-1.5 border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                              >
+                                Profile
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1543,6 +1576,17 @@ export default function PlansAndDeliveryPage() {
           </div>
         </div>
       )}
+
+      {/* Approve Plan Modal */}
+      <ApprovePlanModal
+        isOpen={isApprovePlanModalOpen}
+        onClose={() => {
+          setIsApprovePlanModalOpen(false);
+          setSelectedSubForApprove(null);
+        }}
+        subscription={selectedSubForApprove}
+        onSuccess={handleApprovePlanSuccess}
+      />
 
       {/* Rejection Modal */}
       <RejectRequestModal

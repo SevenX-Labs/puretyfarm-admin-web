@@ -457,3 +457,29 @@ export async function fetchAdminSubscriptions(
     return cached || { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } };
   }
 }
+
+/**
+ * Admin approves a subscription plan and sets the first delivery date
+ */
+export async function approveSubscription(
+  subscriptionId: string,
+  payload: { firstDeliveryDate: string; note?: string }
+): Promise<{ success: boolean; message: string; subscriptionId: string; startDate: string; endDate: string }> {
+  const res = await apiClient<{
+    success: boolean;
+    message: string;
+    subscriptionId: string;
+    startDate: string;
+    endDate: string;
+  }>(`/admin/plans/subscriptions/${subscriptionId}/approve`, {
+    method: "POST",
+    body: JSON.stringify({
+      firstDeliveryDate: payload.firstDeliveryDate,
+      note: payload.note?.trim() || undefined,
+    }),
+  });
+
+  invalidateCache("admin-subscriptions:");
+  invalidateCache("plans:");
+  return res;
+}

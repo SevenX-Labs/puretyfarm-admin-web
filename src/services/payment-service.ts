@@ -353,7 +353,9 @@ export async function confirmCashCollection(
     `/admin/payments/cash-collections/${id}/confirm`,
     {
       method: "POST",
-      body: JSON.stringify({ note: note?.trim() || undefined }),
+      body: JSON.stringify({
+        note: note?.trim() || undefined,
+      }),
     }
   );
 
@@ -361,6 +363,8 @@ export async function confirmCashCollection(
   invalidateCache(`cash-collection:${id}`);
   invalidateCache("payments:");
   invalidateCache("credit-requests:");
+  invalidateCache("admin-subscriptions:");
+  invalidateCache("plans:");
   return res;
 }
 
