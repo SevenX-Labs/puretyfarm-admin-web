@@ -26,7 +26,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ButtonLoader } from "@/components/ui/button-loader";
 
-import { getCachedData, setCachedData } from "@/lib/cache";
+import { getCachedData, setCachedData, invalidateCache } from "@/lib/cache";
 import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import {
   StateItem,
@@ -158,6 +158,14 @@ export default function ServiceabilityPage() {
         forceRefresh,
         onFreshData: (fresh) => {
           setStates(fresh);
+          const validIds = new Set(fresh.map((s) => s.id));
+          setCitiesMap((prev) => {
+            const next: Record<string, CityItem[]> = {};
+            for (const [stId, val] of Object.entries(prev)) {
+              if (validIds.has(stId)) next[stId] = val;
+            }
+            return next;
+          });
           fresh.forEach((state) => {
             loadCitiesForState(state.id, forceRefresh);
           });
@@ -167,6 +175,14 @@ export default function ServiceabilityPage() {
 
       if (Array.isArray(stateList)) {
         setStates(stateList);
+        const validIds = new Set(stateList.map((s) => s.id));
+        setCitiesMap((prev) => {
+          const next: Record<string, CityItem[]> = {};
+          for (const [stId, val] of Object.entries(prev)) {
+            if (validIds.has(stId)) next[stId] = val;
+          }
+          return next;
+        });
         stateList.forEach((state) => {
           loadCitiesForState(state.id, forceRefresh);
         });
@@ -455,11 +471,19 @@ export default function ServiceabilityPage() {
         const updatedStates = states.filter((s) => s.id !== id);
         setStates(updatedStates);
         setCachedData("locations:states", updatedStates);
+        const citiesUnderState = citiesMap[id] || [];
         setCitiesMap((prev) => {
           const next = { ...prev };
           delete next[id];
           return next;
         });
+        setAreasMap((prev) => {
+          const next = { ...prev };
+          citiesUnderState.forEach((c) => delete next[c.id]);
+          return next;
+        });
+        invalidateCache(`locations:cities:${id}`);
+        citiesUnderState.forEach((c) => invalidateCache(`locations:areas:${c.id}`));
         notify(`State "${name}" deleted.`);
       } else if (type === "city") {
         // Find stateId
@@ -481,6 +505,7 @@ export default function ServiceabilityPage() {
           delete next[id];
           return next;
         });
+        invalidateCache(`locations:areas:${id}`);
         notify(`City "${name}" deleted.`);
       } else if (type === "area") {
         let parentCityId = "";
@@ -564,8 +589,13 @@ export default function ServiceabilityPage() {
   // -------------------------------------------------------------
   // Metrics Calculation (for Top Maroon Banner)
   // -------------------------------------------------------------
-  const allCities = useMemo(() => Object.values(citiesMap).flat(), [citiesMap]);
-  const allAreas = useMemo(() => Object.values(areasMap).flat(), [areasMap]);
+  const allCities = useMemo(() => {
+    return states.flatMap((s) => citiesMap[s.id] || []);
+  }, [states, citiesMap]);
+
+  const allAreas = useMemo(() => {
+    return allCities.flatMap((c) => areasMap[c.id] || []);
+  }, [allCities, areasMap]);
 
   const livePincodesCount = useMemo(() => {
     let count = 0;
@@ -1303,7 +1333,7 @@ export default function ServiceabilityPage() {
               Are you sure you want to delete {deleteTarget?.type.toUpperCase()} &quot;{deleteTarget?.name}&quot;?
             </p>
             <div className="bg-[#FAF7EC] border-2 border-[#1A1A1A] p-2.5 rounded-[10px] text-[11px] font-semibold text-[#5C5647]">
-              Notice: If customer delivery subscriptions or nested child records exist, deletion will be blocked with a 409 safety warning.
+              Notice: Deleting this {deleteTarget?.type} will also delete all cities and areas nested inside it. If customer delivery addresses exist, deletion is blocked to protect historical customer orders.
             </div>
           </div>
 
