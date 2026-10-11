@@ -20,6 +20,7 @@ import {
 } from "@/services/payment-service";
 import { PaymentDetailSheet } from "@/components/payments/payment-detail-sheet";
 import { CashCollectionDetailSheet } from "@/components/payments/cash-collection-detail-sheet";
+import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import { Input } from "@/components/ui/input";
 import {
   Wallet,
@@ -325,6 +326,15 @@ export default function PaymentsPage() {
     setPaymentPage(1);
     loadPayments(1, false);
   }, [loadPayments]);
+
+  useRealtimeSync(() => {
+    if (activeTab === "CASH_COLLECTIONS") {
+      loadCashCollections(cashPage, true);
+      refreshCashMetrics();
+    } else {
+      loadPayments(paymentPage, true);
+    }
+  }, { intervalMs: 12000 });
 
   // Reset Cash Filters
   const handleResetCashFilters = () => {

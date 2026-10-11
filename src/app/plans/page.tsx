@@ -21,6 +21,7 @@ import {
 } from "@/services/plan-delivery-service";
 import { RejectRequestModal } from "@/components/plans/reject-request-modal";
 import { ApproveRequestModal } from "@/components/plans/approve-request-modal";
+import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import { ApprovePlanModal } from "@/components/plans/approve-plan-modal";
 import { EditPlanModal } from "@/components/plans/edit-plan-modal";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
@@ -305,6 +306,16 @@ export default function PlansAndDeliveryPage() {
       fetchPlansData(false);
     }
   }, [activeTab, fetchPlansData]);
+
+  useRealtimeSync(() => {
+    if (activeTab === "SUBSCRIPTIONS") {
+      fetchSubscriptionsData(subPage, true);
+    } else if (activeTab === "REQUESTS") {
+      fetchRequestsData(currentPage, true);
+    } else if (activeTab === "PLANS") {
+      fetchPlansData(true);
+    }
+  }, { intervalMs: 15000 });
 
   // ==========================================
   // ACTIONS: APPROVE / REJECT / TOGGLE PLAN

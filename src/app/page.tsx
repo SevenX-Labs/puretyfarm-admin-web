@@ -46,6 +46,7 @@ import { StatCardSkeleton } from "@/components/ui/stat-card-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/utils";
+import { useRealtimeSync } from "@/lib/use-realtime-sync";
 
 type DatePreset = "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "THIS_MONTH" | "CUSTOM";
 
@@ -110,6 +111,10 @@ export default function DashboardOverviewPage() {
   useEffect(() => {
     loadDashboardData(fromDate, toDate, false);
   }, [loadDashboardData, fromDate, toDate]);
+
+  useRealtimeSync(() => {
+    loadDashboardData(fromDate, toDate, true);
+  }, { intervalMs: 25000 });
 
   // Handle Preset Clicks
   const handleSelectPreset = (preset: DatePreset) => {

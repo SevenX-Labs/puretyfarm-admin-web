@@ -27,6 +27,7 @@ import {
 import { RejectRequestModal } from "@/components/wallet/reject-request-modal";
 import { CreditRequestDetailModal } from "@/components/wallet/credit-request-detail-modal";
 import { CustomerWalletSheet } from "@/components/wallet/customer-wallet-sheet";
+import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import { ConfirmCashModal } from "@/components/payments/confirm-cash-modal";
 import { CancelCashModal } from "@/components/payments/cancel-cash-modal";
 import { CashCollectionDetailSheet } from "@/components/payments/cash-collection-detail-sheet";
@@ -219,6 +220,12 @@ export default function WalletPage() {
     loadPendingApprovals(false);
   }, [loadPendingApprovals]);
 
+  useRealtimeSync(() => {
+    if (activeTab === "PENDING_APPROVALS") {
+      loadPendingApprovals(true);
+    }
+  }, { intervalMs: 10000 });
+
   // Combine and deduplicate pending items
   const unifiedPendingList: UnifiedPendingItem[] = useMemo(() => {
     const list: UnifiedPendingItem[] = [];
@@ -384,6 +391,7 @@ export default function WalletPage() {
   // Approve Online Credit Request
   const handleApproveOnline = async (req: CreditRequestItem) => {
     setApprovingId(req.id);
+    setOnlineRequests((prev) => prev.filter((r) => r.id !== req.id));
     try {
       await approveCreditRequest(req.id);
       showNotice(`Approved ₹${(req.amountPaise / 100).toLocaleString("en-IN")} wallet credit for ${req.customer?.name || "Customer"}.`);
@@ -405,6 +413,7 @@ export default function WalletPage() {
   const handleOnlineRejected = (updated: CreditRequestItem, refund?: RejectResponse["refund"]) => {
     setIsRejectOpen(false);
     setSelectedForReject(null);
+    setOnlineRequests((prev) => prev.filter((r) => r.id !== updated.id));
     if (refund?.refundInitiated) {
       showNotice(`Request rejected. PayU refund initiated for ₹${(updated.amountPaise / 100).toLocaleString("en-IN")}.`, "info");
     } else {
@@ -414,7 +423,11 @@ export default function WalletPage() {
   };
 
   // Cash Collection Confirmed Callback
-  const handleCashConfirmed = () => {
+  const handleCashConfirmed = (updated?: CashCollectionItem) => {
+    const targetId = updated?.id || selectedForConfirmCash?.id;
+    if (targetId) {
+      setCashRequests((prev) => prev.filter((c) => c.id !== targetId));
+    }
     setIsConfirmCashOpen(false);
     setSelectedForConfirmCash(null);
     showNotice("Physical cash collection confirmed and customer wallet float credited.", "success");
@@ -423,6 +436,9 @@ export default function WalletPage() {
 
   // Cash Collection Cancelled Callback
   const handleCashCancelled = () => {
+    if (selectedForCancelCash?.id) {
+      setCashRequests((prev) => prev.filter((c) => c.id !== selectedForCancelCash.id));
+    }
     setIsCancelCashOpen(false);
     setSelectedForCancelCash(null);
     showNotice("Cash collection request cancelled successfully.", "info");

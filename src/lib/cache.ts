@@ -12,21 +12,27 @@ interface CacheEntry<T> {
 
 const MEMORY_CACHE = new Map<string, CacheEntry<unknown>>();
 const PENDING_PROMISES = new Map<string, Promise<unknown>>();
-const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes default freshness window
+const DEFAULT_TTL_MS = 30 * 1000; // 30 seconds freshness window for real-time responsiveness
 const CACHE_PREFIX = "pf_cache_";
 
 /**
  * Retrieve cached data synchronously from in-memory cache or localStorage.
+ * Checks expiry against TTL so stale/deleted data is never served.
  */
-export function getCachedData<T>(key: string): T | null {
+export function getCachedData<T>(key: string, allowStale: boolean = false): T | null {
   if (typeof window === "undefined") return null;
 
   const fullKey = `${CACHE_PREFIX}${key}`;
+  const now = Date.now();
 
   // 1. Check in-memory Map first for microsecond retrieval
   const memEntry = MEMORY_CACHE.get(fullKey) as CacheEntry<T> | undefined;
   if (memEntry) {
-    return memEntry.data;
+    if (allowStale || now - memEntry.timestamp <= memEntry.ttl) {
+      return memEntry.data;
+    }
+    // Expired
+    MEMORY_CACHE.delete(fullKey);
   }
 
   // 2. Fall back to localStorage
@@ -35,11 +41,16 @@ export function getCachedData<T>(key: string): T | null {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as CacheEntry<T>;
-    if (!parsed || !parsed.data) return null;
+    if (!parsed || parsed.data === undefined) return null;
 
-    // Cache to in-memory map for subsequent reads
-    MEMORY_CACHE.set(fullKey, parsed);
-    return parsed.data;
+    if (allowStale || now - parsed.timestamp <= (parsed.ttl || DEFAULT_TTL_MS)) {
+      // Cache to in-memory map for subsequent reads
+      MEMORY_CACHE.set(fullKey, parsed);
+      return parsed.data;
+    }
+    // Expired from storage
+    localStorage.removeItem(fullKey);
+    return null;
   } catch {
     return null;
   }
@@ -86,6 +97,7 @@ export function setCachedData<T>(
 
 /**
  * Invalidate a specific cache key or all keys matching a prefix.
+ * Also clears in-flight promises so stale requests don't repopulate.
  */
 export function invalidateCache(keyPrefix?: string): void {
   if (typeof window === "undefined") return;
@@ -94,8 +106,15 @@ export function invalidateCache(keyPrefix?: string): void {
 
   // Clear memory cache
   for (const k of MEMORY_CACHE.keys()) {
-    if (k.startsWith(prefix)) {
+    if (k.startsWith(prefix) || (keyPrefix && k.includes(keyPrefix))) {
       MEMORY_CACHE.delete(k);
+    }
+  }
+
+  // Clear in-flight promise deduplications
+  for (const k of PENDING_PROMISES.keys()) {
+    if (k.startsWith(prefix) || (keyPrefix && k.includes(keyPrefix))) {
+      PENDING_PROMISES.delete(k);
     }
   }
 
@@ -104,7 +123,7 @@ export function invalidateCache(keyPrefix?: string): void {
     const toRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith(prefix)) {
+      if (k && (k.startsWith(prefix) || (keyPrefix && k.includes(keyPrefix)))) {
         toRemove.push(k);
       }
     }
@@ -123,7 +142,7 @@ export interface SwrOptions<T> {
 
 /**
  * Stale-While-Revalidate execution helper:
- * 1. Synchronously returns cached data if available (instant 0ms render).
+ * 1. Synchronously returns cached data if available and fresh.
  * 2. Deduplicates concurrent in-flight requests for the same key.
  * 3. Fetches fresh data in background, updates cache, and triggers callback.
  */
@@ -138,7 +157,7 @@ export function swrFetch<T>(
   const { ttlMs = DEFAULT_TTL_MS, forceRefresh = false, onFreshData, onError } = options;
 
   // 1. Get cached data immediately (unless forceRefresh requested)
-  const cachedData = forceRefresh ? null : getCachedData<T>(key);
+  const cachedData = forceRefresh ? null : getCachedData<T>(key, true);
 
   // 2. Prevent duplicate in-flight network requests
   const existingPromise = PENDING_PROMISES.get(key) as Promise<T> | undefined;
@@ -163,7 +182,7 @@ export function swrFetch<T>(
         onError(err);
       }
       // If cached data is present, resolve to cached data to prevent crashing background SWR
-      const fallback = cachedData || getCachedData<T>(key);
+      const fallback = cachedData || getCachedData<T>(key, true);
       if (fallback) {
         return fallback;
       }

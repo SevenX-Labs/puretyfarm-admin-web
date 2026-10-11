@@ -27,6 +27,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { ButtonLoader } from "@/components/ui/button-loader";
 
 import { getCachedData, setCachedData } from "@/lib/cache";
+import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import {
   StateItem,
   CityItem,
@@ -164,27 +165,14 @@ export default function ServiceabilityPage() {
         },
       });
 
-      if (stateList && stateList.length > 0) {
+      if (Array.isArray(stateList)) {
         setStates(stateList);
         stateList.forEach((state) => {
           loadCitiesForState(state.id, forceRefresh);
         });
-      } else {
-        const cached = getCachedData<StateItem[]>("locations:states");
-        if (cached && cached.length > 0) {
-          setStates(cached);
-          cached.forEach((state) => {
-            loadCitiesForState(state.id, forceRefresh);
-          });
-        }
       }
     } catch (err) {
-      const cached = getCachedData<StateItem[]>("locations:states");
-      if (cached && cached.length > 0) {
-        setStates(cached);
-      } else {
-        setLoadError(err instanceof Error ? err.message : "Failed to load serviceable locations.");
-      }
+      setLoadError(err instanceof Error ? err.message : "Failed to load serviceable locations.");
     } finally {
       setIsLoadingStates(false);
     }
@@ -467,6 +455,11 @@ export default function ServiceabilityPage() {
         const updatedStates = states.filter((s) => s.id !== id);
         setStates(updatedStates);
         setCachedData("locations:states", updatedStates);
+        setCitiesMap((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
         notify(`State "${name}" deleted.`);
       } else if (type === "city") {
         // Find stateId
@@ -483,6 +476,11 @@ export default function ServiceabilityPage() {
           setCitiesMap((prev) => ({ ...prev, [parentStateId]: updatedCities }));
           setCachedData(`locations:cities:${parentStateId}`, updatedCities);
         }
+        setAreasMap((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
         notify(`City "${name}" deleted.`);
       } else if (type === "area") {
         let parentCityId = "";

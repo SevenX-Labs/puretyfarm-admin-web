@@ -5,6 +5,7 @@ import { CustomerListItem, CustomerPaginationMeta, CustomerProfile, CustomersApi
 import { fetchCustomers } from "@/services/customer-service";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { getCachedData, invalidateCache } from "@/lib/cache";
+import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -201,6 +202,10 @@ export default function CustomersPage() {
   useEffect(() => {
     loadCustomers();
   }, [loadCustomers]);
+
+  useRealtimeSync(() => {
+    loadCustomers(true);
+  }, { intervalMs: 20000 });
 
   const handleOpenDetail = (customerId: string) => {
     setSelectedCustomerId(customerId);

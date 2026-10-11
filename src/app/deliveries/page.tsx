@@ -9,6 +9,7 @@ import {
 } from "@/types/order";
 import { fetchOrders, OrderQueryParams } from "@/services/order-service";
 import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
+import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import { BulkMarkDeliveredModal } from "@/components/orders/bulk-mark-delivered-modal";
 import { OrderBillingNote } from "@/components/orders/order-billing-note";
 import { BulkUpdateQuantityModal } from "@/components/orders/bulk-update-quantity-modal";
@@ -168,6 +169,10 @@ export default function ManageDeliveriesPage() {
       isMounted = false;
     };
   }, [loadOrders, currentPage]);
+
+  useRealtimeSync(() => {
+    loadOrders(currentPage, true);
+  }, { intervalMs: 12000 });
 
   const handleResetFilters = () => {
     setCustomerSearch("");
