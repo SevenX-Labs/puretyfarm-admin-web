@@ -11,6 +11,7 @@ import {
 import { fetchOrders, OrderQueryParams } from "@/services/order-service";
 import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
 import { BulkMarkDeliveredModal } from "@/components/orders/bulk-mark-delivered-modal";
+import { OrderBillingNote } from "@/components/orders/order-billing-note";
 import { BulkUpdateQuantityModal } from "@/components/orders/bulk-update-quantity-modal";
 import { BulkResultsModal } from "@/components/orders/bulk-results-modal";
 import { BulkOperationResponse } from "@/services/order-service";
@@ -693,7 +694,11 @@ export default function OrdersPage() {
                   );
 
                   const planBadge = getPlanBadge(order.planType);
-                  const isPrepaidPlan = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
+                  // Only a plan paid upfront is always PAID; a per-delivery
+                  // order shows its own payment status.
+                  const isPrepaidPlan =
+                    order.billingModel !== "PER_DELIVERY" &&
+                    ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
                   const displayPaymentStatus: PaymentStatus = isPrepaidPlan ? "PAID" : order.paymentStatus;
 
                   const statusBadge = getOrderStatusBadge(order.status);
@@ -801,6 +806,7 @@ export default function OrdersPage() {
                           {paymentBadge.icon}
                           <span>{paymentBadge.label}</span>
                         </span>
+                        <OrderBillingNote order={order} className="mt-1" />
                       </td>
 
                       {/* ACTION: OPEN DETAIL DRAWER */}
@@ -861,7 +867,9 @@ export default function OrdersPage() {
                 "Window not set"
               );
               const planBadge = getPlanBadge(order.planType);
-              const isPrepaidPlan = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
+              const isPrepaidPlan =
+                order.billingModel !== "PER_DELIVERY" &&
+                ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
               const displayPaymentStatus: PaymentStatus = isPrepaidPlan ? "PAID" : order.paymentStatus;
               const statusBadge = getOrderStatusBadge(order.status);
               const paymentBadge = getPaymentStatusBadge(displayPaymentStatus);
@@ -945,6 +953,7 @@ export default function OrdersPage() {
                         {paymentBadge.icon}
                         <span className="truncate">{paymentBadge.label}</span>
                       </span>
+                      <OrderBillingNote order={order} className="mt-1" />
                     </div>
                   </div>
 

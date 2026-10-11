@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPaise } from "@/lib/utils";
 import React, { useState } from "react";
 import { AdminOrder } from "@/types/order";
 import { bulkUpdateOrderStatus, BulkOperationResponse } from "@/services/order-service";
@@ -37,6 +38,14 @@ export function BulkMarkDeliveredModal({
   );
 
   const ineligibleCount = selectedOrders.length - eligibleOrders.length;
+
+  const perDeliveryEligible = eligibleOrders.filter(
+    (o) => o.billingModel === "PER_DELIVERY" && o.paymentStatus !== "PAID"
+  );
+  const perDeliveryTotalPaise = perDeliveryEligible.reduce(
+    (sum, o) => sum + (o.expectedAmountPaise ?? o.totalPaise),
+    0
+  );
 
   const handleConfirm = async () => {
     if (selectedOrders.length === 0) return;
@@ -113,8 +122,19 @@ export function BulkMarkDeliveredModal({
             </p>
             <p className="flex items-center gap-1.5 text-[#1A1A1A]">
               <CheckCircle2 className="h-3.5 w-3.5 text-[#2A7E3B] shrink-0" />
-              <span>Synchronizes PlanDelivery schedule without duplicate status entries or billing changes.</span>
+              <span>Each order is charged at most once. Prepaid plan orders are never charged again.</span>
             </p>
+            {perDeliveryEligible.length > 0 && (
+              <p className="flex items-center gap-1.5 text-[#1A1A1A]">
+                <CheckCircle2 className="h-3.5 w-3.5 text-[#2A7E3B] shrink-0" />
+                <span>
+                  {perDeliveryEligible.length} per-delivery order
+                  {perDeliveryEligible.length === 1 ? "" : "s"} will be charged to the customer wallet
+                  ({formatPaise(perDeliveryTotalPaise)} in total). If a wallet is short, the delivery is
+                  still recorded and its charge is left outstanding to settle later.
+                </span>
+              </p>
+            )}
           </div>
 
           <div className="max-h-40 overflow-y-auto space-y-1 rounded-[8px] border-2 border-black bg-[#FAF7EC] p-2 text-xs font-mono">

@@ -2,9 +2,11 @@ import { apiClient } from "@/lib/api-client";
 import {
   AdminOrder,
   OrdersApiResponse,
+  OrderSettlement,
   OrderStatus,
   PaymentStatus,
   PlanType,
+  SettlementOutcome,
 } from "@/types/order";
 import {
   swrFetch,
@@ -196,16 +198,39 @@ export async function fetchOrderDetail(
 /**
  * Update order status obeying the backend state machine
  */
+export interface UpdateOrderStatusResponse {
+  success: boolean;
+  message: string;
+  order: AdminOrder;
+  /** Present when the order was marked DELIVERED: what was charged, if anything. */
+  settlement?: OrderSettlement;
+}
+
 export async function updateOrderStatus(
   id: string,
   status: OrderStatus
-): Promise<{ success: boolean; message: string; order: AdminOrder }> {
-  const res = await apiClient<{ success: boolean; message: string; order: AdminOrder }>(
+): Promise<UpdateOrderStatusResponse> {
+  const res = await apiClient<UpdateOrderStatusResponse>(
     `/admin/orders/${id}/status`,
     {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }
+  );
+
+  invalidateCache("orders:");
+  invalidateCache(`order:${id}`);
+  return res;
+}
+
+/**
+ * Retries the wallet charge for a delivered order whose delivery charge is
+ * outstanding. Sends no amount: the server charges the persisted order total.
+ */
+export async function settleOrder(id: string): Promise<UpdateOrderStatusResponse> {
+  const res = await apiClient<UpdateOrderStatusResponse>(
+    `/admin/orders/${id}/settle`,
+    { method: "POST" }
   );
 
   invalidateCache("orders:");
@@ -246,6 +271,16 @@ export interface BulkOperationResultItem {
   oldQuantity?: number;
   newQuantity?: number;
   reason?: string;
+  /** Billing outcome when marking delivered. */
+  outcome?: SettlementOutcome;
+  customerId?: string;
+  requiredPaise?: number | null;
+  availableBalancePaise?: number | null;
+  /** Wallet balance when a quantity change was refused for lack of funds. */
+  currentBalancePaise?: number;
+  shortfallPaise?: number | null;
+  oldTotalPaise?: number;
+  newTotalPaise?: number;
 }
 
 export interface BulkOperationResponse {
@@ -279,13 +314,18 @@ export async function bulkUpdateOrderStatus(
  */
 export async function bulkUpdateOrderQuantity(
   orderIds: string[],
-  quantity: number
+  quantity: number,
+  reason?: string
 ): Promise<BulkOperationResponse> {
   const res = await apiClient<BulkOperationResponse>(
     "/admin/orders/bulk/quantity",
     {
       method: "PATCH",
-      body: JSON.stringify({ orderIds, quantity }),
+      body: JSON.stringify({
+        orderIds,
+        quantity,
+        ...(reason?.trim() ? { reason: reason.trim() } : {}),
+      }),
     }
   );
 

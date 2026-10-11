@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { CustomerSubscriptionItem } from "@/types/plan-delivery";
 import { approveSubscription } from "@/services/plan-delivery-service";
 import { ApiError } from "@/lib/api-client";
-import { formatDeliveryWindow } from "@/lib/utils";
+import { formatDeliveryWindow, formatPaise } from "@/lib/utils";
 import {
   Calendar,
   Clock,
@@ -89,10 +89,18 @@ export function ApprovePlanModal({
     planConfig?.deliveryEndTime
   );
 
+  // A per-delivery plan is never paid as a whole: its precondition is that the
+  // customer's wallet funding has been confirmed (at least one completed
+  // credit). A prepaid plan keeps the original payment check.
+  const isPerDelivery = subscription.billingModel === "PER_DELIVERY";
+  const funding = subscription.funding ?? null;
+  const isFundingPending = isPerDelivery && !funding?.hasCompletedCredit;
+
   // Check if payment is unconfirmed
   const isPaymentPending =
-    subscription.status === "PENDING_PAYMENT" ||
-    (!subscription.paidAt && subscription.paymentMethod === "CASH");
+    !isPerDelivery &&
+    (subscription.status === "PENDING_PAYMENT" ||
+      (!subscription.paidAt && subscription.paymentMethod === "CASH"));
 
   // Approval is blocked without a usable configuration
   const configBlocker = !planConfig
@@ -109,6 +117,11 @@ export function ApprovePlanModal({
 
     if (isPaymentPending) {
       setError("Physical cash payment has not been confirmed yet. Please confirm payment in Wallets -> Pending Approvals before scheduling deliveries.");
+      return;
+    }
+
+    if (isFundingPending) {
+      setError("This customer's wallet funding has not been confirmed yet. Approve the wallet credit in Wallets -> Pending Approvals before approving the plan.");
       return;
     }
 
@@ -219,6 +232,56 @@ export function ApprovePlanModal({
             </div>
           )}
 
+          {isPerDelivery && (
+            <div
+              role={isFundingPending ? "alert" : undefined}
+              className={`flex items-start gap-2.5 rounded-[8px] border-2 border-black p-3 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] ${
+                isFundingPending ? "bg-[#FFD9D0]" : "bg-[#B8E8B8]"
+              }`}
+            >
+              <AlertTriangle
+                className={`mt-0.5 h-4 w-4 shrink-0 stroke-[2.5] ${
+                  isFundingPending ? "text-[#7F1D1D]" : "hidden"
+                }`}
+              />
+              <div className="space-y-1.5 flex-1">
+                <span className="block font-black uppercase tracking-wider text-[11px]">
+                  {isFundingPending
+                    ? "Step 1 — Wallet Funding Not Confirmed"
+                    : "Step 1 — Wallet Funding Confirmed"}
+                </span>
+                <p className="text-xs font-medium leading-relaxed">
+                  Wallet balance:{" "}
+                  <span className="font-mono font-black">
+                    {formatPaise(funding?.walletBalancePaise ?? 0)}
+                  </span>
+                  {funding && funding.pendingCreditCount > 0 && (
+                    <>
+                      {" "}· {funding.pendingCreditCount} top-up
+                      {funding.pendingCreditCount === 1 ? "" : "s"} pending (
+                      <span className="font-mono font-black">
+                        {formatPaise(funding.pendingCreditPaise)}
+                      </span>
+                      )
+                    </>
+                  )}
+                  . This plan is charged per delivered order — nothing is debited when it is
+                  approved.
+                </p>
+                {isFundingPending && (
+                  <Link
+                    href="/wallet"
+                    onClick={onClose}
+                    className="inline-flex items-center gap-1 text-xs font-black text-[#1A1A1A] underline hover:text-[#7F1D1D]"
+                  >
+                    <span>Go to Wallets &rarr; Pending Approvals</span>
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
           {configBlocker && (
             <div
               role="alert"
@@ -303,7 +366,7 @@ export function ApprovePlanModal({
               <Input
                 type="date"
                 required
-                disabled={isPaymentPending}
+                disabled={isPaymentPending || isFundingPending}
                 min={todayIst}
                 value={firstDeliveryDate}
                 onChange={(e) => setFirstDeliveryDate(e.target.value)}
@@ -322,7 +385,7 @@ export function ApprovePlanModal({
             </label>
             <textarea
               value={note}
-              disabled={isPaymentPending}
+              disabled={isPaymentPending || isFundingPending}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Customer requested first delivery starting from Tuesday."
               maxLength={1000}
@@ -342,7 +405,12 @@ export function ApprovePlanModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || Boolean(configBlocker) || isPaymentPending}
+              disabled={
+                isSubmitting ||
+                Boolean(configBlocker) ||
+                isPaymentPending ||
+                isFundingPending
+              }
               className="rounded-[8px] border-2 border-black bg-[#FFDF58] hover:bg-[#fcd033] px-4 py-2 text-xs font-black uppercase text-[#1A1A1A] shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5 justify-center disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? (

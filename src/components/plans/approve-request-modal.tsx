@@ -7,6 +7,7 @@ import {
   ApproveRequestResult,
 } from "@/types/plan-delivery";
 import { approveChangeRequest } from "@/services/plan-delivery-service";
+import { formatPaise } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 import {
   Dialog,
@@ -37,7 +38,7 @@ const EFFECT_COPY: Record<RequestType, string> = {
   RESUME:
     "Reactivates the plan, restores the deliveries this pause suspended, and rebuilds the cadence up to the existing end date. The end date is not extended.",
   CHANGE_QUANTITY:
-    "Updates the plan quantity and every future scheduled delivery after today. Already-paid dispatch orders keep their original amount and invoice.",
+    "Applies the new quantity and reprices the affected upcoming order(s). The new amount is what the wallet is charged when that delivery is marked delivered. An increase is refused if the wallet cannot cover it. Prepaid plans cannot be changed.",
   CHANGE_FREQUENCY:
     "Rebuilds the cadence from tomorrow to the existing end date. Delivered and skipped days are preserved; dropped days have their orders cancelled, not deleted.",
   CHANGE_PLAN:
@@ -177,6 +178,64 @@ export function ApproveRequestModal({
               </span>
             </div>
           </div>
+
+          {/* Which delivery, what it costs, and whether the wallet covers it */}
+          {request.requestType === "CHANGE_QUANTITY" && (
+            <div className="space-y-1.5 rounded-[10px] border-2 border-black bg-white p-2.5 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-[10px] font-black uppercase text-[#5C5647]">
+                  Customer ID
+                </span>
+                <span className="font-mono text-[10px]">{request.customer?.id}</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-[10px] font-black uppercase text-[#5C5647]">
+                  Applies To
+                </span>
+                <span className="font-mono">
+                  {request.orderNumber
+                    ? `Order ${request.orderNumber} · ${request.deliveryDate ?? "date not set"}`
+                    : "All upcoming deliveries"}
+                </span>
+              </div>
+              {request.currentAmountPaise != null &&
+                request.requestedAmountPaise != null && (
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="text-[10px] font-black uppercase text-[#5C5647]">
+                      Order Amount
+                    </span>
+                    <span className="font-mono">
+                      {formatPaise(request.currentAmountPaise)} →{" "}
+                      {formatPaise(request.requestedAmountPaise)}
+                    </span>
+                  </div>
+                )}
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-[10px] font-black uppercase text-[#5C5647]">
+                  Wallet Balance
+                </span>
+                <span className="font-mono">
+                  {request.walletBalancePaise != null
+                    ? formatPaise(request.walletBalancePaise)
+                    : "Not available"}
+                </span>
+              </div>
+              {(request.shortfallPaise ?? 0) > 0 && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-[8px] border-2 border-black bg-[#FFD9D0] p-2 text-[11px] font-black"
+                >
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 stroke-[2.5]" />
+                  <span>
+                    This customer does not have enough wallet balance — short by{" "}
+                    {formatPaise(request.shortfallPaise)}. The quantity cannot be changed
+                    until the customer tops up or you credit the wallet. The request stays
+                    pending so you can approve it afterwards.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Current vs requested */}
           <div className="flex items-stretch gap-2">

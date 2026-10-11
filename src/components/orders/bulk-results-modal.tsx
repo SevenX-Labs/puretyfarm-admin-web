@@ -12,6 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { CheckCircle2, XCircle, Check } from "lucide-react";
 
+const formatPaise = (paise: number) =>
+  `₹${(paise / 100).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 interface BulkResultsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -97,6 +103,26 @@ export function BulkResultsModal({
                         {item.reason}
                       </div>
                     )}
+                    {item.outcome === "SETTLED" && item.requiredPaise != null && (
+                      <div className="text-[10px] font-sans font-bold text-[#2A7E3B] mt-0.5">
+                        Charged {formatPaise(item.requiredPaise)} to wallet
+                      </div>
+                    )}
+                    {item.outcome === "DELIVERED_PREPAID" && (
+                      <div className="text-[10px] font-sans font-bold text-[#5C5647] mt-0.5">
+                        Prepaid plan — nothing charged
+                      </div>
+                    )}
+                    {item.shortfallPaise != null && item.shortfallPaise > 0 && (
+                      <div className="text-[10px] font-sans font-bold text-[#D9381E] mt-0.5">
+                        {item.customerId ? `Customer ${item.customerId} · ` : ""}
+                        Needs {formatPaise(item.requiredPaise ?? 0)} · Wallet{" "}
+                        {formatPaise(
+                          item.availableBalancePaise ?? item.currentBalancePaise ?? 0
+                        )}{" "}
+                        · Short by {formatPaise(item.shortfallPaise)}
+                      </div>
+                    )}
                   </div>
 
                   <span
@@ -109,7 +135,11 @@ export function BulkResultsModal({
                     {item.success ? (
                       <>
                         <Check className="h-3 w-3 stroke-[3]" />
-                        <span>Success</span>
+                        <span>
+                          {item.outcome === "INSUFFICIENT_BALANCE"
+                            ? "Delivered · Unpaid"
+                            : "Success"}
+                        </span>
                       </>
                     ) : (
                       <>

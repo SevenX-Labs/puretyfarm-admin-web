@@ -9,6 +9,7 @@ import {
 import {
   fetchOrderDetail,
   updateOrderStatus,
+  settleOrder,
   canCompleteOrder,
   ORDER_STATE_MACHINE,
 } from "@/services/order-service";
@@ -35,9 +36,11 @@ import {
   ShieldAlert,
   Loader2,
   PackageCheck,
+  Wallet,
 } from "lucide-react";
 import {
   formatDate,
+  formatPaise,
   formatDeliveryDateOrLabel,
   formatDeliveryWindowOrLabel,
 } from "@/lib/utils";
@@ -129,13 +132,73 @@ export function OrderDetailSheet({
 
     try {
       const res = await updateOrderStatus(order.id, targetStatus);
-      const updated = res.order || { ...order, status: targetStatus, updatedAt: new Date().toISOString() };
+      // Keep the customer block (and its wallet balance) the list gave us; the
+      // status response carries the order only.
+      const updated: AdminOrder = {
+        ...order,
+        ...(res.order || { status: targetStatus, updatedAt: new Date().toISOString() }),
+        customer: {
+          ...order.customer,
+          ...(res.settlement?.balanceAfterPaise != null
+            ? { walletBalancePaise: res.settlement.balanceAfterPaise }
+            : {}),
+        },
+      };
       setOrder(updated);
-      setActionSuccess(`Order successfully transitioned to ${targetStatus}.`);
       onStatusUpdated?.(updated);
-      setTimeout(() => setActionSuccess(null), 4000);
+
+      const settlement = res.settlement;
+      if (settlement?.outcome === "INSUFFICIENT_BALANCE") {
+        // Delivered, but not paid: say so plainly rather than as a success.
+        setError(
+          `Delivery recorded, but the wallet could not cover it. Customer ${settlement.customerId} · ` +
+            `Order ${settlement.orderNumber} · Needs ${formatPaise(settlement.requiredPaise)} · ` +
+            `Wallet ${formatPaise(settlement.availableBalancePaise)} · Short by ${formatPaise(settlement.shortfallPaise)}. ` +
+            `Add funds to the customer's wallet, then settle the charge.`
+        );
+      } else if (settlement?.outcome === "SETTLED" && settlement.requiredPaise) {
+        setActionSuccess(
+          `Order marked delivered. ${formatPaise(settlement.requiredPaise)} charged to the wallet.`
+        );
+        setTimeout(() => setActionSuccess(null), 4000);
+      } else {
+        setActionSuccess(`Order successfully transitioned to ${targetStatus}.`);
+        setTimeout(() => setActionSuccess(null), 4000);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to update order status.";
+      setError(msg);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleSettle = async () => {
+    if (!order) return;
+    setIsUpdatingStatus(true);
+    setError(null);
+    setActionSuccess(null);
+
+    try {
+      const res = await settleOrder(order.id);
+      const updated: AdminOrder = {
+        ...order,
+        ...res.order,
+        customer: {
+          ...order.customer,
+          ...(res.settlement?.balanceAfterPaise != null
+            ? { walletBalancePaise: res.settlement.balanceAfterPaise }
+            : {}),
+        },
+      };
+      setOrder(updated);
+      onStatusUpdated?.(updated);
+      setActionSuccess(
+        `Outstanding charge settled. ${formatPaise(res.settlement?.requiredPaise ?? updated.totalPaise)} charged to the wallet.`
+      );
+      setTimeout(() => setActionSuccess(null), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to settle the delivery charge.";
       setError(msg);
     } finally {
       setIsUpdatingStatus(false);
@@ -186,11 +249,22 @@ export function OrderDetailSheet({
     }
   };
 
+  // A per-delivery order is paid only once its delivery is settled, so its own
+  // payment status is shown. Only a plan paid upfront is always "PAID".
+  const isPerDelivery = order?.billingModel === "PER_DELIVERY";
   const isPrepaidPlan = order
-    ? ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType)
+    ? !isPerDelivery &&
+      ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType)
     : false;
   const displayPaymentStatus: PaymentStatus =
     order && isPrepaidPlan ? "PAID" : order?.paymentStatus || "PENDING";
+  const isOutstanding = order?.settlementStatus === "OUTSTANDING";
+  const walletBalancePaise = order?.customer?.walletBalancePaise;
+  const expectedPaise = order?.expectedAmountPaise ?? order?.totalPaise ?? 0;
+  const outstandingShortfallPaise =
+    isOutstanding && walletBalancePaise != null
+      ? Math.max(0, expectedPaise - walletBalancePaise)
+      : 0;
 
   // COMPLETED is driven by its own confirmed action below, so it is filtered
   // out of the one-click transition hub.
@@ -318,7 +392,7 @@ export function OrderDetailSheet({
                       <span>Order marked as Delivered</span>
                     </div>
 
-                    {canComplete && (
+                    {canComplete && !isOutstanding && (
                       <div className="space-y-2 border-t-2 border-black/10 pt-2">
                         <span className="block text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
                           Close Out:
@@ -352,9 +426,96 @@ export function OrderDetailSheet({
                     </button>
                     <p className="text-[10px] font-bold text-[#5C5647]">
                       Directly marks doorstep delivery. No intermediate processing stages required.
+                      {isPerDelivery &&
+                        ` ${formatPaise(expectedPaise)} will be charged to the customer's wallet.`}
                     </p>
                   </div>
                 ) : null}
+
+                {/* Wallet billing for this delivery */}
+                {isPerDelivery && (
+                  <div className="space-y-2 border-t-2 border-black/10 pt-2">
+                    <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#5C5647]">
+                      <Wallet className="h-3.5 w-3.5 stroke-[2.5]" />
+                      Wallet Billing (charged per delivery)
+                    </span>
+                    <div className="grid grid-cols-1 gap-2 text-xs font-bold min-[420px]:grid-cols-2">
+                      <div>
+                        <span className="block text-[10px] font-black uppercase text-[#5C5647]">
+                          {order.settlementStatus === "SETTLED" ? "Amount Charged" : "Expected Charge"}
+                        </span>
+                        <span className="font-mono text-sm font-black text-[#1A1A1A]">
+                          {formatPaise(
+                            order.settlementStatus === "SETTLED"
+                              ? order.chargedAmountPaise ?? expectedPaise
+                              : expectedPaise
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-black uppercase text-[#5C5647]">
+                          Wallet Balance
+                        </span>
+                        <span className="font-mono text-sm font-black text-[#1A1A1A]">
+                          {walletBalancePaise != null ? formatPaise(walletBalancePaise) : "Not available"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-black uppercase text-[#5C5647]">
+                          Charge Status
+                        </span>
+                        <span className="font-mono text-sm font-black text-[#1A1A1A]">
+                          {order.settlementStatus === "SETTLED"
+                            ? "Charged"
+                            : isOutstanding
+                            ? "Outstanding"
+                            : "Not charged yet"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-black uppercase text-[#5C5647]">
+                          Delivered At
+                        </span>
+                        <span className="font-mono text-sm font-black text-[#1A1A1A]">
+                          {order.deliveredAt ? formatDate(order.deliveredAt) : "Not delivered yet"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {isOutstanding && (
+                      <div className="space-y-2 rounded-[10px] border-2 border-black bg-[#FFD9D0] p-3 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 stroke-[2.5]" />
+                          <span>
+                            Delivered, but the wallet could not cover the charge. Customer{" "}
+                            <span className="font-mono">{order.customer?.id}</span> · Needs{" "}
+                            {formatPaise(expectedPaise)}
+                            {walletBalancePaise != null && (
+                              <>
+                                {" "}· Wallet {formatPaise(walletBalancePaise)} · Short by{" "}
+                                {formatPaise(outstandingShortfallPaise)}
+                              </>
+                            )}
+                            . Add funds to the wallet, then settle.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isUpdatingStatus}
+                          onClick={handleSettle}
+                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-[8px] border-2 border-black bg-[#FFDF58] px-3.5 py-2 text-xs font-black uppercase tracking-wider text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[#ebd052] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-60"
+                        >
+                          {isUpdatingStatus ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin stroke-[2.5]" />
+                          ) : (
+                            <Wallet className="h-3.5 w-3.5 stroke-[2.5]" />
+                          )}
+                          Settle Charge
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {order.status === "COMPLETED" && order.completedAt && (
                   <div className="flex items-center gap-2 rounded-[10px] border-2 border-black bg-[#FAF7EC] p-2.5 text-[11px] font-bold text-[#1A1A1A]">

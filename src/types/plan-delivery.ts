@@ -66,6 +66,19 @@ export interface ChangeRequestItem {
   createdAt: string;
   updatedAt?: string;
   customer: ChangeRequestCustomer;
+  /** Set when a quantity request targets one delivery's order. */
+  orderId?: string | null;
+  orderNumber?: string | null;
+  orderStatus?: string | null;
+  /** Scheduled date (YYYY-MM-DD) of the targeted delivery. */
+  deliveryDate?: string | null;
+  /** Order total before and after the change, in paise. */
+  currentAmountPaise?: number | null;
+  requestedAmountPaise?: number | null;
+  /** The customer's wallet balance right now, in paise. */
+  walletBalancePaise?: number;
+  /** How much more the wallet needs for a pending increase; 0 when covered. */
+  shortfallPaise?: number;
 }
 
 export interface ChangeRequestsApiResponse {
@@ -118,6 +131,19 @@ export interface CustomerSubscriptionItem {
   paymentMethod: string | null;
   paidAmountPaise: number | null;
   paidAt: string | null;
+  /** PREPAID_LEGACY = paid upfront; PER_DELIVERY = charged per delivered order. */
+  billingModel?: "PREPAID_LEGACY" | "PER_DELIVERY";
+  /** Wallet funding state used to gate approval of a per-delivery plan. */
+  funding?: {
+    status: "CONFIRMED" | "PENDING_APPROVAL" | "NOT_FUNDED";
+    walletBalancePaise: number;
+    hasCompletedCredit: boolean;
+    pendingCreditCount: number;
+    pendingCreditPaise: number;
+  } | null;
+  deliveredCount?: number;
+  upcomingCount?: number;
+  skippedCount?: number;
   createdAt: string;
   deliveriesCount: number;
   /**

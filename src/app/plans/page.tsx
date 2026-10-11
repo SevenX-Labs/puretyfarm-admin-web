@@ -435,9 +435,13 @@ export default function PlansAndDeliveryPage() {
     if (type === "CHANGE_QUANTITY") {
       const qty = config.quantity ?? config.liters ?? config.qty;
       const effective = config.effectiveDate || config.startDate;
+      // A single-delivery request names the order and its scheduled date.
+      const target = config.deliveryDate
+        ? `${config.orderNumber ? `Order ${config.orderNumber} · ` : ""}${config.deliveryDate}`
+        : undefined;
       return {
         main: qty ? `${qty} Litre${Number(qty) > 1 ? "s" : ""}` : "Adjust Volume",
-        meta: effective ? `Effective: ${effective}` : undefined,
+        meta: target ?? (effective ? `Effective: ${effective}` : undefined),
       };
     }
 
@@ -707,6 +711,7 @@ export default function PlansAndDeliveryPage() {
                 { key: "ALL", label: "All" },
                 { key: "CONFIRMED", label: "Confirmed" },
                 { key: "ACTIVE", label: "Active" },
+                { key: "PENDING_APPROVAL", label: "Pending Approval" },
                 { key: "PENDING_PAYMENT", label: "Pending Payment" },
                 { key: "PAUSED", label: "Paused" },
               ].map((tab) => (
@@ -839,12 +844,36 @@ export default function PlansAndDeliveryPage() {
                           </td>
 
                           <td className="py-3.5 px-4 border-r-2 border-black text-right font-mono">
-                            <div className="font-black text-xs text-[#1A1A1A]">
-                              {sub.paidAmountPaise ? formatCurrency(sub.paidAmountPaise / 100) : "—"}
-                            </div>
-                            <div className="text-[10px] text-[#5C5647] uppercase font-bold">
-                              {sub.paymentMethod || "PAID"}
-                            </div>
+                            {sub.billingModel === "PER_DELIVERY" ? (
+                              <>
+                                <div className="font-black text-xs text-[#1A1A1A]">
+                                  Wallet {formatCurrency((sub.funding?.walletBalancePaise ?? 0) / 100)}
+                                </div>
+                                <div
+                                  className={`text-[10px] uppercase font-bold ${
+                                    sub.funding?.hasCompletedCredit ? "text-[#14532D]" : "text-[#7F1D1D]"
+                                  }`}
+                                >
+                                  {sub.funding?.hasCompletedCredit
+                                    ? "Funding confirmed"
+                                    : (sub.funding?.pendingCreditCount ?? 0) > 0
+                                    ? "Top-up pending approval"
+                                    : "Not funded yet"}
+                                </div>
+                                <div className="text-[10px] text-[#5C5647] uppercase font-bold">
+                                  Charged per delivery
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-black text-xs text-[#1A1A1A]">
+                                  {sub.paidAmountPaise ? formatCurrency(sub.paidAmountPaise / 100) : "—"}
+                                </div>
+                                <div className="text-[10px] text-[#5C5647] uppercase font-bold">
+                                  {sub.paymentMethod || "PAID"}
+                                </div>
+                              </>
+                            )}
                           </td>
 
                           <td className="py-3.5 px-4 border-r-2 border-black text-center">
@@ -857,8 +886,14 @@ export default function PlansAndDeliveryPage() {
                                   : "bg-[#FFD9D0] text-[#7F1D1D]"
                               }`}
                             >
-                              {sub.status}
+                              {sub.status.replace(/_/g, " ")}
                             </span>
+                            {(sub.deliveriesCount ?? 0) > 0 && (
+                              <div className="mt-1 font-mono text-[10px] font-bold text-[#5C5647]">
+                                {sub.deliveredCount ?? 0} delivered · {sub.upcomingCount ?? 0} upcoming
+                                {(sub.skippedCount ?? 0) > 0 ? ` · ${sub.skippedCount} skipped` : ""}
+                              </div>
+                            )}
                           </td>
 
                           <td className="py-3.5 px-4 text-center">
@@ -870,7 +905,11 @@ export default function PlansAndDeliveryPage() {
                                 className="bg-[#FFDF58] hover:bg-[#FFD84D] text-[#1A1A1A] font-black text-xs px-2.5 py-1.5 border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1"
                               >
                                 <Calendar className="h-3.5 w-3.5 stroke-[2.5]" />
-                                <span>{sub.status === "PENDING_PAYMENT" ? "Approve" : "Set Date"}</span>
+                                <span>
+                                  {sub.status === "PENDING_PAYMENT" || sub.status === "PENDING_APPROVAL"
+                                    ? "Approve"
+                                    : "Set Date"}
+                                </span>
                               </button>
                               <button
                                 type="button"
@@ -975,10 +1014,17 @@ export default function PlansAndDeliveryPage() {
                           {sub.planType.replace(/_/g, " ")}
                         </span>
                         <span className="shrink-0 font-mono text-xs font-black text-[#1A1A1A]">
-                          {sub.paidAmountPaise
+                          {sub.billingModel === "PER_DELIVERY"
+                            ? `Wallet ${formatCurrency((sub.funding?.walletBalancePaise ?? 0) / 100)}`
+                            : sub.paidAmountPaise
                             ? formatCurrency(sub.paidAmountPaise / 100)
                             : "—"}
-                          {sub.paymentMethod && (
+                          {sub.billingModel === "PER_DELIVERY" && (
+                            <span className="ml-1 text-[9px] font-bold uppercase text-[#5C5647]">
+                              {sub.funding?.hasCompletedCredit ? "Funded · per delivery" : "Funding pending"}
+                            </span>
+                          )}
+                          {sub.billingModel !== "PER_DELIVERY" && sub.paymentMethod && (
                             <span className="ml-1 text-[9px] font-bold uppercase text-[#5C5647]">
                               {sub.paymentMethod}
                             </span>

@@ -51,6 +51,40 @@ export interface OrderCustomer {
   name: string;
   mobile: string;
   email: string | null;
+  /** Current wallet balance, in paise. */
+  walletBalancePaise?: number;
+}
+
+/** How a plan's deliveries are paid for. */
+export type BillingModel = "PREPAID_LEGACY" | "PER_DELIVERY";
+
+/**
+ * Per-delivery billing state. PENDING = not delivered yet, SETTLED = delivered
+ * and charged, OUTSTANDING = delivered but the wallet could not cover it.
+ */
+export type SettlementStatus = "PENDING" | "SETTLED" | "OUTSTANDING";
+
+/** What the server did when an order was marked delivered. */
+export type SettlementOutcome =
+  | "SETTLED"
+  | "DELIVERED_PREPAID"
+  | "INSUFFICIENT_BALANCE"
+  | "ALREADY_DELIVERED"
+  | "NOT_ELIGIBLE"
+  | "ERROR";
+
+export interface OrderSettlement {
+  outcome: SettlementOutcome;
+  customerId: string;
+  orderNumber: string;
+  scheduledDate: string | null;
+  deliveredAt: string | null;
+  settledAt: string | null;
+  requiredPaise: number | null;
+  availableBalancePaise: number | null;
+  balanceAfterPaise: number | null;
+  shortfallPaise: number | null;
+  walletTransactionId: string | null;
 }
 
 export interface AdminOrder {
@@ -84,6 +118,18 @@ export interface AdminOrder {
   } | null;
   /** Set only once an admin has completed the order. */
   completedAt?: string | null;
+  /** Null for an order that does not belong to a plan. */
+  billingModel?: BillingModel | null;
+  /** When an admin confirmed the delivery. Not the scheduled date. */
+  deliveredAt?: string | null;
+  /** Null when the order is not billed per delivery (prepaid plans). */
+  settlementStatus?: SettlementStatus | null;
+  settledAt?: string | null;
+  walletTransactionId?: string | null;
+  /** What the delivery is expected to cost, in paise. */
+  expectedAmountPaise?: number;
+  /** What was actually debited; null until settled. */
+  chargedAmountPaise?: number | null;
   customer: OrderCustomer;
   createdAt: string;
   updatedAt: string;

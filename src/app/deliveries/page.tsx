@@ -10,6 +10,7 @@ import {
 import { fetchOrders, OrderQueryParams } from "@/services/order-service";
 import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
 import { BulkMarkDeliveredModal } from "@/components/orders/bulk-mark-delivered-modal";
+import { OrderBillingNote } from "@/components/orders/order-billing-note";
 import { BulkUpdateQuantityModal } from "@/components/orders/bulk-update-quantity-modal";
 import { BulkResultsModal } from "@/components/orders/bulk-results-modal";
 import { BulkOperationResponse } from "@/services/order-service";
@@ -887,6 +888,7 @@ export default function ManageDeliveriesPage() {
                           {statusBadge.icon}
                           <span>{statusBadge.label}</span>
                         </span>
+                        <OrderBillingNote order={order} className="mt-1" />
                       </td>
 
                       {/* ROW ACTIONS */}
@@ -1036,6 +1038,8 @@ export default function ManageDeliveriesPage() {
                       <span className="leading-tight">{addressLine}</span>
                     </div>
                   )}
+
+                  <OrderBillingNote order={order} />
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 pt-1">

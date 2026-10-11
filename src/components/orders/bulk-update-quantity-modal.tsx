@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { SlidersHorizontal, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
-import { formatDeliveryDateOrLabel } from "@/lib/utils";
+import { formatDeliveryDateOrLabel, formatPaise } from "@/lib/utils";
 
 interface BulkUpdateQuantityModalProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ export function BulkUpdateQuantityModal({
   onCompleted,
 }: BulkUpdateQuantityModalProps) {
   const [targetQuantity, setTargetQuantity] = useState<number>(2);
+  const [reason, setReason] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +47,7 @@ export function BulkUpdateQuantityModal({
 
     try {
       const orderIds = selectedOrders.map((o) => o.id);
-      const res = await bulkUpdateOrderQuantity(orderIds, targetQuantity);
+      const res = await bulkUpdateOrderQuantity(orderIds, targetQuantity, reason);
       onCompleted(res);
       onClose();
     } catch (err: unknown) {
@@ -110,6 +111,28 @@ export function BulkUpdateQuantityModal({
             </p>
           </div>
 
+          <div className="space-y-1.5">
+            <label
+              htmlFor="bulk-quantity-reason"
+              className="text-xs font-black uppercase text-[#1A1A1A] block"
+            >
+              Reason (saved on the audit record)
+            </label>
+            <input
+              id="bulk-quantity-reason"
+              type="text"
+              value={reason}
+              maxLength={500}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Customer called to ask for an extra litre"
+              className="h-10 w-full rounded-[8px] border-2 border-black bg-white px-3 text-xs font-bold text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] focus:outline-none"
+            />
+            <p className="text-[11px] font-bold text-[#5C5647]">
+              Per-delivery orders are repriced, and an increase is refused if the
+              customer&apos;s wallet cannot cover the new amount.
+            </p>
+          </div>
+
           {/* Preview Comparison Table */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-black uppercase text-[#1A1A1A]">
@@ -146,6 +169,33 @@ export function BulkUpdateQuantityModal({
                       <div className="text-[10px] text-[#5C5647] font-sans">
                         Date: {formatDeliveryDateOrLabel(order.deliveryDate)}
                       </div>
+                      {(() => {
+                        // Preview only; the server reprices from the order itself.
+                        if (order.billingModel !== "PER_DELIVERY" || !isEligible || diff === 0) {
+                          return null;
+                        }
+                        const unitPaise =
+                          order.items?.[0]?.unitPricePaise ?? order.sellingPricePerLitrePaise;
+                        const newTotalPaise =
+                          unitPaise * targetQuantity + order.deliveryFeePaise + order.taxPaise;
+                        const walletPaise = order.customer?.walletBalancePaise;
+                        const shortPaise =
+                          diff > 0 && walletPaise != null && walletPaise < newTotalPaise
+                            ? newTotalPaise - walletPaise
+                            : 0;
+                        return (
+                          <div
+                            className={`text-[10px] font-sans font-bold ${
+                              shortPaise > 0 ? "text-[#D9381E]" : "text-[#5C5647]"
+                            }`}
+                          >
+                            {formatPaise(order.totalPaise)} → {formatPaise(newTotalPaise)}
+                            {walletPaise != null && ` · Wallet ${formatPaise(walletPaise)}`}
+                            {shortPaise > 0 &&
+                              ` · Short by ${formatPaise(shortPaise)} — add funds first`}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
