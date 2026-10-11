@@ -362,7 +362,7 @@ export function CustomerWalletSheet({
 
                             <div className="flex items-center justify-between text-[10px] font-bold">
                               <span className="text-[#1A1A1A] truncate max-w-[200px]" title={tx.description || undefined}>
-                                {tx.description || tx.referenceType || "Wallet transaction"}
+                                {(tx.description || "").replace(/^\[Admin:[^\]]*\]\s*/i, "") || tx.referenceType || "Wallet transaction"}
                               </span>
                               <span className="font-mono text-[9px] text-[#5C5647]">
                                 Bal: {formatCurrency(tx.balanceAfterPaise / 100)}
