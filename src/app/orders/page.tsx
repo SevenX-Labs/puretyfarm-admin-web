@@ -359,6 +359,63 @@ export default function OrdersPage() {
     }
   };
 
+  const getOrderPaymentBadge = (order: AdminOrder) => {
+    // For per-delivery orders (charged from customer's wallet on delivery):
+    if (order.billingModel === "PER_DELIVERY") {
+      if (order.settlementStatus === "SETTLED" || order.paymentStatus === "PAID") {
+        return {
+          className: "bg-[#B8E8B8] border border-black text-[#14532D] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <Check className="h-2.5 w-2.5 stroke-[3]" />,
+          label: "Paid",
+        };
+      }
+      if (order.settlementStatus === "OUTSTANDING") {
+        return {
+          className: "bg-[#FFD9D0] border border-black text-[#991B1B] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <AlertTriangle className="h-2.5 w-2.5 stroke-[2.5]" />,
+          label: "Outstanding",
+        };
+      }
+      if (["CANCELLED", "FAILED"].includes(order.status)) {
+        return {
+          className: "bg-stone-100 border border-black/30 text-stone-700",
+          icon: null,
+          label: "Not Charged",
+        };
+      }
+
+      // Scheduled/active order waiting for delivery
+      const expectedPaise = order.expectedAmountPaise ?? order.totalPaise;
+      const walletPaise = order.customer?.walletBalancePaise;
+      const isFunded = walletPaise != null && walletPaise >= expectedPaise;
+
+      if (isFunded) {
+        return {
+          className: "bg-[#B8E8B8] border border-black text-[#14532D] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <Check className="h-2.5 w-2.5 stroke-[3]" />,
+          label: "Wallet Funded",
+        };
+      }
+      if (walletPaise != null && walletPaise < expectedPaise) {
+        return {
+          className: "bg-[#FFE58F] border border-black text-[#854D0E] shadow-[1px_1px_0px_0px_#000000]",
+          icon: <Clock className="h-2.5 w-2.5 stroke-[2.5]" />,
+          label: "Wallet Short",
+        };
+      }
+      return {
+        className: "bg-[#FAF7EC] border border-black text-[#5C5647] shadow-[1px_1px_0px_0px_#000000]",
+        icon: <Clock className="h-2.5 w-2.5 stroke-[2.5]" />,
+        label: "On Delivery",
+      };
+    }
+
+    // Upfront prepaid plans or standalone orders
+    const isPrepaidPlan = ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
+    const displayPaymentStatus: PaymentStatus = isPrepaidPlan ? "PAID" : order.paymentStatus;
+    return getPaymentStatusBadge(displayPaymentStatus);
+  };
+
   const getPlanBadge = (planType: PlanType) => {
     switch (planType) {
       case "BUY_ONCE":
@@ -699,15 +756,8 @@ export default function OrdersPage() {
                   );
 
                   const planBadge = getPlanBadge(order.planType);
-                  // Only a plan paid upfront is always PAID; a per-delivery
-                  // order shows its own payment status.
-                  const isPrepaidPlan =
-                    order.billingModel !== "PER_DELIVERY" &&
-                    ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
-                  const displayPaymentStatus: PaymentStatus = isPrepaidPlan ? "PAID" : order.paymentStatus;
-
                   const statusBadge = getOrderStatusBadge(order.status);
-                  const paymentBadge = getPaymentStatusBadge(displayPaymentStatus);
+                  const paymentBadge = getOrderPaymentBadge(order);
                   const isCopied = copiedId === order.orderNumber;
 
                   return (
@@ -872,12 +922,8 @@ export default function OrdersPage() {
                 "Window not set"
               );
               const planBadge = getPlanBadge(order.planType);
-              const isPrepaidPlan =
-                order.billingModel !== "PER_DELIVERY" &&
-                ["BUY_ONCE", "SEVEN_DAY_TRIAL", "MONTHLY"].includes(order.planType);
-              const displayPaymentStatus: PaymentStatus = isPrepaidPlan ? "PAID" : order.paymentStatus;
               const statusBadge = getOrderStatusBadge(order.status);
-              const paymentBadge = getPaymentStatusBadge(displayPaymentStatus);
+              const paymentBadge = getOrderPaymentBadge(order);
               const isCopied = copiedId === order.orderNumber;
 
               return (

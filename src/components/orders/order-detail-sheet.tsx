@@ -266,6 +266,23 @@ export function OrderDetailSheet({
       ? Math.max(0, expectedPaise - walletBalancePaise)
       : 0;
 
+  const paymentBadge = isPerDelivery
+    ? order?.settlementStatus === "SETTLED" || order?.paymentStatus === "PAID"
+      ? { label: "PAID", className: "bg-[#B8E8B8] text-[#14532D] border border-black font-mono font-bold" }
+      : isOutstanding
+      ? { label: "OUTSTANDING", className: "bg-[#FF8E72] text-[#991B1B] border border-black font-mono font-bold" }
+      : ["CANCELLED", "FAILED"].includes(order?.status || "")
+      ? { label: "NOT CHARGED", className: "bg-stone-100 text-[#5C5647] border border-black font-mono font-bold" }
+      : walletBalancePaise != null && walletBalancePaise >= expectedPaise
+      ? { label: "WALLET FUNDED", className: "bg-[#B8E8B8] text-[#14532D] border border-black font-mono font-bold" }
+      : walletBalancePaise != null && walletBalancePaise < expectedPaise
+      ? { label: "WALLET SHORT", className: "bg-[#FFDF58] text-[#854D0E] border border-black font-mono font-bold" }
+      : { label: "PER DELIVERY", className: "bg-[#FAF7EC] text-[#5C5647] border border-black font-mono font-bold" }
+    : {
+        label: displayPaymentStatus,
+        className: getPaymentStatusBadgeClass(displayPaymentStatus),
+      };
+
   // COMPLETED is driven by its own confirmed action below, so it is filtered
   // out of the one-click transition hub.
   const allowedTransitions = (
@@ -317,11 +334,9 @@ export function OrderDetailSheet({
               {order && (
                 <div className="flex min-w-0 items-center gap-1.5">
                   <span
-                    className={`rounded-[6px] px-2 py-0.5 text-[10px] uppercase ${getPaymentStatusBadgeClass(
-                      displayPaymentStatus
-                    )}`}
+                    className={`rounded-[6px] px-2 py-0.5 text-[10px] uppercase ${paymentBadge.className}`}
                   >
-                    Payment: {displayPaymentStatus}
+                    Payment: {paymentBadge.label}
                   </span>
                 </div>
               )}
