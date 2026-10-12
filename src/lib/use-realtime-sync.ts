@@ -1,3 +1,4 @@
+import { createSyncExecutor } from "@/lib/realtime/sync-executor";
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
@@ -54,58 +55,30 @@ export function useRealtimeSync(
   const baseIntervalMs = Math.max(30000, intervalMs);
 
   const fnRef = useRef(refreshFn);
-  const inFlightRef = useRef(false);
-  const trailingRefreshNeededRef = useRef(false);
-  const isStoppedRef = useRef(false);
-  const lastSyncTimeRef = useRef(0);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
     fnRef.current = refreshFn;
   }, [refreshFn]);
 
   const realtimeCtx = useRealtimeContext();
   const isStreamHealthy = realtimeCtx?.isStreamHealthy ?? false;
+  const lastSyncTimeRef = useRef(0);
+  const isStoppedRef = useRef(false);
 
-  const executeSync = useCallback(async () => {
-    if (isStoppedRef.current) return;
-    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-
-    if (inFlightRef.current) {
-      // Record trailing refresh needed so an event arriving mid-flight is never missed
-      trailingRefreshNeededRef.current = true;
-      return;
-    }
-
-    inFlightRef.current = true;
-    try {
-      const res = fnRef.current();
-      if (res && typeof (res as Promise<void>).then === "function") {
-        await res;
-      }
+  const executorRef = useRef<ReturnType<typeof createSyncExecutor> | null>(null);
+  if (!executorRef.current) {
+    executorRef.current = createSyncExecutor(() => {
       lastSyncTimeRef.current = Date.now();
-    } catch (err: unknown) {
-      if (err instanceof ApiError && (err.statusCode === 401 || err.statusCode === 429)) {
-        console.warn("[realtime-sync] Stopping auto-sync due to auth or rate-limit status:", err.statusCode);
-        isStoppedRef.current = true;
-      }
-    } finally {
-      inFlightRef.current = false;
-      if (trailingRefreshNeededRef.current) {
-        trailingRefreshNeededRef.current = false;
-        void executeSync();
-      }
-    }
+      return fnRef.current();
+    }, 300);
+  }
+
+  const executeSync = useCallback(() => {
+    return executorRef.current?.executeRefresh();
   }, []);
 
   const triggerDebouncedSync = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      void executeSync();
-    }, 300);
-  }, [executeSync]);
+    executorRef.current?.triggerDebounced();
+  }, []);
 
   // 1. Subscribe to realtime SSE stream events if specified
   useEffect(() => {
@@ -117,9 +90,7 @@ export function useRealtimeSync(
 
     return () => {
       unsubscribe();
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      executorRef.current?.cancel();
     };
   }, [enabled, events, realtimeCtx, triggerDebouncedSync]);
 

@@ -1,3 +1,4 @@
+import { RealtimeStreamClient } from "@/lib/realtime/realtime-stream-client";
 "use client";
 
 import React, {
@@ -35,12 +36,33 @@ interface RealtimeContextType {
 
 const RealtimeContext = createContext<RealtimeContextType | null>(null);
 
-const BACKEND_BASE_URL = (
-  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
-  "https://api-puretyfarm.onrender.com"
-)
-  .replace(/\/+$/, "")
-  .replace(/\/api\/v1\/?$/, "");
+export function getResolvedApiUrl(): string | null {
+  const envUrl =
+    typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL
+      ? process.env.NEXT_PUBLIC_API_URL.trim()
+      : "";
+
+  if (!envUrl) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[RealtimeContext (Admin)] NEXT_PUBLIC_API_URL is not configured. Realtime SSE connection disabled for local development/testing."
+      );
+    }
+    return null;
+  }
+
+  if (
+    process.env.NODE_ENV !== "production" &&
+    envUrl.includes("api-puretyfarm.onrender.com")
+  ) {
+    console.warn(
+      "[RealtimeContext (Admin)] Refusing to connect to production API URL in non-production environment. Realtime SSE connection disabled."
+    );
+    return null;
+  }
+
+  return envUrl.replace(/\/+$/, "").replace(/\/api\/v1\/?$/, "");
+}
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { admin, isAuthenticated } = useAuth();
@@ -112,30 +134,20 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    const resolvedApiUrl = getResolvedApiUrl();
+    if (!resolvedApiUrl) {
+      setIsStreamHealthy(false);
+      isHealthyRef.current = false;
+      return;
+    }
+
     if (!isAuthenticated || !admin?.id) {
       setIsStreamHealthy(false);
       isHealthyRef.current = false;
       return;
     }
 
-    let abortController: AbortController | null = null;
-    let isTerminated = false;
-    let failedAttempts = 0;
-    let reconnectTimer: NodeJS.Timeout | null = null;
     let hiddenCloseTimer: NodeJS.Timeout | null = null;
-
-    const setHealthy = (val: boolean) => {
-      isHealthyRef.current = val;
-      setIsStreamHealthy(val);
-    };
-
-    const scheduleReconnect = (delayMs: number) => {
-      if (isTerminated) return;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(() => {
-        void connectStream();
-      }, delayMs);
-    };
 
     const getBearerToken = (): string | null => {
       let token = getCookie("admin_access_token");
@@ -145,111 +157,20 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       return token;
     };
 
-    const connectStream = async () => {
-      if (isTerminated) return;
-      if (abortController) {
-        abortController.abort();
-      }
-      abortController = new AbortController();
+    const client = new RealtimeStreamClient({
+      streamUrl: `${resolvedApiUrl}/api/v1/admin/events/stream`,
+      getAccessToken: getBearerToken,
+      refreshAccessToken: () => refreshAccessToken(),
+      onEvents: (types) => dispatchEvents(types as AdminRealtimeEventType[]),
+      onConnected: () => triggerGlobalLiveSync("stream_connected"),
+      createParser: () => new SSEParser(),
+      onHealthChange: (healthy) => {
+        isHealthyRef.current = healthy;
+        setIsStreamHealthy(healthy);
+      },
+    });
 
-      const token = getBearerToken();
-      if (!token) {
-        failedAttempts++;
-        if (failedAttempts >= 2) setHealthy(false);
-        scheduleReconnect(3000);
-        return;
-      }
-
-      const streamUrl = `${BACKEND_BASE_URL}/api/v1/admin/events/stream`;
-
-      try {
-        const response = await fetch(streamUrl, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "text/event-stream",
-          },
-          credentials: "omit",
-          signal: abortController.signal,
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            // Single-flight refresh attempt
-            try {
-              const freshToken = await refreshAccessToken();
-              if (freshToken && !isTerminated) {
-                void connectStream();
-                return;
-              }
-            } catch {
-              setHealthy(false);
-              return;
-            }
-          }
-
-          failedAttempts++;
-          if (failedAttempts >= 2) {
-            setHealthy(false);
-          }
-
-          const backoff = Math.min(
-            30000,
-            1000 * Math.pow(2, failedAttempts) + Math.random() * 1000
-          );
-          scheduleReconnect(backoff);
-          return;
-        }
-
-        if (!response.body) {
-          throw new Error("No response body received for SSE stream");
-        }
-
-        failedAttempts = 0;
-        setHealthy(true);
-
-        // Revalidate on successful connect / reconnect
-        triggerGlobalLiveSync("stream_connected");
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        const parser = new SSEParser();
-
-        while (!isTerminated) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const messages = parser.feed(chunk);
-
-          for (const msg of messages) {
-            if (msg.event === "sync" && msg.data) {
-              try {
-                const parsed = JSON.parse(msg.data);
-                if (parsed?.types && Array.isArray(parsed.types)) {
-                  dispatchEvents(parsed.types);
-                }
-              } catch {}
-            }
-          }
-        }
-      } catch (err: any) {
-        if (isTerminated || abortController.signal.aborted) {
-          return;
-        }
-        failedAttempts++;
-        if (failedAttempts >= 2) {
-          setHealthy(false);
-        }
-        const backoff = Math.min(
-          30000,
-          1000 * Math.pow(2, failedAttempts) + Math.random() * 1000
-        );
-        scheduleReconnect(backoff);
-      }
-    };
-
-    void connectStream();
+    void client.connect();
 
     // Close stream when tab hidden > 2 minutes; reopen when visible
     const handleVisibilityChange = () => {
@@ -258,9 +179,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       if (document.visibilityState === "hidden") {
         if (hiddenCloseTimer) clearTimeout(hiddenCloseTimer);
         hiddenCloseTimer = setTimeout(() => {
-          if (document.visibilityState === "hidden" && abortController) {
-            abortController.abort();
-            setHealthy(false);
+          if (document.visibilityState === "hidden") {
+            client.disconnect();
           }
         }, 120000);
       } else if (document.visibilityState === "visible") {
@@ -268,8 +188,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           clearTimeout(hiddenCloseTimer);
           hiddenCloseTimer = null;
         }
-        if (!isHealthyRef.current && !isTerminated) {
-          void connectStream();
+        if (!isHealthyRef.current) {
+          void client.connect();
         }
       }
     };
@@ -279,14 +199,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }
 
     return () => {
-      isTerminated = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
       if (hiddenCloseTimer) clearTimeout(hiddenCloseTimer);
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
       }
-      abortController?.abort();
-      setHealthy(false);
+      client.disconnect();
     };
   }, [admin?.id, isAuthenticated, dispatchEvents]);
 

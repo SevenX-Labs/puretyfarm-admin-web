@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert";
 import { SSEParser } from "./sse-parser.ts";
+import { RealtimeStreamClient } from "./realtime-stream-client.ts";
+import { createSyncExecutor } from "./sync-executor.ts";
 
 test("SSEParser (admin): handles single event with event, data, id", () => {
   const parser = new SSEParser();
@@ -62,77 +64,149 @@ test("SSEParser (admin): supports ready event with no data", () => {
   assert.strictEqual(messages[0].event, "ready");
 });
 
-test("Reconnect and Backoff (admin): 401 triggers refresh, 2 errors trigger stream down, backoff caps at 30s", async () => {
-  let tokenRefreshed = false;
-  let healthState = true;
-  let failedAttempts = 0;
+test("RealtimeStreamClient (admin production class): 401 refreshes token and reconnects, caps backoff at 30s", async () => {
+  let token = "stale-admin-token";
+  let refreshCalled = false;
+  let fetchCallCount = 0;
 
-  async function mockConnect(statusCode) {
-    if (statusCode === 401) {
-      tokenRefreshed = true;
-      return "refreshed_and_retried";
+  const mockFetch = async (url, init) => {
+    fetchCallCount++;
+    if (fetchCallCount === 1) {
+      assert.strictEqual(init.headers.Authorization, "Bearer stale-admin-token");
+      return {
+        ok: false,
+        status: 401,
+      };
     }
-    failedAttempts++;
-    if (failedAttempts >= 2) {
-      healthState = false;
-    }
-    const backoff = Math.min(30000, 1000 * Math.pow(2, failedAttempts) + 50);
-    return backoff;
-  }
+    assert.strictEqual(init.headers.Authorization, "Bearer fresh-admin-token");
+    return {
+      ok: true,
+      status: 200,
+      body: {
+        getReader: () => ({
+          read: async () => ({ done: true, value: undefined }),
+        }),
+      },
+    };
+  };
 
-  // 1. 401 triggers refresh
-  const res401 = await mockConnect(401);
-  assert.strictEqual(res401, "refreshed_and_retried");
-  assert.strictEqual(tokenRefreshed, true);
+  const client = new RealtimeStreamClient({
+    streamUrl: "http://localhost:3000/api/v1/admin/events/stream",
+    getAccessToken: () => token,
+    refreshAccessToken: async () => {
+      refreshCalled = true;
+      token = "fresh-admin-token";
+      return "fresh-admin-token";
+    },
+    onEvents: () => {},
+    fetchFn: mockFetch,
+  });
 
-  // 2. 1st error
-  await mockConnect(500);
-  assert.strictEqual(healthState, true);
-  assert.strictEqual(failedAttempts, 1);
+  await client.connect();
 
-  // 3. 2nd error triggers stream down
-  await mockConnect(500);
-  assert.strictEqual(healthState, false);
-  assert.strictEqual(failedAttempts, 2);
+  assert.strictEqual(refreshCalled, true);
+  assert.strictEqual(fetchCallCount, 2);
+  assert.strictEqual(client.getIsHealthy(), true);
 
-  // 4. Backoff caps at 30s
-  failedAttempts = 10;
-  const highDelay = Math.min(30000, 1000 * Math.pow(2, failedAttempts) + 50);
-  assert.strictEqual(highDelay, 30000);
+  const backoffHigh = client.computeBackoff(12);
+  assert.strictEqual(backoffHigh <= 30000, true);
+  assert.strictEqual(backoffHigh >= 20000, true);
+
+  client.disconnect();
+  assert.strictEqual(client.getIsHealthy(), false);
 });
 
-test("Debounce and Trailing Refresh (admin): coalesces rapid events and guarantees exactly ONE trailing refresh", async () => {
+test("RealtimeStreamClient (admin production class): marks stream down after 2 network failures", async () => {
+  const mockFailFetch = async () => ({
+    ok: false,
+    status: 502,
+  });
+
+  const client = new RealtimeStreamClient({
+    streamUrl: "http://localhost:3000/api/v1/admin/events/stream",
+    getAccessToken: () => "valid-admin-token",
+    refreshAccessToken: async () => null,
+    onEvents: () => {},
+    fetchFn: mockFailFetch,
+  });
+
+  await client.connect();
+  assert.strictEqual(client.getFailedAttempts(), 1);
+  assert.strictEqual(client.getIsHealthy(), false);
+
+  await client.connect();
+  assert.strictEqual(client.getFailedAttempts(), 2);
+  assert.strictEqual(client.getIsHealthy(), false);
+
+  client.disconnect();
+});
+
+test("RealtimeStreamClient (admin production class): streams SSE chunks into onEvents handler", async () => {
+  const receivedEvents = [];
+  const encoder = new TextEncoder();
+  const chunks = [
+    encoder.encode("event: ready\n\n"),
+    encoder.encode(": ping\n\n"),
+    encoder.encode("event: sync\ndata: {\"v\":1,\"types\":[\"admin.payments.updated\",\"admin.wallets.updated\"]}\nid: 5\n\n"),
+  ];
+  let chunkIdx = 0;
+
+  const mockStreamFetch = async () => ({
+    ok: true,
+    status: 200,
+    body: {
+      getReader: () => ({
+        read: async () => {
+          if (chunkIdx < chunks.length) {
+            return { done: false, value: chunks[chunkIdx++] };
+          }
+          return { done: true, value: undefined };
+        },
+      }),
+    },
+  });
+
+  let connectedCalled = false;
+  const client = new RealtimeStreamClient({
+    streamUrl: "http://localhost:3000/api/v1/admin/events/stream",
+    getAccessToken: () => "valid-admin-token",
+    refreshAccessToken: async () => null,
+    createParser: () => new SSEParser(),
+    onEvents: (types) => receivedEvents.push(...types),
+    onConnected: () => { connectedCalled = true; },
+    fetchFn: mockStreamFetch,
+  });
+
+  await client.connect();
+
+  assert.strictEqual(connectedCalled, true);
+  assert.deepStrictEqual(receivedEvents, ["admin.payments.updated", "admin.wallets.updated"]);
+  assert.strictEqual(client.getIsHealthy(), true);
+
+  client.disconnect();
+});
+
+test("createSyncExecutor (admin production class): coalesces rapid triggers and executes trailing refresh when in flight", async () => {
   let executionCount = 0;
-  let inFlight = false;
-  let trailingNeeded = false;
 
-  async function refreshWorkload() {
-    if (inFlight) {
-      trailingNeeded = true;
-      return;
-    }
-    inFlight = true;
+  const executor = createSyncExecutor(async () => {
     executionCount++;
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    inFlight = false;
-    if (trailingNeeded) {
-      trailingNeeded = false;
-      await refreshWorkload();
-    }
-  }
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  }, 20);
 
-  const p1 = refreshWorkload();
-  assert.strictEqual(inFlight, true);
+  const p1 = executor.executeRefresh();
+  assert.strictEqual(executor.isInFlight(), true);
   assert.strictEqual(executionCount, 1);
 
-  await refreshWorkload();
-  await refreshWorkload();
+  await executor.executeRefresh();
+  await executor.executeRefresh();
 
-  assert.strictEqual(trailingNeeded, true);
+  assert.strictEqual(executor.isTrailingNeeded(), true);
 
   await p1;
+  await new Promise((resolve) => setTimeout(resolve, 80));
 
   assert.strictEqual(executionCount, 2);
-  assert.strictEqual(inFlight, false);
-  assert.strictEqual(trailingNeeded, false);
+  assert.strictEqual(executor.isInFlight(), false);
+  assert.strictEqual(executor.isTrailingNeeded(), false);
 });
