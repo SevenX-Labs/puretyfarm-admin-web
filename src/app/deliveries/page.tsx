@@ -16,6 +16,8 @@ import { BulkUpdateQuantityModal } from "@/components/orders/bulk-update-quantit
 import { BulkResultsModal } from "@/components/orders/bulk-results-modal";
 import { BulkOperationResponse } from "@/services/order-service";
 import { clampPageAfterSuccess } from "@/lib/pagination";
+import { DatePresetFilter } from "@/components/ui/date-preset-filter";
+import { DatePreset, getTodayIST } from "@/lib/date-filter";
 import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -58,17 +60,13 @@ export default function ManageDeliveriesPage() {
   const [totalOrders, setTotalOrders] = useState<number>(0);
   const pageSize = 20;
 
-  // Filter States
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const tomorrowStr = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  }, []);
+  // Filter States (defaults to TODAY)
+  const [activeDatePreset, setActiveDatePreset] = useState<DatePreset>("TODAY");
+  const [startDate, setStartDate] = useState<string>(() => getTodayIST());
+  const [endDate, setEndDate] = useState<string>(() => getTodayIST());
   const [customerSearch, setCustomerSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
   const [planTypeFilter, setPlanTypeFilter] = useState<PlanType | "ALL">("ALL");
-  const [selectedDate, setSelectedDate] = useState<string>("");
 
   // Debounced search queries
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState<string>("");
@@ -123,10 +121,8 @@ export default function ManageDeliveriesPage() {
       if (statusFilter !== "ALL") params.status = statusFilter;
       if (planTypeFilter !== "ALL") params.planType = planTypeFilter;
       if (debouncedCustomerSearch) params.customerSearch = debouncedCustomerSearch;
-      if (selectedDate) {
-        params.startDate = selectedDate;
-        params.endDate = selectedDate;
-      }
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
 
       try {
         const response: OrdersApiResponse = await fetchOrders(params, {
@@ -166,7 +162,8 @@ export default function ManageDeliveriesPage() {
       statusFilter,
       planTypeFilter,
       debouncedCustomerSearch,
-      selectedDate,
+      startDate,
+      endDate,
     ]
   );
 
@@ -200,7 +197,10 @@ export default function ManageDeliveriesPage() {
     setDebouncedCustomerSearch("");
     setStatusFilter("ALL");
     setPlanTypeFilter("ALL");
-    setSelectedDate("");
+    setActiveDatePreset("TODAY");
+    const today = getTodayIST();
+    setStartDate(today);
+    setEndDate(today);
     setCurrentPage(1);
     setSelectedOrderIds([]);
   };
@@ -368,7 +368,7 @@ export default function ManageDeliveriesPage() {
     customerSearch !== "" ||
     statusFilter !== "ALL" ||
     planTypeFilter !== "ALL" ||
-    selectedDate !== "";
+    activeDatePreset !== "TODAY";
 
   const getCustomerInitials = (name?: string) => {
     if (!name) return "CU";
@@ -403,52 +403,24 @@ export default function ManageDeliveriesPage() {
         {/* Date Tabs & Sync Live Button */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Quick Date Segmented Switch */}
-          <div className="inline-flex rounded-[10px] border-2 border-black bg-white p-0.5 shadow-[2px_2px_0px_0px_#000000]">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDate(todayStr);
-                setCurrentPage(1);
-              }}
-              className={`h-8 px-3.5 rounded-[7px] text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                selectedDate === todayStr
-                  ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
-                  : "text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
-              }`}
-            >
-              Today
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDate(tomorrowStr);
-                setCurrentPage(1);
-              }}
-              className={`h-8 px-3.5 rounded-[7px] text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                selectedDate === tomorrowStr
-                  ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
-                  : "text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
-              }`}
-            >
-              Tomorrow
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDate("");
-                setCurrentPage(1);
-              }}
-              className={`h-8 px-3.5 rounded-[7px] text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                selectedDate === ""
-                  ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
-                  : "text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
-              }`}
-            >
-              All Dates
-            </button>
-          </div>
+          <DatePresetFilter
+            activePreset={activeDatePreset}
+            startDate={startDate}
+            endDate={endDate}
+            includeTomorrow={true}
+            onPresetChange={(preset, range) => {
+              setActiveDatePreset(preset);
+              setStartDate(range.startDate);
+              setEndDate(range.endDate);
+              setCurrentPage(1);
+            }}
+            onRangeChange={(range) => {
+              setActiveDatePreset("CUSTOM");
+              setStartDate(range.startDate);
+              setEndDate(range.endDate);
+              setCurrentPage(1);
+            }}
+          />
 
           {/* Sync Live Refresh Button */}
           <button
@@ -640,19 +612,36 @@ export default function ManageDeliveriesPage() {
             )}
           </div>
 
-          {/* Delivery Date Picker */}
-          <div className="sm:col-span-3 relative">
-            <div className="relative flex items-center">
-              <Calendar className="absolute left-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5] pointer-events-none" />
+          {/* Delivery Date Range Picker */}
+          <div className="sm:col-span-3 flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5] pointer-events-none" />
               <Input
                 type="date"
-                value={selectedDate}
+                value={startDate}
                 onChange={(e) => {
-                  setSelectedDate(e.target.value);
+                  setStartDate(e.target.value);
+                  setActiveDatePreset("CUSTOM");
                   setCurrentPage(1);
                 }}
-                aria-label="Filter by delivery date"
+                aria-label="Filter from date"
+                title="From date"
                 className="pl-8 h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
+              />
+            </div>
+            <span className="text-[11px] font-black text-[#5C5647] shrink-0">to</span>
+            <div className="relative flex-1">
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setActiveDatePreset("CUSTOM");
+                  setCurrentPage(1);
+                }}
+                aria-label="Filter to date"
+                title="To date"
+                className="h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
               />
             </div>
           </div>

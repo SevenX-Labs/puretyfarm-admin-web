@@ -17,6 +17,8 @@ import { BulkUpdateQuantityModal } from "@/components/orders/bulk-update-quantit
 import { BulkResultsModal } from "@/components/orders/bulk-results-modal";
 import { BulkOperationResponse } from "@/services/order-service";
 import { clampPageAfterSuccess } from "@/lib/pagination";
+import { DatePresetFilter } from "@/components/ui/date-preset-filter";
+import { DatePreset, getTodayIST } from "@/lib/date-filter";
 import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -64,13 +66,14 @@ export default function OrdersPage() {
   const pageSize = 20;
 
   // Filter States
+  const [activeDatePreset, setActiveDatePreset] = useState<DatePreset>("TODAY");
+  const [startDate, setStartDate] = useState<string>(() => getTodayIST());
+  const [endDate, setEndDate] = useState<string>(() => getTodayIST());
   const [customerSearch, setCustomerSearch] = useState<string>("");
   const [orderNumberInput, setOrderNumberInput] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentStatus | "ALL">("ALL");
   const [planTypeFilter, setPlanTypeFilter] = useState<PlanType | "ALL">("ALL");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
 
   // Debounced search queries
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState<string>("");
@@ -270,8 +273,7 @@ export default function OrdersPage() {
     statusFilter !== "ALL" ||
     paymentStatusFilter !== "ALL" ||
     planTypeFilter !== "ALL" ||
-    Boolean(startDate) ||
-    Boolean(endDate);
+    activeDatePreset !== "TODAY";
 
   const extraFiltersCount = [
     Boolean(orderNumberInput),
@@ -543,6 +545,36 @@ export default function OrdersPage() {
       {/* 3. MINIMAL FILTER BLOCK (Collapsed by Default)            */}
       {/* ========================================================= */}
       <div className="min-w-0 bg-white border-2 border-black p-3.5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3">
+        {/* Date Filter Presets Row */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b-2 border-black/10 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-[5px] border-2 border-black bg-[#FFDF58] shadow-[1px_1px_0px_0px_#000000]">
+              <Calendar className="h-3.5 w-3.5 stroke-[2.5] text-[#1A1A1A]" />
+            </span>
+            <span className="text-xs font-black uppercase text-[#1A1A1A] tracking-wider">
+              Date Filter:
+            </span>
+          </div>
+
+          <DatePresetFilter
+            activePreset={activeDatePreset}
+            startDate={startDate}
+            endDate={endDate}
+            onPresetChange={(preset, range) => {
+              setActiveDatePreset(preset);
+              setStartDate(range.startDate);
+              setEndDate(range.endDate);
+              setCurrentPage(1);
+            }}
+            onRangeChange={(range) => {
+              setActiveDatePreset("CUSTOM");
+              setStartDate(range.startDate);
+              setEndDate(range.endDate);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+
         {/* Primary Single Row: Search + Status + Date + Expander */}
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
           {/* Search Box (Customer Name/Phone/Email) */}

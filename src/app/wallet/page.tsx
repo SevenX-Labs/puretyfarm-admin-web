@@ -35,6 +35,7 @@ import { CancelCashModal } from "@/components/payments/cancel-cash-modal";
 import { CashCollectionDetailSheet } from "@/components/payments/cash-collection-detail-sheet";
 import {
   Wallet,
+  Calendar,
   Search,
   RefreshCw,
   RotateCcw,
@@ -63,6 +64,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { ButtonLoader } from "@/components/ui/button-loader";
+import { DatePresetFilter } from "@/components/ui/date-preset-filter";
+import { DatePreset, getTodayIST } from "@/lib/date-filter";
 
 type PrimaryTab = "PENDING_APPROVALS" | "CUSTOMER_LEDGER";
 type PaymentMethodFilter = "ALL" | "ONLINE" | "CASH";
@@ -123,7 +126,10 @@ export default function WalletPage() {
   const [isApprovalsRefreshing, setIsApprovalsRefreshing] = useState<boolean>(false);
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
 
-  // Filters for Pending Approvals
+  // Filters for Pending Approvals (defaults to TODAY)
+  const [activeDatePreset, setActiveDatePreset] = useState<DatePreset>("TODAY");
+  const [startDate, setStartDate] = useState<string>(() => getTodayIST());
+  const [endDate, setEndDate] = useState<string>(() => getTodayIST());
   const [methodFilter, setMethodFilter] = useState<PaymentMethodFilter>("ALL");
   const [approvalsSearch, setApprovalsSearch] = useState<string>("");
   const [debouncedApprovalsSearch, setDebouncedApprovalsSearch] = useState<string>("");
@@ -195,13 +201,17 @@ export default function WalletPage() {
       setApprovalsError(null);
 
       try {
+        const queryParams: Record<string, any> = { status: "PENDING", limit: 50 };
+        if (startDate) queryParams.startDate = startDate;
+        if (endDate) queryParams.endDate = endDate;
+
         const [onlineRes, cashRes] = await Promise.all([
           fetchCreditRequests(
-            { status: "PENDING", source: "ONLINE", limit: 50 },
+            { source: "ONLINE", ...queryParams },
             { forceRefresh }
           ),
           fetchCashCollections(
-            { status: "PENDING", limit: 50 },
+            queryParams,
             { forceRefresh }
           ),
         ]);
@@ -220,7 +230,7 @@ export default function WalletPage() {
         setIsApprovalsRefreshing(false);
       }
     },
-    []
+    [startDate, endDate]
   );
 
   useEffect(() => {
@@ -300,6 +310,13 @@ export default function WalletPage() {
         return false;
       }
 
+      // Date Filter
+      if (startDate || endDate) {
+        const itemDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(item.createdAt));
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+      }
+
       // Search Query
       if (debouncedApprovalsSearch) {
         const q = debouncedApprovalsSearch.toLowerCase();
@@ -314,7 +331,7 @@ export default function WalletPage() {
 
       return true;
     });
-  }, [unifiedPendingList, methodFilter, debouncedApprovalsSearch]);
+  }, [unifiedPendingList, methodFilter, debouncedApprovalsSearch, startDate, endDate]);
 
   // Paginate pending items
   const totalPendingPages = Math.max(1, Math.ceil(filteredPendingList.length / approvalsPageSize));
@@ -603,6 +620,36 @@ export default function WalletPage() {
 
           {/* Controls Toolbar */}
           <div className="bg-white border-2 border-black rounded-[14px] p-3.5 sm:p-4 shadow-[4px_4px_0px_0px_#000000] space-y-3">
+            {/* Date Preset Filter Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 border-b-2 border-black/10 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-[5px] border-2 border-black bg-[#FFDF58] shadow-[1px_1px_0px_0px_#000000]">
+                  <Calendar className="h-3.5 w-3.5 stroke-[2.5] text-[#1A1A1A]" />
+                </span>
+                <span className="text-xs font-black uppercase text-[#1A1A1A] tracking-wider">
+                  Date Filter:
+                </span>
+              </div>
+
+              <DatePresetFilter
+                activePreset={activeDatePreset}
+                startDate={startDate}
+                endDate={endDate}
+                onPresetChange={(preset, range) => {
+                  setActiveDatePreset(preset);
+                  setStartDate(range.startDate);
+                  setEndDate(range.endDate);
+                  setApprovalsPage(1);
+                }}
+                onRangeChange={(range) => {
+                  setActiveDatePreset("CUSTOM");
+                  setStartDate(range.startDate);
+                  setEndDate(range.endDate);
+                  setApprovalsPage(1);
+                }}
+              />
+            </div>
+
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               {/* Search Bar */}
               <div className="relative flex-1 max-w-md">
@@ -684,16 +731,21 @@ export default function WalletPage() {
                   No Pending Approvals
                 </h3>
                 <p className="text-xs font-bold text-[#5C5647] max-w-sm mx-auto">
-                  {debouncedApprovalsSearch || methodFilter !== "ALL"
+                  {debouncedApprovalsSearch || methodFilter !== "ALL" || activeDatePreset !== "TODAY"
                     ? "No pending requests matched your active filter or search."
                     : "All customer top-up requests and doorstep cash collections are fully verified."}
                 </p>
-                {(debouncedApprovalsSearch || methodFilter !== "ALL") && (
+                {(debouncedApprovalsSearch || methodFilter !== "ALL" || activeDatePreset !== "TODAY") && (
                   <button
                     type="button"
                     onClick={() => {
                       setApprovalsSearch("");
                       setMethodFilter("ALL");
+                      setActiveDatePreset("TODAY");
+                      const today = getTodayIST();
+                      setStartDate(today);
+                      setEndDate(today);
+                      setApprovalsPage(1);
                     }}
                     className="px-4 py-2 bg-[#FAF7EC] border-2 border-black rounded-[8px] text-xs font-black uppercase shadow-[2px_2px_0px_0px_#000000] hover:bg-white cursor-pointer"
                   >
