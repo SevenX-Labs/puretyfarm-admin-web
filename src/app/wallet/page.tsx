@@ -231,7 +231,7 @@ export default function WalletPage() {
     if (activeTab === "PENDING_APPROVALS") {
       loadPendingApprovals(true);
     }
-  }, { intervalMs: 30000 });
+  }, { intervalMs: 30000, events: ["admin.wallets.updated"] });
 
   // Combine and deduplicate pending items
   const unifiedPendingList: UnifiedPendingItem[] = useMemo(() => {

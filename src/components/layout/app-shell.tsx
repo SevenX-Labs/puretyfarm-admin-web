@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { SessionExpiredModal } from "@/components/auth/session-expired-modal";
+import { RealtimeProvider } from "@/context/realtime-context";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21,23 +22,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen w-full min-w-0 flex bg-[#FAF7EC]">
-      {/* Session Expired / Unauthorized Modal */}
-      <SessionExpiredModal />
+    <RealtimeProvider>
+      <div className="min-h-screen w-full min-w-0 flex bg-[#FAF7EC]">
+        {/* Session Expired / Unauthorized Modal */}
+        <SessionExpiredModal />
 
-      {/* Neo-Brutalist Sidebar (Desktop fixed + Mobile slide-out drawer) */}
-      <Sidebar
-        isMobileOpen={isMobileMenuOpen}
-        onCloseMobile={() => setIsMobileMenuOpen(false)}
-      />
+        {/* Neo-Brutalist Sidebar (Desktop fixed + Mobile slide-out drawer) */}
+        <Sidebar
+          isMobileOpen={isMobileMenuOpen}
+          onCloseMobile={() => setIsMobileMenuOpen(false)}
+        />
 
-      {/* Main Content Area - lg:pl-64 on desktop, pl-0 on mobile */}
-      <div className="flex flex-1 flex-col lg:pl-64 min-w-0 w-full bg-[#FAF7EC]">
-        <Header onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)} />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
-          {children}
-        </main>
+        {/* Main Content Area - lg:pl-64 on desktop, pl-0 on mobile */}
+        <div className="flex flex-1 flex-col lg:pl-64 min-w-0 w-full bg-[#FAF7EC]">
+          <Header onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)} />
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:px-7 sm:py-7 lg:px-8 lg:py-8">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </RealtimeProvider>
   );
 }

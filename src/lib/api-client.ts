@@ -79,7 +79,7 @@ export interface RequestOptions extends RequestInit {
 let refreshPromise: Promise<string | null> | null = null;
 const IN_FLIGHT_REQUESTS = new Map<string, Promise<unknown>>();
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   const isBrowser = typeof window !== "undefined";
   if (!isBrowser) return null;
 

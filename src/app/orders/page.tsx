@@ -244,7 +244,7 @@ export default function OrdersPage() {
     if (!isLoading) {
       loadOrders(currentPageRef.current, true);
     }
-  }, { intervalMs: 12000 });
+  }, { intervalMs: 30000, events: ["admin.orders.updated", "admin.deliveries.updated"] });
 
   const handleOpenDetail = (orderId: string) => {
     setSelectedOrderId(orderId);

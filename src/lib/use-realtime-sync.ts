@@ -1,20 +1,47 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { ApiError } from "@/lib/api-client";
+import { useRealtimeContext, AdminRealtimeEventType } from "@/context/realtime-context";
 
 export interface RealtimeSyncOptions {
-  intervalMs?: number; // minimum 30000 (30 seconds) per Issue B request budget
+  /** Realtime SSE event types to listen for */
+  events?: AdminRealtimeEventType[];
+  /** Fallback polling interval in ms (default: 30000 when down, 120000 when healthy) */
+  intervalMs?: number;
   enabled?: boolean;
   onFocus?: boolean;
 }
 
+const SYNC_EVENT_NAME = "puretyfarm:livesync";
+const BROADCAST_CHANNEL_NAME = "puretyfarm_admin_live_sync";
+
+let broadcastChannel: BroadcastChannel | null = null;
+if (typeof window !== "undefined" && typeof BroadcastChannel !== "undefined") {
+  try {
+    broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+  } catch {
+    broadcastChannel = null;
+  }
+}
+
+export function triggerGlobalLiveSync(reason?: string) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(SYNC_EVENT_NAME, { detail: { reason } }));
+    if (broadcastChannel) {
+      try {
+        broadcastChannel.postMessage({ reason, timestamp: Date.now() });
+      } catch {}
+    }
+  }
+}
+
 /**
- * Background auto-refresh sync adhering to Issue B request budget:
- * 1. Default interval of at least 30 seconds.
- * 2. Paused while the tab is hidden.
- * 3. Skipped if a request is already in-flight.
- * 4. Cleared on unmount.
+ * Background auto-refresh sync for PuretyFarm Admin:
+ * 1. Event-driven immediate refresh when matching backend events arrive.
+ * 2. 300ms debounce with in-flight deduplication and trailing-refresh guarantee.
+ * 3. Polling interval: 120s when stream is healthy, 30s when stream is down.
+ * 4. Paused while the tab is hidden.
  * 5. Stopped immediately on 401 or 429.
  * 6. Rate-limited focus revalidation (avoids duplicate bursts on rapid tab switching).
  */
@@ -22,55 +49,100 @@ export function useRealtimeSync(
   refreshFn: () => void | Promise<void>,
   options: RealtimeSyncOptions = {}
 ) {
-  const { intervalMs = 30000, enabled = true, onFocus = false } = options;
+  const { events, intervalMs = 30000, enabled = true, onFocus = false } = options;
   // Ensure polling interval is at least 30s per hard constraint
-  const effectiveIntervalMs = Math.max(30000, intervalMs);
+  const baseIntervalMs = Math.max(30000, intervalMs);
 
   const fnRef = useRef(refreshFn);
   const inFlightRef = useRef(false);
+  const trailingRefreshNeededRef = useRef(false);
   const isStoppedRef = useRef(false);
   const lastSyncTimeRef = useRef(0);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fnRef.current = refreshFn;
   }, [refreshFn]);
 
+  const realtimeCtx = useRealtimeContext();
+  const isStreamHealthy = realtimeCtx?.isStreamHealthy ?? false;
+
+  const executeSync = useCallback(async () => {
+    if (isStoppedRef.current) return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+
+    if (inFlightRef.current) {
+      // Record trailing refresh needed so an event arriving mid-flight is never missed
+      trailingRefreshNeededRef.current = true;
+      return;
+    }
+
+    inFlightRef.current = true;
+    try {
+      const res = fnRef.current();
+      if (res && typeof (res as Promise<void>).then === "function") {
+        await res;
+      }
+      lastSyncTimeRef.current = Date.now();
+    } catch (err: unknown) {
+      if (err instanceof ApiError && (err.statusCode === 401 || err.statusCode === 429)) {
+        console.warn("[realtime-sync] Stopping auto-sync due to auth or rate-limit status:", err.statusCode);
+        isStoppedRef.current = true;
+      }
+    } finally {
+      inFlightRef.current = false;
+      if (trailingRefreshNeededRef.current) {
+        trailingRefreshNeededRef.current = false;
+        void executeSync();
+      }
+    }
+  }, []);
+
+  const triggerDebouncedSync = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      void executeSync();
+    }, 300);
+  }, [executeSync]);
+
+  // 1. Subscribe to realtime SSE stream events if specified
+  useEffect(() => {
+    if (!enabled || !events || events.length === 0 || !realtimeCtx) return;
+
+    const unsubscribe = realtimeCtx.subscribe(events, () => {
+      triggerDebouncedSync();
+    });
+
+    return () => {
+      unsubscribe();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [enabled, events, realtimeCtx, triggerDebouncedSync]);
+
+  // 2. Periodic background safety-net polling timer
   useEffect(() => {
     if (!enabled) return;
     isStoppedRef.current = false;
 
-    const executeSync = async () => {
-      if (isStoppedRef.current) return;
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      if (inFlightRef.current) return; // Skip if a request is already in-flight
+    // Polling is relaxed to 120s when stream is healthy, or baseIntervalMs (30s) when down
+    const effectiveIntervalMs = isStreamHealthy ? 120000 : baseIntervalMs;
 
-      inFlightRef.current = true;
-      try {
-        const res = fnRef.current();
-        if (res && typeof (res as Promise<void>).then === "function") {
-          await res;
-        }
-        lastSyncTimeRef.current = Date.now();
-      } catch (err: unknown) {
-        if (err instanceof ApiError && (err.statusCode === 401 || err.statusCode === 429)) {
-          console.warn("[realtime-sync] Stopping auto-sync due to auth or rate-limit status:", err.statusCode);
-          isStoppedRef.current = true;
-        }
-      } finally {
-        inFlightRef.current = false;
+    const intervalId = setInterval(executeSync, effectiveIntervalMs);
+
+    // Focus & visibility change handler with cooldown
+    const handleRevalidate = () => {
+      const now = Date.now();
+      if (now - lastSyncTimeRef.current >= 20000) {
+        void executeSync();
       }
     };
 
-    // 1. Periodic background timer
-    const intervalId = setInterval(executeSync, effectiveIntervalMs);
-
-    // 2. Focus & visibility change handler with cooldown
-    const handleRevalidate = () => {
-      const now = Date.now();
-      // Require at least 20 seconds between revalidations on focus
-      if (now - lastSyncTimeRef.current >= 20000) {
-        executeSync();
-      }
+    const handleGlobalLiveSync = () => {
+      void executeSync();
     };
 
     const handleUnauthorizedEvent = () => {
@@ -79,6 +151,10 @@ export function useRealtimeSync(
 
     if (typeof window !== "undefined") {
       window.addEventListener("pf:unauthorized", handleUnauthorizedEvent);
+      window.addEventListener(SYNC_EVENT_NAME, handleGlobalLiveSync);
+      if (broadcastChannel) {
+        broadcastChannel.addEventListener("message", handleGlobalLiveSync);
+      }
       if (onFocus) {
         window.addEventListener("focus", handleRevalidate);
         document.addEventListener("visibilitychange", handleRevalidate);
@@ -89,11 +165,15 @@ export function useRealtimeSync(
       clearInterval(intervalId);
       if (typeof window !== "undefined") {
         window.removeEventListener("pf:unauthorized", handleUnauthorizedEvent);
+        window.removeEventListener(SYNC_EVENT_NAME, handleGlobalLiveSync);
+        if (broadcastChannel) {
+          broadcastChannel.removeEventListener("message", handleGlobalLiveSync);
+        }
         if (onFocus) {
           window.removeEventListener("focus", handleRevalidate);
           document.removeEventListener("visibilitychange", handleRevalidate);
         }
       }
     };
-  }, [enabled, effectiveIntervalMs, onFocus]);
+  }, [enabled, isStreamHealthy, baseIntervalMs, onFocus, executeSync]);
 }

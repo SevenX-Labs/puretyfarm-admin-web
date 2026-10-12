@@ -209,7 +209,7 @@ export default function CustomersPage() {
     if (!isLoading) {
       loadCustomers(page, true);
     }
-  }, { intervalMs: 20000 });
+  }, { intervalMs: 30000, events: ["admin.customers.updated", "admin.wallets.updated", "admin.plans.updated"] });
 
   const handleOpenDetail = (customerId: string) => {
     setSelectedCustomerId(customerId);

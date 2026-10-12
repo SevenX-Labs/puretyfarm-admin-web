@@ -193,7 +193,7 @@ export default function ManageDeliveriesPage() {
     if (!isLoading) {
       loadOrders(currentPageRef.current, true);
     }
-  }, { intervalMs: 12000 });
+  }, { intervalMs: 30000, events: ["admin.deliveries.updated", "admin.orders.updated"] });
 
   const handleResetFilters = () => {
     setCustomerSearch("");

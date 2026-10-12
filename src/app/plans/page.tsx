@@ -338,7 +338,7 @@ export default function PlansAndDeliveryPage() {
     } else if (activeTab === "PLANS") {
       if (!plansLoading) fetchPlansData(true);
     }
-  }, { intervalMs: 30000 });
+  }, { intervalMs: 30000, events: ["admin.plans.updated", "admin.deliveries.updated"] });
 
   // ==========================================
   // ACTIONS: APPROVE / REJECT / TOGGLE PLAN

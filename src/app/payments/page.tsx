@@ -369,7 +369,7 @@ export default function PaymentsPage() {
         loadPayments(paymentPageRef.current, true);
       }
     }
-  }, { intervalMs: 30000 });
+  }, { intervalMs: 30000, events: ["admin.payments.updated", "admin.wallets.updated"] });
 
   // Reset Cash Filters
   const handleResetCashFilters = () => {

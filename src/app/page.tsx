@@ -115,7 +115,7 @@ export default function DashboardOverviewPage() {
 
   useRealtimeSync(() => {
     loadDashboardData(fromDate, toDate, true);
-  }, { intervalMs: 25000 });
+  }, { intervalMs: 30000, events: ["admin.dashboard.updated", "admin.orders.updated", "admin.payments.updated", "admin.wallets.updated", "admin.plans.updated"] });
 
   // Handle Preset Clicks
   const handleSelectPreset = (preset: DatePreset) => {
