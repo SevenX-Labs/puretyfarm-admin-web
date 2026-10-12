@@ -17,7 +17,7 @@ import { BulkUpdateQuantityModal } from "@/components/orders/bulk-update-quantit
 import { BulkResultsModal } from "@/components/orders/bulk-results-modal";
 import { BulkOperationResponse } from "@/services/order-service";
 import { clampPageAfterSuccess } from "@/lib/pagination";
-import { DatePresetFilter } from "@/components/ui/date-preset-filter";
+import { DateFilterDialog } from "@/components/ui/date-filter-dialog";
 import { DatePreset, getTodayIST } from "@/lib/date-filter";
 import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -186,6 +186,9 @@ export default function OrdersPage() {
       if (planTypeFilter !== "ALL") params.planType = planTypeFilter;
       if (debouncedCustomerSearch) params.customerSearch = debouncedCustomerSearch;
       if (debouncedOrderNumber) params.orderNumber = debouncedOrderNumber;
+      if (startDate && startDate === endDate) {
+        params.deliveryDate = startDate;
+      }
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
 
@@ -545,40 +548,10 @@ export default function OrdersPage() {
       {/* 3. MINIMAL FILTER BLOCK (Collapsed by Default)            */}
       {/* ========================================================= */}
       <div className="min-w-0 bg-white border-2 border-black p-3.5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] space-y-3">
-        {/* Date Filter Presets Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b-2 border-black/10 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-[5px] border-2 border-black bg-[#FFDF58] shadow-[1px_1px_0px_0px_#000000]">
-              <Calendar className="h-3.5 w-3.5 stroke-[2.5] text-[#1A1A1A]" />
-            </span>
-            <span className="text-xs font-black uppercase text-[#1A1A1A] tracking-wider">
-              Date Filter:
-            </span>
-          </div>
-
-          <DatePresetFilter
-            activePreset={activeDatePreset}
-            startDate={startDate}
-            endDate={endDate}
-            onPresetChange={(preset, range) => {
-              setActiveDatePreset(preset);
-              setStartDate(range.startDate);
-              setEndDate(range.endDate);
-              setCurrentPage(1);
-            }}
-            onRangeChange={(range) => {
-              setActiveDatePreset("CUSTOM");
-              setStartDate(range.startDate);
-              setEndDate(range.endDate);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
-
-        {/* Primary Single Row: Search + Status + Date + Expander */}
+        {/* Primary Single Row: Search + Status + Date Filter Dialog + Expander */}
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
           {/* Search Box (Customer Name/Phone/Email) */}
-          <div className="sm:col-span-5 relative">
+          <div className="sm:col-span-4 relative">
             <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5]" />
             <Input
               placeholder="Search customer name, phone, or email..."
@@ -621,17 +594,20 @@ export default function OrdersPage() {
             </select>
           </div>
 
-          {/* Quick Date Selector */}
-          <div className="sm:col-span-2">
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
+          {/* Date Filter Dialog Trigger Button */}
+          <div className="sm:col-span-3">
+            <DateFilterDialog
+              activePreset={activeDatePreset}
+              startDate={startDate}
+              endDate={endDate}
+              buttonLabel="Date"
+              onApply={(preset, range) => {
+                setActiveDatePreset(preset);
+                setStartDate(range.startDate);
+                setEndDate(range.endDate);
                 setCurrentPage(1);
               }}
-              aria-label="Filter by delivery date"
-              className="h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A]"
+              className="w-full [&>button]:w-full [&>button]:justify-between"
             />
           </div>
 

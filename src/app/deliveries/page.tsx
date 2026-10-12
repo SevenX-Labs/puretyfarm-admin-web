@@ -17,6 +17,7 @@ import { BulkResultsModal } from "@/components/orders/bulk-results-modal";
 import { BulkOperationResponse } from "@/services/order-service";
 import { clampPageAfterSuccess } from "@/lib/pagination";
 import { DatePresetFilter } from "@/components/ui/date-preset-filter";
+import { DateFilterDialog } from "@/components/ui/date-filter-dialog";
 import { DatePreset, getTodayIST } from "@/lib/date-filter";
 import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -121,6 +122,9 @@ export default function ManageDeliveriesPage() {
       if (statusFilter !== "ALL") params.status = statusFilter;
       if (planTypeFilter !== "ALL") params.planType = planTypeFilter;
       if (debouncedCustomerSearch) params.customerSearch = debouncedCustomerSearch;
+      if (startDate && startDate === endDate) {
+        params.deliveryDate = startDate;
+      }
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
 
@@ -402,25 +406,20 @@ export default function ManageDeliveriesPage() {
 
         {/* Date Tabs & Sync Live Button */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Quick Date Segmented Switch */}
-          <DatePresetFilter
-            activePreset={activeDatePreset}
-            startDate={startDate}
-            endDate={endDate}
-            includeTomorrow={true}
-            onPresetChange={(preset, range) => {
-              setActiveDatePreset(preset);
-              setStartDate(range.startDate);
-              setEndDate(range.endDate);
-              setCurrentPage(1);
-            }}
-            onRangeChange={(range) => {
-              setActiveDatePreset("CUSTOM");
-              setStartDate(range.startDate);
-              setEndDate(range.endDate);
-              setCurrentPage(1);
-            }}
-          />
+          {/* Quick Date Presets & Dialog Trigger */}
+          <div className="flex items-center gap-1.5">
+            <DateFilterDialog
+              activePreset={activeDatePreset}
+              startDate={startDate}
+              endDate={endDate}
+              onApply={(preset, range) => {
+                setActiveDatePreset(preset);
+                setStartDate(range.startDate);
+                setEndDate(range.endDate);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
 
           {/* Sync Live Refresh Button */}
           <button
@@ -612,38 +611,21 @@ export default function ManageDeliveriesPage() {
             )}
           </div>
 
-          {/* Delivery Date Range Picker */}
-          <div className="sm:col-span-3 flex items-center gap-1.5">
-            <div className="relative flex-1">
-              <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[#5C5647] stroke-[2.5] pointer-events-none" />
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setActiveDatePreset("CUSTOM");
-                  setCurrentPage(1);
-                }}
-                aria-label="Filter from date"
-                title="From date"
-                className="pl-8 h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
-              />
-            </div>
-            <span className="text-[11px] font-black text-[#5C5647] shrink-0">to</span>
-            <div className="relative flex-1">
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setActiveDatePreset("CUSTOM");
-                  setCurrentPage(1);
-                }}
-                aria-label="Filter to date"
-                title="To date"
-                className="h-9 text-xs font-bold font-mono border-2 border-black rounded-[8px] bg-white text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
-              />
-            </div>
+          {/* Delivery Date Filter Dialog Button */}
+          <div className="sm:col-span-3">
+            <DateFilterDialog
+              activePreset={activeDatePreset}
+              startDate={startDate}
+              endDate={endDate}
+              buttonLabel="Delivery"
+              onApply={(preset, range) => {
+                setActiveDatePreset(preset);
+                setStartDate(range.startDate);
+                setEndDate(range.endDate);
+                setCurrentPage(1);
+              }}
+              className="w-full [&>button]:w-full [&>button]:justify-between"
+            />
           </div>
 
           {/* Status Filter */}
