@@ -1,5 +1,6 @@
-import { RealtimeStreamClient } from "@/lib/realtime/realtime-stream-client";
 "use client";
+
+import { RealtimeStreamClient } from "@/lib/realtime/realtime-stream-client";
 
 import React, {
   createContext,

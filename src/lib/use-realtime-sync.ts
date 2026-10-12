@@ -1,5 +1,6 @@
-import { createSyncExecutor } from "@/lib/realtime/sync-executor";
 "use client";
+
+import { createSyncExecutor } from "@/lib/realtime/sync-executor";
 
 import { useEffect, useRef, useCallback } from "react";
 import { ApiError } from "@/lib/api-client";
