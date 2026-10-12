@@ -77,15 +77,17 @@ export const DEFAULT_PLANS: PlanConfig[] = [
   },
 ];
 
-const EMPTY_REQUESTS_RESPONSE: ChangeRequestsApiResponse = {
-  data: [],
-  pagination: {
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 1,
-  },
-};
+function getEmptyRequestsResponse(page = 1, limit = 20): ChangeRequestsApiResponse {
+  return {
+    data: [],
+    pagination: {
+      page,
+      limit,
+      total: 0,
+      totalPages: 1,
+    },
+  };
+}
 
 /** Reads the server's cut-off policy, or null when it did not send one. */
 function normalizeOrderCutoff(res: unknown): OrderCutoffPolicy | null {
@@ -215,9 +217,13 @@ export async function updatePlanConfig(
 }
 
 /**
- * Normalizes change requests API response
+ * Normalizes change requests API response preserving requested page
  */
-function normalizeChangeRequestsResponse(res: unknown): ChangeRequestsApiResponse {
+function normalizeChangeRequestsResponse(
+  res: unknown,
+  requestedPage = 1,
+  requestedLimit = 20
+): ChangeRequestsApiResponse {
   if (res && typeof res === "object") {
     const obj = res as Record<string, unknown>;
     const data = Array.isArray(obj.data)
@@ -228,17 +234,30 @@ function normalizeChangeRequestsResponse(res: unknown): ChangeRequestsApiRespons
       ? (res as ChangeRequestItem[])
       : [];
 
-    const pagination = (obj.pagination as ChangeRequestsApiResponse["pagination"]) || {
-      page: 1,
-      limit: data.length || 20,
-      total: data.length,
-      totalPages: Math.ceil((data.length || 1) / (data.length || 20)),
+    const rawPagination = obj.pagination as Record<string, unknown> | undefined;
+    const pagination: ChangeRequestsApiResponse["pagination"] = {
+      page:
+        typeof rawPagination?.page === "number"
+          ? rawPagination.page
+          : requestedPage,
+      limit:
+        typeof rawPagination?.limit === "number"
+          ? rawPagination.limit
+          : requestedLimit,
+      total:
+        typeof rawPagination?.total === "number"
+          ? rawPagination.total
+          : data.length,
+      totalPages:
+        typeof rawPagination?.totalPages === "number"
+          ? Math.max(1, rawPagination.totalPages)
+          : Math.max(1, Math.ceil((data.length || 1) / requestedLimit)),
     };
 
     return { data, pagination };
   }
 
-  return EMPTY_REQUESTS_RESPONSE;
+  return getEmptyRequestsResponse(requestedPage, requestedLimit);
 }
 
 export interface ChangeRequestQueryParams {
@@ -271,6 +290,9 @@ export async function fetchChangeRequests(
   params: ChangeRequestQueryParams = {},
   options?: SwrOptions<ChangeRequestsApiResponse>
 ): Promise<ChangeRequestsApiResponse> {
+  const requestedPage = typeof params.page === "number" && params.page > 0 ? params.page : 1;
+  const requestedLimit = typeof params.limit === "number" && params.limit > 0 ? params.limit : 20;
+
   const query = new URLSearchParams();
   if (params.status && params.status !== "ALL") query.set("status", params.status);
   if (params.requestType && params.requestType !== "ALL") {
@@ -290,10 +312,10 @@ export async function fetchChangeRequests(
             `/admin/manage-delivery/requests?${query.toString()}`,
             { skipAuthRedirect: true }
           );
-          return normalizeChangeRequestsResponse(res);
+          return normalizeChangeRequestsResponse(res, requestedPage, requestedLimit);
         } catch {
           const cached = getCachedData<ChangeRequestsApiResponse>(cacheKey);
-          return cached || EMPTY_REQUESTS_RESPONSE;
+          return cached || getEmptyRequestsResponse(requestedPage, requestedLimit);
         }
       },
       options
@@ -303,7 +325,7 @@ export async function fetchChangeRequests(
       return cachedData;
     }
     const res = await promise;
-    return res || getCachedData<ChangeRequestsApiResponse>(cacheKey) || EMPTY_REQUESTS_RESPONSE;
+    return res || getCachedData<ChangeRequestsApiResponse>(cacheKey) || getEmptyRequestsResponse(requestedPage, requestedLimit);
   }
 
   try {
@@ -311,12 +333,12 @@ export async function fetchChangeRequests(
       `/admin/manage-delivery/requests?${query.toString()}`,
       { skipAuthRedirect: true }
     );
-    const normalized = normalizeChangeRequestsResponse(res);
+    const normalized = normalizeChangeRequestsResponse(res, requestedPage, requestedLimit);
     setCachedData(cacheKey, normalized);
     return normalized;
   } catch {
     const cached = getCachedData<ChangeRequestsApiResponse>(cacheKey);
-    return cached || EMPTY_REQUESTS_RESPONSE;
+    return cached || getEmptyRequestsResponse(requestedPage, requestedLimit);
   }
 }
 
@@ -403,6 +425,55 @@ export const getChangeRequests = fetchChangeRequests;
 
 import type { CustomerSubscriptionItem, CustomerSubscriptionsApiResponse } from "@/types/plan-delivery";
 
+function normalizeSubscriptionsResponse(
+  res: unknown,
+  requestedPage = 1,
+  requestedLimit = 20
+): CustomerSubscriptionsApiResponse {
+  if (res && typeof res === "object") {
+    const obj = res as Record<string, unknown>;
+    const data = Array.isArray(obj.data)
+      ? (obj.data as CustomerSubscriptionItem[])
+      : Array.isArray(obj.subscriptions)
+      ? (obj.subscriptions as CustomerSubscriptionItem[])
+      : Array.isArray(res)
+      ? (res as CustomerSubscriptionItem[])
+      : [];
+
+    const rawPagination = obj.pagination as Record<string, unknown> | undefined;
+    const pagination = {
+      page:
+        typeof rawPagination?.page === "number"
+          ? rawPagination.page
+          : requestedPage,
+      limit:
+        typeof rawPagination?.limit === "number"
+          ? rawPagination.limit
+          : requestedLimit,
+      total:
+        typeof rawPagination?.total === "number"
+          ? rawPagination.total
+          : data.length,
+      totalPages:
+        typeof rawPagination?.totalPages === "number"
+          ? Math.max(1, rawPagination.totalPages)
+          : Math.max(1, Math.ceil((data.length || 1) / requestedLimit)),
+    };
+
+    return { data, pagination };
+  }
+
+  return {
+    data: [],
+    pagination: {
+      page: requestedPage,
+      limit: requestedLimit,
+      total: 0,
+      totalPages: 1,
+    },
+  };
+}
+
 export async function fetchAdminSubscriptions(
   params: {
     page?: number;
@@ -413,6 +484,9 @@ export async function fetchAdminSubscriptions(
   } = {},
   options?: SwrOptions<CustomerSubscriptionsApiResponse>
 ): Promise<CustomerSubscriptionsApiResponse> {
+  const requestedPage = typeof params.page === "number" && params.page > 0 ? params.page : 1;
+  const requestedLimit = typeof params.limit === "number" && params.limit > 0 ? params.limit : 20;
+
   const query = new URLSearchParams();
   if (params.page) query.set("page", params.page.toString());
   if (params.limit) query.set("limit", params.limit.toString());
@@ -428,13 +502,13 @@ export async function fetchAdminSubscriptions(
       cacheKey,
       async () => {
         try {
-          const res = await apiClient<CustomerSubscriptionsApiResponse>(endpoint, {
+          const res = await apiClient<unknown>(endpoint, {
             skipAuthRedirect: true,
           });
-          return res;
+          return normalizeSubscriptionsResponse(res, requestedPage, requestedLimit);
         } catch {
           const cached = getCachedData<CustomerSubscriptionsApiResponse>(cacheKey);
-          return cached || { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } };
+          return cached || normalizeSubscriptionsResponse(null, requestedPage, requestedLimit);
         }
       },
       options
@@ -444,18 +518,19 @@ export async function fetchAdminSubscriptions(
       return cachedData;
     }
     const res = await promise;
-    return res || getCachedData<CustomerSubscriptionsApiResponse>(cacheKey) || { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } };
+    return res || getCachedData<CustomerSubscriptionsApiResponse>(cacheKey) || normalizeSubscriptionsResponse(null, requestedPage, requestedLimit);
   }
 
   try {
-    const res = await apiClient<CustomerSubscriptionsApiResponse>(endpoint, {
+    const res = await apiClient<unknown>(endpoint, {
       skipAuthRedirect: true,
     });
-    setCachedData(cacheKey, res);
-    return res;
+    const normalized = normalizeSubscriptionsResponse(res, requestedPage, requestedLimit);
+    setCachedData(cacheKey, normalized);
+    return normalized;
   } catch {
     const cached = getCachedData<CustomerSubscriptionsApiResponse>(cacheKey);
-    return cached || { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } };
+    return cached || normalizeSubscriptionsResponse(null, requestedPage, requestedLimit);
   }
 }
 

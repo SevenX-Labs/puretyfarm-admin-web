@@ -53,20 +53,26 @@ export interface OrderQueryParams {
   limit?: number;
 }
 
-const EMPTY_ORDERS_RESPONSE: OrdersApiResponse = {
-  data: [],
-  pagination: {
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 1,
-  },
-};
+function getEmptyOrdersResponse(page = 1, limit = 20): OrdersApiResponse {
+  return {
+    data: [],
+    pagination: {
+      page,
+      limit,
+      total: 0,
+      totalPages: 1,
+    },
+  };
+}
 
 /**
- * Normalizes backend response
+ * Normalizes backend response preserving requested page
  */
-function normalizeOrdersResponse(res: unknown): OrdersApiResponse {
+function normalizeOrdersResponse(
+  res: unknown,
+  requestedPage = 1,
+  requestedLimit = 20
+): OrdersApiResponse {
   if (res && typeof res === "object") {
     const obj = res as Record<string, unknown>;
     const data = Array.isArray(obj.data)
@@ -77,17 +83,30 @@ function normalizeOrdersResponse(res: unknown): OrdersApiResponse {
       ? (res as AdminOrder[])
       : [];
 
-    const pagination = (obj.pagination as OrdersApiResponse["pagination"]) || {
-      page: 1,
-      limit: data.length || 20,
-      total: data.length,
-      totalPages: Math.max(1, Math.ceil((data.length || 1) / (data.length || 20))),
+    const rawPagination = obj.pagination as Record<string, unknown> | undefined;
+    const pagination: OrdersApiResponse["pagination"] = {
+      page:
+        typeof rawPagination?.page === "number"
+          ? rawPagination.page
+          : requestedPage,
+      limit:
+        typeof rawPagination?.limit === "number"
+          ? rawPagination.limit
+          : requestedLimit,
+      total:
+        typeof rawPagination?.total === "number"
+          ? rawPagination.total
+          : data.length,
+      totalPages:
+        typeof rawPagination?.totalPages === "number"
+          ? Math.max(1, rawPagination.totalPages)
+          : Math.max(1, Math.ceil((data.length || 1) / requestedLimit)),
     };
 
     return { data, pagination };
   }
 
-  return EMPTY_ORDERS_RESPONSE;
+  return getEmptyOrdersResponse(requestedPage, requestedLimit);
 }
 
 /**
@@ -97,6 +116,9 @@ export async function fetchOrders(
   params: OrderQueryParams = {},
   options?: SwrOptions<OrdersApiResponse>
 ): Promise<OrdersApiResponse> {
+  const requestedPage = typeof params.page === "number" && params.page > 0 ? params.page : 1;
+  const requestedLimit = typeof params.limit === "number" && params.limit > 0 ? params.limit : 20;
+
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "" && value !== "ALL") {
@@ -114,10 +136,10 @@ export async function fetchOrders(
           const res = await apiClient<unknown>(`/admin/orders?${query.toString()}`, {
             skipAuthRedirect: true,
           });
-          return normalizeOrdersResponse(res);
+          return normalizeOrdersResponse(res, requestedPage, requestedLimit);
         } catch {
           const cached = getCachedData<OrdersApiResponse>(cacheKey);
-          return cached || EMPTY_ORDERS_RESPONSE;
+          return cached || getEmptyOrdersResponse(requestedPage, requestedLimit);
         }
       },
       options
@@ -127,19 +149,19 @@ export async function fetchOrders(
       return cachedData;
     }
     const res = await promise;
-    return res || getCachedData<OrdersApiResponse>(cacheKey) || EMPTY_ORDERS_RESPONSE;
+    return res || getCachedData<OrdersApiResponse>(cacheKey) || getEmptyOrdersResponse(requestedPage, requestedLimit);
   }
 
   try {
     const res = await apiClient<unknown>(`/admin/orders?${query.toString()}`, {
       skipAuthRedirect: true,
     });
-    const normalized = normalizeOrdersResponse(res);
+    const normalized = normalizeOrdersResponse(res, requestedPage, requestedLimit);
     setCachedData(cacheKey, normalized);
     return normalized;
   } catch {
     const cached = getCachedData<OrdersApiResponse>(cacheKey);
-    return cached || EMPTY_ORDERS_RESPONSE;
+    return cached || getEmptyOrdersResponse(requestedPage, requestedLimit);
   }
 }
 

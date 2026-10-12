@@ -307,13 +307,23 @@ export default function PlansAndDeliveryPage() {
     }
   }, [activeTab, fetchPlansData]);
 
+  const subPageRef = React.useRef(subPage);
+  useEffect(() => {
+    subPageRef.current = subPage;
+  }, [subPage]);
+
+  const currentPageRef = React.useRef(currentPage);
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
   useRealtimeSync(() => {
     if (activeTab === "SUBSCRIPTIONS") {
-      fetchSubscriptionsData(subPage, true);
+      if (!subscriptionsLoading) fetchSubscriptionsData(subPageRef.current, true);
     } else if (activeTab === "REQUESTS") {
-      fetchRequestsData(currentPage, true);
+      if (!requestsLoading) fetchRequestsData(currentPageRef.current, true);
     } else if (activeTab === "PLANS") {
-      fetchPlansData(true);
+      if (!plansLoading) fetchPlansData(true);
     }
   }, { intervalMs: 15000 });
 
@@ -1111,7 +1121,7 @@ export default function PlansAndDeliveryPage() {
                 <button
                   type="button"
                   disabled={subPage >= subTotalPages || subscriptionsLoading}
-                  onClick={() => setSubPage((p) => Math.min(subTotalPages, p + 1))}
+                  onClick={() => setSubPage((p) => p + 1)}
                   aria-label="Next page"
                   className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
                 >
@@ -1334,11 +1344,7 @@ export default function PlansAndDeliveryPage() {
                 <button
                   type="button"
                   disabled={currentPage <= 1 || requestsLoading}
-                  onClick={() => {
-                    const prev = currentPage - 1;
-                    setCurrentPage(prev);
-                    fetchRequestsData(prev, false);
-                  }}
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   aria-label="Previous page"
                   className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
                 >
@@ -1350,11 +1356,7 @@ export default function PlansAndDeliveryPage() {
                 <button
                   type="button"
                   disabled={currentPage >= totalPages || requestsLoading}
-                  onClick={() => {
-                    const next = currentPage + 1;
-                    setCurrentPage(next);
-                    fetchRequestsData(next, false);
-                  }}
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
                   aria-label="Next page"
                   className="rounded-[8px] border-2 border-black bg-white px-2.5 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFD84D] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
                 >

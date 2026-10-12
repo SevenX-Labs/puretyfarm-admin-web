@@ -24,20 +24,26 @@ export interface CreditRequestQueryParams {
   limit?: number;
 }
 
-const EMPTY_CREDIT_REQUESTS_RESPONSE: CreditRequestsApiResponse = {
-  data: [],
-  pagination: {
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 1,
-  },
-};
+function getEmptyCreditRequestsResponse(page = 1, limit = 20): CreditRequestsApiResponse {
+  return {
+    data: [],
+    pagination: {
+      page,
+      limit,
+      total: 0,
+      totalPages: 1,
+    },
+  };
+}
 
 /**
- * Normalizes credit requests API response
+ * Normalizes credit requests API response preserving requested page
  */
-function normalizeCreditRequestsResponse(res: unknown): CreditRequestsApiResponse {
+function normalizeCreditRequestsResponse(
+  res: unknown,
+  requestedPage = 1,
+  requestedLimit = 20
+): CreditRequestsApiResponse {
   if (res && typeof res === "object") {
     const obj = res as Record<string, unknown>;
     const data = Array.isArray(obj.data)
@@ -48,17 +54,30 @@ function normalizeCreditRequestsResponse(res: unknown): CreditRequestsApiRespons
       ? (res as CreditRequestItem[])
       : [];
 
-    const pagination = (obj.pagination as CreditRequestsApiResponse["pagination"]) || {
-      page: 1,
-      limit: data.length || 20,
-      total: data.length,
-      totalPages: Math.max(1, Math.ceil((data.length || 1) / (data.length || 20))),
+    const rawPagination = obj.pagination as Record<string, unknown> | undefined;
+    const pagination: CreditRequestsApiResponse["pagination"] = {
+      page:
+        typeof rawPagination?.page === "number"
+          ? rawPagination.page
+          : requestedPage,
+      limit:
+        typeof rawPagination?.limit === "number"
+          ? rawPagination.limit
+          : requestedLimit,
+      total:
+        typeof rawPagination?.total === "number"
+          ? rawPagination.total
+          : data.length,
+      totalPages:
+        typeof rawPagination?.totalPages === "number"
+          ? Math.max(1, rawPagination.totalPages)
+          : Math.max(1, Math.ceil((data.length || 1) / requestedLimit)),
     };
 
     return { data, pagination };
   }
 
-  return EMPTY_CREDIT_REQUESTS_RESPONSE;
+  return getEmptyCreditRequestsResponse(requestedPage, requestedLimit);
 }
 
 /**
@@ -127,6 +146,9 @@ export async function fetchCreditRequests(
   params: CreditRequestQueryParams = {},
   options?: SwrOptions<CreditRequestsApiResponse>
 ): Promise<CreditRequestsApiResponse> {
+  const requestedPage = typeof params.page === "number" && params.page > 0 ? params.page : 1;
+  const requestedLimit = typeof params.limit === "number" && params.limit > 0 ? params.limit : 20;
+
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "" && value !== "ALL") {
@@ -145,10 +167,10 @@ export async function fetchCreditRequests(
             `/admin/wallet/credit-requests?${query.toString()}`,
             { skipAuthRedirect: true }
           );
-          return normalizeCreditRequestsResponse(res);
+          return normalizeCreditRequestsResponse(res, requestedPage, requestedLimit);
         } catch {
           const cached = getCachedData<CreditRequestsApiResponse>(cacheKey);
-          return cached || EMPTY_CREDIT_REQUESTS_RESPONSE;
+          return cached || getEmptyCreditRequestsResponse(requestedPage, requestedLimit);
         }
       },
       options
@@ -158,7 +180,7 @@ export async function fetchCreditRequests(
       return cachedData;
     }
     const res = await promise;
-    return res || getCachedData<CreditRequestsApiResponse>(cacheKey) || EMPTY_CREDIT_REQUESTS_RESPONSE;
+    return res || getCachedData<CreditRequestsApiResponse>(cacheKey) || getEmptyCreditRequestsResponse(requestedPage, requestedLimit);
   }
 
   try {
@@ -166,12 +188,12 @@ export async function fetchCreditRequests(
       `/admin/wallet/credit-requests?${query.toString()}`,
       { skipAuthRedirect: true }
     );
-    const normalized = normalizeCreditRequestsResponse(res);
+    const normalized = normalizeCreditRequestsResponse(res, requestedPage, requestedLimit);
     setCachedData(cacheKey, normalized);
     return normalized;
   } catch {
     const cached = getCachedData<CreditRequestsApiResponse>(cacheKey);
-    return cached || EMPTY_CREDIT_REQUESTS_RESPONSE;
+    return cached || getEmptyCreditRequestsResponse(requestedPage, requestedLimit);
   }
 }
 

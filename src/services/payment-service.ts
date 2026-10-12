@@ -38,30 +38,38 @@ export interface CashCollectionQueryParams {
   limit?: number;
 }
 
-const EMPTY_PAYMENTS_RESPONSE: PaymentsApiResponse = {
-  data: [],
-  pagination: {
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 1,
-  },
-};
+function getEmptyPaymentsResponse(page = 1, limit = 20): PaymentsApiResponse {
+  return {
+    data: [],
+    pagination: {
+      page,
+      limit,
+      total: 0,
+      totalPages: 1,
+    },
+  };
+}
 
-const EMPTY_CASH_COLLECTIONS_RESPONSE: CashCollectionsApiResponse = {
-  data: [],
-  pagination: {
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 1,
-  },
-};
+function getEmptyCashCollectionsResponse(page = 1, limit = 20): CashCollectionsApiResponse {
+  return {
+    data: [],
+    pagination: {
+      page,
+      limit,
+      total: 0,
+      totalPages: 1,
+    },
+  };
+}
 
 /**
- * Normalizes payment API response
+ * Normalizes payment API response preserving requested page
  */
-function normalizePaymentsResponse(res: unknown): PaymentsApiResponse {
+function normalizePaymentsResponse(
+  res: unknown,
+  requestedPage = 1,
+  requestedLimit = 20
+): PaymentsApiResponse {
   if (res && typeof res === "object") {
     const obj = res as Record<string, unknown>;
     const data = Array.isArray(obj.data)
@@ -72,22 +80,39 @@ function normalizePaymentsResponse(res: unknown): PaymentsApiResponse {
       ? (res as PaymentItem[])
       : [];
 
-    const pagination = (obj.pagination as PaymentsApiResponse["pagination"]) || {
-      page: 1,
-      limit: data.length || 20,
-      total: data.length,
-      totalPages: Math.max(1, Math.ceil((data.length || 1) / (data.length || 20))),
+    const rawPagination = obj.pagination as Record<string, unknown> | undefined;
+    const pagination: PaymentsApiResponse["pagination"] = {
+      page:
+        typeof rawPagination?.page === "number"
+          ? rawPagination.page
+          : requestedPage,
+      limit:
+        typeof rawPagination?.limit === "number"
+          ? rawPagination.limit
+          : requestedLimit,
+      total:
+        typeof rawPagination?.total === "number"
+          ? rawPagination.total
+          : data.length,
+      totalPages:
+        typeof rawPagination?.totalPages === "number"
+          ? Math.max(1, rawPagination.totalPages)
+          : Math.max(1, Math.ceil((data.length || 1) / requestedLimit)),
     };
 
     return { data, pagination };
   }
-  return EMPTY_PAYMENTS_RESPONSE;
+  return getEmptyPaymentsResponse(requestedPage, requestedLimit);
 }
 
 /**
- * Normalizes cash collections API response
+ * Normalizes cash collections API response preserving requested page
  */
-function normalizeCashCollectionsResponse(res: unknown): CashCollectionsApiResponse {
+function normalizeCashCollectionsResponse(
+  res: unknown,
+  requestedPage = 1,
+  requestedLimit = 20
+): CashCollectionsApiResponse {
   if (res && typeof res === "object") {
     const obj = res as Record<string, unknown>;
     const data = Array.isArray(obj.data)
@@ -98,16 +123,29 @@ function normalizeCashCollectionsResponse(res: unknown): CashCollectionsApiRespo
       ? (res as CashCollectionItem[])
       : [];
 
-    const pagination = (obj.pagination as CashCollectionsApiResponse["pagination"]) || {
-      page: 1,
-      limit: data.length || 20,
-      total: data.length,
-      totalPages: Math.max(1, Math.ceil((data.length || 1) / (data.length || 20))),
+    const rawPagination = obj.pagination as Record<string, unknown> | undefined;
+    const pagination: CashCollectionsApiResponse["pagination"] = {
+      page:
+        typeof rawPagination?.page === "number"
+          ? rawPagination.page
+          : requestedPage,
+      limit:
+        typeof rawPagination?.limit === "number"
+          ? rawPagination.limit
+          : requestedLimit,
+      total:
+        typeof rawPagination?.total === "number"
+          ? rawPagination.total
+          : data.length,
+      totalPages:
+        typeof rawPagination?.totalPages === "number"
+          ? Math.max(1, rawPagination.totalPages)
+          : Math.max(1, Math.ceil((data.length || 1) / requestedLimit)),
     };
 
     return { data, pagination };
   }
-  return EMPTY_CASH_COLLECTIONS_RESPONSE;
+  return getEmptyCashCollectionsResponse(requestedPage, requestedLimit);
 }
 
 // ============================================================================
@@ -121,6 +159,9 @@ export async function fetchPayments(
   params: PaymentQueryParams = {},
   options?: SwrOptions<PaymentsApiResponse>
 ): Promise<PaymentsApiResponse> {
+  const requestedPage = typeof params.page === "number" && params.page > 0 ? params.page : 1;
+  const requestedLimit = typeof params.limit === "number" && params.limit > 0 ? params.limit : 20;
+
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "" && value !== "ALL") {
@@ -138,10 +179,10 @@ export async function fetchPayments(
           const res = await apiClient<unknown>(`/admin/payments?${query.toString()}`, {
             skipAuthRedirect: true,
           });
-          return normalizePaymentsResponse(res);
+          return normalizePaymentsResponse(res, requestedPage, requestedLimit);
         } catch {
           const cached = getCachedData<PaymentsApiResponse>(cacheKey);
-          return cached || EMPTY_PAYMENTS_RESPONSE;
+          return cached || getEmptyPaymentsResponse(requestedPage, requestedLimit);
         }
       },
       options
@@ -151,19 +192,19 @@ export async function fetchPayments(
       return cachedData;
     }
     const res = await promise;
-    return res || getCachedData<PaymentsApiResponse>(cacheKey) || EMPTY_PAYMENTS_RESPONSE;
+    return res || getCachedData<PaymentsApiResponse>(cacheKey) || getEmptyPaymentsResponse(requestedPage, requestedLimit);
   }
 
   try {
     const res = await apiClient<unknown>(`/admin/payments?${query.toString()}`, {
       skipAuthRedirect: true,
     });
-    const normalized = normalizePaymentsResponse(res);
+    const normalized = normalizePaymentsResponse(res, requestedPage, requestedLimit);
     setCachedData(cacheKey, normalized);
     return normalized;
   } catch {
     const cached = getCachedData<PaymentsApiResponse>(cacheKey);
-    return cached || EMPTY_PAYMENTS_RESPONSE;
+    return cached || getEmptyPaymentsResponse(requestedPage, requestedLimit);
   }
 }
 
@@ -230,6 +271,9 @@ export async function fetchCashCollections(
   params: CashCollectionQueryParams = {},
   options?: SwrOptions<CashCollectionsApiResponse>
 ): Promise<CashCollectionsApiResponse> {
+  const requestedPage = typeof params.page === "number" && params.page > 0 ? params.page : 1;
+  const requestedLimit = typeof params.limit === "number" && params.limit > 0 ? params.limit : 20;
+
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "" && value !== "ALL") {
@@ -250,10 +294,10 @@ export async function fetchCashCollections(
               skipAuthRedirect: true,
             }
           );
-          return normalizeCashCollectionsResponse(res);
+          return normalizeCashCollectionsResponse(res, requestedPage, requestedLimit);
         } catch {
           const cached = getCachedData<CashCollectionsApiResponse>(cacheKey);
-          return cached || EMPTY_CASH_COLLECTIONS_RESPONSE;
+          return cached || getEmptyCashCollectionsResponse(requestedPage, requestedLimit);
         }
       },
       options
@@ -266,7 +310,7 @@ export async function fetchCashCollections(
     return (
       res ||
       getCachedData<CashCollectionsApiResponse>(cacheKey) ||
-      EMPTY_CASH_COLLECTIONS_RESPONSE
+      getEmptyCashCollectionsResponse(requestedPage, requestedLimit)
     );
   }
 
@@ -277,12 +321,12 @@ export async function fetchCashCollections(
         skipAuthRedirect: true,
       }
     );
-    const normalized = normalizeCashCollectionsResponse(res);
+    const normalized = normalizeCashCollectionsResponse(res, requestedPage, requestedLimit);
     setCachedData(cacheKey, normalized);
     return normalized;
   } catch {
     const cached = getCachedData<CashCollectionsApiResponse>(cacheKey);
-    return cached || EMPTY_CASH_COLLECTIONS_RESPONSE;
+    return cached || getEmptyCashCollectionsResponse(requestedPage, requestedLimit);
   }
 }
 

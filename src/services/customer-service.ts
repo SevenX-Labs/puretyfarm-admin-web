@@ -1,16 +1,59 @@
 import { apiClient } from "@/lib/api-client";
-import { CustomersApiResponse, CustomerDetail } from "@/types/customer";
-import { swrFetch, SwrOptions, getCachedData } from "@/lib/cache";
+import { CustomersApiResponse, CustomerDetail, CustomerListItem } from "@/types/customer";
+import { swrFetch, SwrOptions, getCachedData, setCachedData } from "@/lib/cache";
 
-const EMPTY_CUSTOMERS_RESPONSE: CustomersApiResponse = {
-  data: [],
-  pagination: {
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 1,
-  },
-};
+function getEmptyCustomersResponse(page = 1, limit = 20): CustomersApiResponse {
+  return {
+    data: [],
+    pagination: {
+      page,
+      limit,
+      total: 0,
+      totalPages: 1,
+    },
+  };
+}
+
+function normalizeCustomersResponse(
+  res: unknown,
+  requestedPage = 1,
+  requestedLimit = 20
+): CustomersApiResponse {
+  if (res && typeof res === "object") {
+    const obj = res as Record<string, unknown>;
+    const data = Array.isArray(obj.data)
+      ? (obj.data as CustomerListItem[])
+      : Array.isArray(obj.customers)
+      ? (obj.customers as CustomerListItem[])
+      : Array.isArray(res)
+      ? (res as CustomerListItem[])
+      : [];
+
+    const rawPagination = obj.pagination as Record<string, unknown> | undefined;
+    const pagination = {
+      page:
+        typeof rawPagination?.page === "number"
+          ? rawPagination.page
+          : requestedPage,
+      limit:
+        typeof rawPagination?.limit === "number"
+          ? rawPagination.limit
+          : requestedLimit,
+      total:
+        typeof rawPagination?.total === "number"
+          ? rawPagination.total
+          : data.length,
+      totalPages:
+        typeof rawPagination?.totalPages === "number"
+          ? Math.max(1, rawPagination.totalPages)
+          : Math.max(1, Math.ceil((data.length || 1) / requestedLimit)),
+    };
+
+    return { data, pagination };
+  }
+
+  return getEmptyCustomersResponse(requestedPage, requestedLimit);
+}
 
 export async function fetchCustomers(
   params: {
@@ -20,6 +63,9 @@ export async function fetchCustomers(
   },
   options?: SwrOptions<CustomersApiResponse>
 ): Promise<CustomersApiResponse> {
+  const requestedPage = typeof params.page === "number" && params.page > 0 ? params.page : 1;
+  const requestedLimit = typeof params.limit === "number" && params.limit > 0 ? params.limit : 20;
+
   const query = new URLSearchParams();
   if (params.page) query.set("page", params.page.toString());
   if (params.limit) query.set("limit", params.limit.toString());
@@ -32,12 +78,13 @@ export async function fetchCustomers(
       cacheKey,
       async () => {
         try {
-          return await apiClient<CustomersApiResponse>(`/admin/customers?${query.toString()}`, {
+          const res = await apiClient<unknown>(`/admin/customers?${query.toString()}`, {
             skipAuthRedirect: true,
           });
+          return normalizeCustomersResponse(res, requestedPage, requestedLimit);
         } catch {
           const cached = getCachedData<CustomersApiResponse>(cacheKey);
-          return cached || EMPTY_CUSTOMERS_RESPONSE;
+          return cached || getEmptyCustomersResponse(requestedPage, requestedLimit);
         }
       },
       options
@@ -46,16 +93,19 @@ export async function fetchCustomers(
       return cachedData;
     }
     const res = await promise;
-    return res || getCachedData<CustomersApiResponse>(cacheKey) || EMPTY_CUSTOMERS_RESPONSE;
+    return res || getCachedData<CustomersApiResponse>(cacheKey) || getEmptyCustomersResponse(requestedPage, requestedLimit);
   }
 
   try {
-    return await apiClient<CustomersApiResponse>(`/admin/customers?${query.toString()}`, {
+    const res = await apiClient<unknown>(`/admin/customers?${query.toString()}`, {
       skipAuthRedirect: true,
     });
+    const normalized = normalizeCustomersResponse(res, requestedPage, requestedLimit);
+    setCachedData(cacheKey, normalized);
+    return normalized;
   } catch {
     const cached = getCachedData<CustomersApiResponse>(cacheKey);
-    return cached || EMPTY_CUSTOMERS_RESPONSE;
+    return cached || getEmptyCustomersResponse(requestedPage, requestedLimit);
   }
 }
 

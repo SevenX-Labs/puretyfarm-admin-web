@@ -110,36 +110,42 @@ export default function CustomersPage() {
   // Debounce search input by 400ms
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
+      setDebouncedSearch((prev) => {
+        if (prev !== search.trim()) {
+          setPage(1);
+        }
+        return search.trim();
+      });
     }, 400);
 
     return () => clearTimeout(handler);
   }, [search]);
 
   const loadCustomers = useCallback(
-    async (forceRefresh = false) => {
+    async (pageOrForce?: number | boolean, forceRefresh = false) => {
+      const targetPage = typeof pageOrForce === "number" ? pageOrForce : page;
+      const isForce = typeof pageOrForce === "boolean" ? pageOrForce : forceRefresh;
       setError(null);
 
-      if (forceRefresh) {
+      if (isForce) {
         invalidateCache("customers");
         invalidateCache("customer:");
       }
 
       // Instant 0ms cache read
       const query = new URLSearchParams();
-      if (page) query.set("page", page.toString());
+      if (targetPage) query.set("page", targetPage.toString());
       if (limit) query.set("limit", limit.toString());
       if (debouncedSearch?.trim()) query.set("search", debouncedSearch.trim());
 
       const cacheKey = `customers:${query.toString()}`;
       const cached = getCachedData<CustomersApiResponse>(cacheKey);
 
-      if (cached && !forceRefresh) {
+      if (cached && !isForce) {
         setCustomers(cached.data || []);
         setPagination(
           cached.pagination || {
-            page,
+            page: targetPage,
             limit,
             total: cached.data?.length || 0,
             totalPages: Math.max(1, Math.ceil((cached.data?.length || 0) / limit)),
@@ -154,17 +160,17 @@ export default function CustomersPage() {
       try {
         const response = await fetchCustomers(
           {
-            page,
+            page: targetPage,
             limit,
             search: debouncedSearch,
           },
           {
-            forceRefresh,
+            forceRefresh: isForce,
             onFreshData: (fresh) => {
               setCustomers(fresh.data || []);
               setPagination(
                 fresh.pagination || {
-                  page,
+                  page: targetPage,
                   limit,
                   total: fresh.data?.length || 0,
                   totalPages: Math.max(1, Math.ceil((fresh.data?.length || 0) / limit)),
@@ -179,7 +185,7 @@ export default function CustomersPage() {
           setCustomers(response.data);
           setPagination(
             response.pagination || {
-              page,
+              page: targetPage,
               limit,
               total: response.data.length,
               totalPages: Math.max(1, Math.ceil(response.data.length / limit)),
@@ -200,11 +206,13 @@ export default function CustomersPage() {
   );
 
   useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
+    loadCustomers(page, false);
+  }, [loadCustomers, page]);
 
   useRealtimeSync(() => {
-    loadCustomers(true);
+    if (!isLoading) {
+      loadCustomers(page, true);
+    }
   }, { intervalMs: 20000 });
 
   const handleOpenDetail = (customerId: string) => {
@@ -629,7 +637,7 @@ export default function CustomersPage() {
         {/* Pagination Footer */}
         <div className="p-4 bg-[#FAF7EC] border-t-2 border-[#1A1A1A] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="font-mono text-xs font-bold text-[#1A1A1A]">
-            Showing Page <strong>{pagination.page}</strong> of <strong>{pagination.totalPages || 1}</strong> (<strong>{pagination.total}</strong> total customers)
+            Showing Page <strong>{page}</strong> of <strong>{pagination.totalPages || 1}</strong> (<strong>{pagination.total}</strong> total customers)
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">

@@ -24,11 +24,17 @@ export function getCachedData<T>(key: string, allowStale: boolean = false): T | 
 
   const fullKey = `${CACHE_PREFIX}${key}`;
   const now = Date.now();
+  // Bound stale tolerance to 60s max to prevent visual layout jumping from days-old local storage dumps
+  const maxStaleMs = 60 * 1000;
 
   // 1. Check in-memory Map first for microsecond retrieval
   const memEntry = MEMORY_CACHE.get(fullKey) as CacheEntry<T> | undefined;
   if (memEntry) {
-    if (allowStale || now - memEntry.timestamp <= memEntry.ttl) {
+    const ttl = memEntry.ttl || DEFAULT_TTL_MS;
+    if (now - memEntry.timestamp <= ttl) {
+      return memEntry.data;
+    }
+    if (allowStale && now - memEntry.timestamp <= ttl + maxStaleMs) {
       return memEntry.data;
     }
     // Expired
@@ -43,8 +49,12 @@ export function getCachedData<T>(key: string, allowStale: boolean = false): T | 
     const parsed = JSON.parse(raw) as CacheEntry<T>;
     if (!parsed || parsed.data === undefined) return null;
 
-    if (allowStale || now - parsed.timestamp <= (parsed.ttl || DEFAULT_TTL_MS)) {
-      // Cache to in-memory map for subsequent reads
+    const ttl = parsed.ttl || DEFAULT_TTL_MS;
+    if (now - parsed.timestamp <= ttl) {
+      MEMORY_CACHE.set(fullKey, parsed);
+      return parsed.data;
+    }
+    if (allowStale && now - parsed.timestamp <= ttl + maxStaleMs) {
       MEMORY_CACHE.set(fullKey, parsed);
       return parsed.data;
     }

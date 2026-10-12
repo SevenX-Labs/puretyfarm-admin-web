@@ -142,21 +142,30 @@ export default function PaymentsPage() {
   // =========================================================================
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedCashSearch(cashSearch);
+      setDebouncedCashSearch((prev) => {
+        if (prev !== cashSearch.trim()) setCashPage(1);
+        return cashSearch.trim();
+      });
     }, 350);
     return () => clearTimeout(handler);
   }, [cashSearch]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedPaymentSearch(paymentSearch);
+      setDebouncedPaymentSearch((prev) => {
+        if (prev !== paymentSearch.trim()) setPaymentPage(1);
+        return paymentSearch.trim();
+      });
     }, 350);
     return () => clearTimeout(handler);
   }, [paymentSearch]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedTxnIdSearch(transactionIdSearch);
+      setDebouncedTxnIdSearch((prev) => {
+        if (prev !== transactionIdSearch.trim()) setPaymentPage(1);
+        return transactionIdSearch.trim();
+      });
     }, 350);
     return () => clearTimeout(handler);
   }, [transactionIdSearch]);
@@ -315,24 +324,36 @@ export default function PaymentsPage() {
     refreshCashMetrics();
   }, [refreshCashMetrics]);
 
-  // Trigger cash collections on filter / page change
+  // Trigger cash collections on page / filter change
   useEffect(() => {
-    setCashPage(1);
-    loadCashCollections(1, false);
-  }, [loadCashCollections]);
+    loadCashCollections(cashPage, false);
+  }, [cashPage, loadCashCollections]);
 
-  // Trigger payments on filter / page change
+  // Trigger payments on page / filter change
   useEffect(() => {
-    setPaymentPage(1);
-    loadPayments(1, false);
-  }, [loadPayments]);
+    loadPayments(paymentPage, false);
+  }, [paymentPage, loadPayments]);
+
+  const cashPageRef = React.useRef(cashPage);
+  useEffect(() => {
+    cashPageRef.current = cashPage;
+  }, [cashPage]);
+
+  const paymentPageRef = React.useRef(paymentPage);
+  useEffect(() => {
+    paymentPageRef.current = paymentPage;
+  }, [paymentPage]);
 
   useRealtimeSync(() => {
     if (activeTab === "CASH_COLLECTIONS") {
-      loadCashCollections(cashPage, true);
-      refreshCashMetrics();
+      if (!isCashLoading) {
+        loadCashCollections(cashPageRef.current, true);
+        refreshCashMetrics();
+      }
     } else {
-      loadPayments(paymentPage, true);
+      if (!isPaymentsLoading) {
+        loadPayments(paymentPageRef.current, true);
+      }
     }
   }, { intervalMs: 12000 });
 
@@ -648,7 +669,7 @@ export default function PaymentsPage() {
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => setCashStatusFilter(tab.key)}
+                      onClick={() => { setCashStatusFilter(tab.key); setCashPage(1); }}
                       className={"shrink-0 whitespace-nowrap rounded-[8px] border-2 border-black px-2 py-1.5 text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer flex items-center gap-1.5 min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black sm:px-3 sm:text-xs sm:tracking-wider sm:min-h-[36px] " + (
                         isActive
                           ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
@@ -907,9 +928,7 @@ export default function PaymentsPage() {
                   type="button"
                   disabled={cashPage <= 1 || isCashLoading}
                   onClick={() => {
-                    const prev = cashPage - 1;
-                    setCashPage(prev);
-                    loadCashCollections(prev, false);
+                    setCashPage((prev) => Math.max(1, prev - 1));
                   }}
                   className="px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] font-black text-xs disabled:opacity-40 disabled:cursor-not-allowed shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1 cursor-pointer"
                 >
@@ -921,9 +940,7 @@ export default function PaymentsPage() {
                   type="button"
                   disabled={cashPage >= cashTotalPages || isCashLoading}
                   onClick={() => {
-                    const next = cashPage + 1;
-                    setCashPage(next);
-                    loadCashCollections(next, false);
+                    setCashPage((prev) => prev + 1);
                   }}
                   className="px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] font-black text-xs disabled:opacity-40 disabled:cursor-not-allowed shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1 cursor-pointer"
                 >
@@ -1051,9 +1068,7 @@ export default function PaymentsPage() {
                 type="button"
                 disabled={cashPage <= 1 || isCashLoading}
                 onClick={() => {
-                  const prev = cashPage - 1;
-                  setCashPage(prev);
-                  loadCashCollections(prev, false);
+                  setCashPage((prev) => Math.max(1, prev - 1));
                 }}
                 className="min-h-[44px] px-3.5 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1px_1px_0px_0px_#000000] flex items-center gap-1"
               >
@@ -1069,9 +1084,7 @@ export default function PaymentsPage() {
                 type="button"
                 disabled={cashPage >= cashTotalPages || isCashLoading}
                 onClick={() => {
-                  const next = cashPage + 1;
-                  setCashPage(next);
-                  loadCashCollections(next, false);
+                  setCashPage((prev) => prev + 1);
                 }}
                 className="min-h-[44px] px-3.5 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1px_1px_0px_0px_#000000] flex items-center gap-1"
               >
@@ -1114,7 +1127,7 @@ export default function PaymentsPage() {
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => setPaymentStatusFilter(tab.key)}
+                      onClick={() => { setPaymentStatusFilter(tab.key); setPaymentPage(1); }}
                       className={"shrink-0 whitespace-nowrap rounded-[8px] border-2 border-black px-2 py-1.5 text-[10px] font-black uppercase tracking-tight transition-all cursor-pointer flex items-center gap-1.5 min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black sm:px-3 sm:text-xs sm:tracking-wider sm:min-h-[36px] " + (
                         isActive
                           ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1.5px_1.5px_0px_0px_#000000]"
@@ -1387,9 +1400,7 @@ export default function PaymentsPage() {
                   type="button"
                   disabled={paymentPage <= 1 || isPaymentsLoading}
                   onClick={() => {
-                    const prev = paymentPage - 1;
-                    setPaymentPage(prev);
-                    loadPayments(prev, false);
+                    setPaymentPage((prev) => Math.max(1, prev - 1));
                   }}
                   className="px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] font-black text-xs disabled:opacity-40 disabled:cursor-not-allowed shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1 cursor-pointer"
                 >
@@ -1401,9 +1412,7 @@ export default function PaymentsPage() {
                   type="button"
                   disabled={paymentPage >= paymentTotalPages || isPaymentsLoading}
                   onClick={() => {
-                    const next = paymentPage + 1;
-                    setPaymentPage(next);
-                    loadPayments(next, false);
+                    setPaymentPage((prev) => prev + 1);
                   }}
                   className="px-3 py-1.5 rounded-[8px] border-2 border-black bg-white hover:bg-[#FAF7EC] font-black text-xs disabled:opacity-40 disabled:cursor-not-allowed shadow-[1px_1px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none flex items-center gap-1 cursor-pointer"
                 >
@@ -1528,9 +1537,7 @@ export default function PaymentsPage() {
                 type="button"
                 disabled={paymentPage <= 1 || isPaymentsLoading}
                 onClick={() => {
-                  const prev = paymentPage - 1;
-                  setPaymentPage(prev);
-                  loadPayments(prev, false);
+                  setPaymentPage((prev) => Math.max(1, prev - 1));
                 }}
                 className="min-h-[44px] px-3.5 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1px_1px_0px_0px_#000000] flex items-center gap-1"
               >
@@ -1546,9 +1553,7 @@ export default function PaymentsPage() {
                 type="button"
                 disabled={paymentPage >= paymentTotalPages || isPaymentsLoading}
                 onClick={() => {
-                  const next = paymentPage + 1;
-                  setPaymentPage(next);
-                  loadPayments(next, false);
+                  setPaymentPage((prev) => prev + 1);
                 }}
                 className="min-h-[44px] px-3.5 rounded-[8px] border-2 border-black bg-white font-black text-xs disabled:opacity-40 shadow-[1px_1px_0px_0px_#000000] flex items-center gap-1"
               >

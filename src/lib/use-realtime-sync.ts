@@ -18,7 +18,10 @@ export function useRealtimeSync(
 ) {
   const { intervalMs = 12000, enabled = true, onFocus = true } = options;
   const fnRef = useRef(refreshFn);
-  fnRef.current = refreshFn;
+
+  useEffect(() => {
+    fnRef.current = refreshFn;
+  }, [refreshFn]);
 
   useEffect(() => {
     if (!enabled) return;

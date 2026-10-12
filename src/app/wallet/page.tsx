@@ -165,16 +165,20 @@ export default function WalletPage() {
   // Debounce search inputs
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedApprovalsSearch(approvalsSearch.trim());
-      setApprovalsPage(1);
+      setDebouncedApprovalsSearch((prev) => {
+        if (prev !== approvalsSearch.trim()) setApprovalsPage(1);
+        return approvalsSearch.trim();
+      });
     }, 300);
     return () => clearTimeout(handler);
   }, [approvalsSearch]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedCustomerSearch(customerSearch.trim());
-      setCustomerPage(1);
+      setDebouncedCustomerSearch((prev) => {
+        if (prev !== customerSearch.trim()) setCustomerPage(1);
+        return customerSearch.trim();
+      });
     }, 300);
     return () => clearTimeout(handler);
   }, [customerSearch]);
@@ -1245,11 +1249,7 @@ export default function WalletPage() {
                       <button
                         type="button"
                         disabled={customerPage <= 1 || isCustomersLoading}
-                        onClick={() => {
-                          const prev = customerPage - 1;
-                          setCustomerPage(prev);
-                          loadCustomers(prev, false);
-                        }}
+                        onClick={() => setCustomerPage((prev) => Math.max(1, prev - 1))}
                         className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
                       >
                         <ChevronLeft className="h-3 w-3 stroke-[3]" />
@@ -1261,11 +1261,7 @@ export default function WalletPage() {
                       <button
                         type="button"
                         disabled={customerPage >= customerTotalPages || isCustomersLoading}
-                        onClick={() => {
-                          const next = customerPage + 1;
-                          setCustomerPage(next);
-                          loadCustomers(next, false);
-                        }}
+                        onClick={() => setCustomerPage((prev) => prev + 1)}
                         className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
                       >
                         Next

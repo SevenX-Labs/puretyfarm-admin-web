@@ -165,7 +165,11 @@ export default function OrdersPage() {
   // Load orders function with SWR caching
   const loadOrders = useCallback(
     async (pageToLoad = 1, forceRefresh = false) => {
-      if (forceRefresh) setIsRefreshing(true);
+      if (forceRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
 
       const params: OrderQueryParams = {
@@ -189,7 +193,10 @@ export default function OrdersPage() {
               setOrders(fresh.data);
               setTotalPages(fresh.pagination?.totalPages || 1);
               setTotalOrders(fresh.pagination?.total || 0);
-              setCurrentPage(fresh.pagination?.page || pageToLoad);
+              setCurrentPage((cur) => {
+                const max = fresh.pagination?.totalPages || 1;
+                return cur > max ? max : cur;
+              });
               setIsLoading(false);
             }
           },
@@ -199,7 +206,10 @@ export default function OrdersPage() {
           setOrders(response.data);
           setTotalPages(response.pagination?.totalPages || 1);
           setTotalOrders(response.pagination?.total || 0);
-          setCurrentPage(response.pagination?.page || pageToLoad);
+          setCurrentPage((cur) => {
+            const max = response.pagination?.totalPages || 1;
+            return cur > max ? max : cur;
+          });
         }
       } catch (err: unknown) {
         console.error("Failed to load orders:", err);
@@ -226,8 +236,15 @@ export default function OrdersPage() {
     loadOrders(currentPage, false);
   }, [loadOrders, currentPage]);
 
+  const currentPageRef = React.useRef(currentPage);
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
   useRealtimeSync(() => {
-    loadOrders(currentPage, true);
+    if (!isLoading) {
+      loadOrders(currentPageRef.current, true);
+    }
   }, { intervalMs: 12000 });
 
   const handleOpenDetail = (orderId: string) => {
