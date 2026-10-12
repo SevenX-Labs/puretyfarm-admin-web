@@ -49,7 +49,7 @@ import { formatCurrency } from "@/lib/utils";
 import { formatComparisonCaption, formatIndianNumber } from "@/lib/format-comparison";
 import { useRealtimeSync } from "@/lib/use-realtime-sync";
 
-type DatePreset = "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "THIS_MONTH" | "CUSTOM";
+type DatePreset = "ALL" | "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "THIS_MONTH" | "CUSTOM";
 
 const formatDateISO = (d: Date): string => {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
@@ -62,9 +62,9 @@ export default function DashboardOverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
-  // Date range state
-  const [activePreset, setActivePreset] = useState<DatePreset>("TODAY");
-  const [fromDate, setFromDate] = useState<string>(() => formatDateISO(new Date()));
+  // Date range state (defaults to overall/all-time)
+  const [activePreset, setActivePreset] = useState<DatePreset>("ALL");
+  const [fromDate, setFromDate] = useState<string>("2020-01-01");
   const [toDate, setToDate] = useState<string>(() => formatDateISO(new Date()));
 
   useEffect(() => {
@@ -123,7 +123,10 @@ export default function DashboardOverviewPage() {
     let start = todayStr;
     let end = todayStr;
 
-    if (preset === "TODAY") {
+    if (preset === "ALL") {
+      start = "2020-01-01";
+      end = todayStr;
+    } else if (preset === "TODAY") {
       start = todayStr;
       end = todayStr;
     } else if (preset === "YESTERDAY") {
@@ -186,10 +189,12 @@ export default function DashboardOverviewPage() {
         {/* Date Filter Controls */}
         <div className="flex w-full items-center gap-2 sm:w-auto">
           {/* Preset Buttons */}
-          <div className="grid min-w-0 flex-1 grid-cols-4 rounded-[10px] border-2 border-black p-0.5 bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#000000] sm:inline-flex sm:flex-none">
-            {(["TODAY", "YESTERDAY", "LAST_7_DAYS", "THIS_MONTH"] as DatePreset[]).map((p) => {
+          <div className="grid min-w-0 flex-1 grid-cols-5 rounded-[10px] border-2 border-black p-0.5 bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#000000] sm:inline-flex sm:flex-none">
+            {(["ALL", "TODAY", "YESTERDAY", "LAST_7_DAYS", "THIS_MONTH"] as DatePreset[]).map((p) => {
               const label =
-                p === "TODAY"
+                p === "ALL"
+                  ? "All"
+                  : p === "TODAY"
                   ? "Today"
                   : p === "YESTERDAY"
                   ? "Yesterday"
@@ -268,7 +273,7 @@ export default function DashboardOverviewPage() {
                   const prevRev = comparison?.prevRevenueCollectedPaise != null
                     ? Math.round(comparison.prevRevenueCollectedPaise / 100)
                     : null;
-                  const comp = formatComparisonCaption(currentRev, prevRev, activePreset === "TODAY" ? "yesterday" : "prev period");
+                  const comp = formatComparisonCaption(currentRev, activePreset === "ALL" ? null : prevRev, activePreset === "TODAY" ? "yesterday" : "prev period");
                   return (
                     <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
                       {comp.badgeText && (
@@ -289,7 +294,7 @@ export default function DashboardOverviewPage() {
                   );
                 })()}
                 <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
-                  Collected for selected period
+                  {activePreset === "ALL" ? "All-time collected revenue" : "Collected for selected period"}
                 </div>
               </div>
             </div>
@@ -316,7 +321,7 @@ export default function DashboardOverviewPage() {
                       ? Math.max(0, Math.round(currentOrders / (1 + comparison.ordersChangePercent / 100)))
                       : null
                   );
-                  const comp = formatComparisonCaption(currentOrders, prevOrders, activePreset === "TODAY" ? "yesterday" : "prev period");
+                  const comp = formatComparisonCaption(currentOrders, activePreset === "ALL" ? null : prevOrders, activePreset === "TODAY" ? "yesterday" : "prev period");
                   return (
                     <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
                       {comp.badgeText && (
@@ -337,7 +342,7 @@ export default function DashboardOverviewPage() {
                   );
                 })()}
                 <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
-                  Total orders scheduled or placed
+                  {activePreset === "ALL" ? "All-time orders placed" : "Total orders scheduled or placed"}
                 </div>
               </div>
             </div>
@@ -367,7 +372,7 @@ export default function DashboardOverviewPage() {
                         {totalDeliv > 0 ? `${rate.toFixed(0)}% Completion Rate` : "No deliveries scheduled"}
                       </div>
                       <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
-                        Recurring plan deliveries for period
+                        {activePreset === "ALL" ? "All-time plan deliveries" : "Recurring plan deliveries for period"}
                       </div>
                     </>
                   );
@@ -437,7 +442,7 @@ export default function DashboardOverviewPage() {
                 <Truck className="h-8 w-8 text-[#5C5647]/50 mb-2 stroke-[2]" />
                 <p className="text-xs font-black uppercase text-[#1A1A1A]">No trajectory activity</p>
                 <p className="text-[11px] font-bold text-[#5C5647] mt-1 max-w-xs">
-                  No milk deliveries or revenue transactions recorded for {activePreset === "TODAY" ? "today" : "this period"}.
+                  No milk deliveries or revenue transactions recorded for {activePreset === "ALL" ? "recent activity" : activePreset === "TODAY" ? "today" : "this period"}.
                 </p>
               </div>
             ) : isMounted ? (

@@ -167,7 +167,7 @@ export async function fetchDashboardOverview(
     ? `/admin/dashboard/overview?${query.toString()}`
     : `/admin/dashboard/overview`;
 
-  const cacheKey = `dashboard:overview:${params?.from || "today"}:${params?.to || "today"}`;
+  const cacheKey = `dashboard:overview:${params?.from || "all"}:${params?.to || "all"}`;
 
   if (options) {
     const { cachedData, promise } = swrFetch(

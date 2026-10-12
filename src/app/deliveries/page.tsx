@@ -60,10 +60,15 @@ export default function ManageDeliveriesPage() {
 
   // Filter States
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const tomorrowStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
   const [customerSearch, setCustomerSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
   const [planTypeFilter, setPlanTypeFilter] = useState<PlanType | "ALL">("ALL");
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const [selectedDate, setSelectedDate] = useState<string>("");
 
   // Debounced search queries
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState<string>("");
@@ -195,7 +200,7 @@ export default function ManageDeliveriesPage() {
     setDebouncedCustomerSearch("");
     setStatusFilter("ALL");
     setPlanTypeFilter("ALL");
-    setSelectedDate(todayStr);
+    setSelectedDate("");
     setCurrentPage(1);
     setSelectedOrderIds([]);
   };
@@ -363,7 +368,7 @@ export default function ManageDeliveriesPage() {
     customerSearch !== "" ||
     statusFilter !== "ALL" ||
     planTypeFilter !== "ALL" ||
-    selectedDate !== todayStr;
+    selectedDate !== "";
 
   const getCustomerInitials = (name?: string) => {
     if (!name) return "CU";
@@ -417,13 +422,11 @@ export default function ManageDeliveriesPage() {
             <button
               type="button"
               onClick={() => {
-                const tmrw = new Date();
-                tmrw.setDate(tmrw.getDate() + 1);
-                setSelectedDate(tmrw.toISOString().slice(0, 10));
+                setSelectedDate(tomorrowStr);
                 setCurrentPage(1);
               }}
               className={`h-8 px-3.5 rounded-[7px] text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
-                selectedDate !== todayStr && selectedDate !== ""
+                selectedDate === tomorrowStr
                   ? "bg-[#FFDF58] text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]"
                   : "text-[#5C5647] hover:text-[#1A1A1A] hover:bg-[#FAF7EC]"
               }`}
