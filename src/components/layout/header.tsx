@@ -15,7 +15,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="lg:hidden flex h-9 w-9 items-center justify-center border-2 border-[#1A1A1A] bg-[#FFD84D] text-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
+            className="lg:hidden flex min-h-[44px] min-w-[44px] items-center justify-center border-2 border-[#1A1A1A] bg-[#FFD84D] text-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             <Menu className="h-5 w-5 stroke-[2.5]" />

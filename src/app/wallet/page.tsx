@@ -1,5 +1,7 @@
 "use client";
 
+import { clampPageAfterSuccess } from "@/lib/pagination";
+
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   CreditRequestItem,
@@ -35,6 +37,7 @@ import {
   Wallet,
   Search,
   RefreshCw,
+  RotateCcw,
   Check,
   X,
   AlertTriangle,
@@ -228,7 +231,7 @@ export default function WalletPage() {
     if (activeTab === "PENDING_APPROVALS") {
       loadPendingApprovals(true);
     }
-  }, { intervalMs: 10000 });
+  }, { intervalMs: 30000 });
 
   // Combine and deduplicate pending items
   const unifiedPendingList: UnifiedPendingItem[] = useMemo(() => {
@@ -368,8 +371,11 @@ export default function WalletPage() {
 
         if (res && Array.isArray(res.data)) {
           setCustomers(res.data);
-          setCustomerTotalPages(res.pagination?.totalPages || 1);
-          setCustomerTotalCount(res.pagination?.total || res.data.length);
+          if (res.pagination) {
+            setCustomerTotalPages(res.pagination.totalPages || 1);
+            setCustomerTotalCount(res.pagination.total || res.data.length);
+            setCustomerPage((cur) => clampPageAfterSuccess(cur, res.pagination.totalPages));
+          }
         }
       } catch (err: unknown) {
         console.error("Failed to load customers:", err);
@@ -669,7 +675,7 @@ export default function WalletPage() {
                   Retry Loading
                 </button>
               </div>
-            ) : !isApprovalsLoading && paginatedPendingList.length === 0 ? (
+            ) : !isApprovalsLoading && !isApprovalsRefreshing && filteredPendingList.length === 0 ? (
               <div className="p-12 text-center space-y-3">
                 <div className="h-12 w-12 rounded-[12px] bg-[#B8E8B8] border-2 border-black flex items-center justify-center mx-auto shadow-[3px_3px_0px_0px_#000000]">
                   <Check className="h-6 w-6 stroke-[3] text-emerald-900" />
@@ -1000,13 +1006,20 @@ export default function WalletPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
+                      {isApprovalsRefreshing && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5C5647] mr-1">
+                          <RotateCcw className="h-3 w-3 animate-spin stroke-[2.5]" />
+                          Updating...
+                        </span>
+                      )}
                       <button
                         type="button"
-                        disabled={approvalsPage <= 1}
+                        disabled={approvalsPage <= 1 || isApprovalsRefreshing}
                         onClick={() => setApprovalsPage((p) => p - 1)}
-                        className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
+                        aria-label="Previous page"
+                        className="min-h-[44px] min-w-[44px] rounded-[8px] border-2 border-black bg-white px-4 py-2 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center justify-center gap-1"
                       >
-                        <ChevronLeft className="h-3 w-3 stroke-[3]" />
+                        <ChevronLeft className="h-3.5 w-3.5 stroke-[3]" />
                         Prev
                       </button>
                       <span className="font-mono text-xs font-black px-2">
@@ -1014,12 +1027,13 @@ export default function WalletPage() {
                       </span>
                       <button
                         type="button"
-                        disabled={approvalsPage >= totalPendingPages}
+                        disabled={approvalsPage >= totalPendingPages || isApprovalsRefreshing}
                         onClick={() => setApprovalsPage((p) => p + 1)}
-                        className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
+                        aria-label="Next page"
+                        className="min-h-[44px] min-w-[44px] rounded-[8px] border-2 border-black bg-white px-4 py-2 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center justify-center gap-1"
                       >
                         Next
-                        <ChevronRight className="h-3 w-3 stroke-[3]" />
+                        <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />
                       </button>
                     </div>
                   </div>
@@ -1246,13 +1260,20 @@ export default function WalletPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
+                      {isCustomersRefreshing && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5C5647] mr-1">
+                          <RotateCcw className="h-3 w-3 animate-spin stroke-[2.5]" />
+                          Updating...
+                        </span>
+                      )}
                       <button
                         type="button"
-                        disabled={customerPage <= 1 || isCustomersLoading}
+                        disabled={customerPage <= 1 || isCustomersLoading || isCustomersRefreshing}
                         onClick={() => setCustomerPage((prev) => Math.max(1, prev - 1))}
-                        className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
+                        aria-label="Previous page"
+                        className="min-h-[44px] min-w-[44px] rounded-[8px] border-2 border-black bg-white px-4 py-2 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center justify-center gap-1"
                       >
-                        <ChevronLeft className="h-3 w-3 stroke-[3]" />
+                        <ChevronLeft className="h-3.5 w-3.5 stroke-[3]" />
                         Prev
                       </button>
                       <span className="font-mono text-xs font-black px-2">
@@ -1260,12 +1281,13 @@ export default function WalletPage() {
                       </span>
                       <button
                         type="button"
-                        disabled={customerPage >= customerTotalPages || isCustomersLoading}
+                        disabled={customerPage >= customerTotalPages || isCustomersLoading || isCustomersRefreshing}
                         onClick={() => setCustomerPage((prev) => prev + 1)}
-                        className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center gap-1"
+                        aria-label="Next page"
+                        className="min-h-[44px] min-w-[44px] rounded-[8px] border-2 border-black bg-white px-4 py-2 text-xs font-black disabled:opacity-40 shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center justify-center gap-1"
                       >
                         Next
-                        <ChevronRight className="h-3 w-3 stroke-[3]" />
+                        <ChevronRight className="h-3.5 w-3.5 stroke-[3]" />
                       </button>
                     </div>
                   </div>

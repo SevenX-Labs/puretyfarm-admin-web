@@ -16,6 +16,7 @@ import { OrderBillingNote } from "@/components/orders/order-billing-note";
 import { BulkUpdateQuantityModal } from "@/components/orders/bulk-update-quantity-modal";
 import { BulkResultsModal } from "@/components/orders/bulk-results-modal";
 import { BulkOperationResponse } from "@/services/order-service";
+import { clampPageAfterSuccess } from "@/lib/pagination";
 import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -193,10 +194,9 @@ export default function OrdersPage() {
               setOrders(fresh.data);
               setTotalPages(fresh.pagination?.totalPages || 1);
               setTotalOrders(fresh.pagination?.total || 0);
-              setCurrentPage((cur) => {
-                const max = fresh.pagination?.totalPages || 1;
-                return cur > max ? max : cur;
-              });
+              if (fresh.pagination?.totalPages) {
+                setCurrentPage((cur) => clampPageAfterSuccess(cur, fresh.pagination?.totalPages));
+              }
               setIsLoading(false);
             }
           },
@@ -206,10 +206,9 @@ export default function OrdersPage() {
           setOrders(response.data);
           setTotalPages(response.pagination?.totalPages || 1);
           setTotalOrders(response.pagination?.total || 0);
-          setCurrentPage((cur) => {
-            const max = response.pagination?.totalPages || 1;
-            return cur > max ? max : cur;
-          });
+          if (response.pagination?.totalPages) {
+            setCurrentPage((cur) => clampPageAfterSuccess(cur, response.pagination?.totalPages));
+          }
         }
       } catch (err: unknown) {
         console.error("Failed to load orders:", err);
@@ -736,7 +735,7 @@ export default function OrdersPage() {
                 </th>
                 <th className="py-3.5 px-4 border-r-2 border-black w-36">Order #</th>
                 <th className="py-3.5 px-4 border-r-2 border-black">Customer</th>
-                <th className="py-3.5 px-4 border-r-2 border-black w-40">Delivery Window</th>
+                <th className="py-3.5 px-4 border-r-2 border-black min-w-[160px] whitespace-nowrap">Delivery Window</th>
                 <th className="py-3.5 px-4 border-r-2 border-black text-center w-32">Plan</th>
                 <th className="py-3.5 px-4 border-r-2 border-black text-right w-32">Order Total</th>
                 <th className="py-3.5 px-4 border-r-2 border-black text-center w-40">Status</th>
@@ -1042,27 +1041,35 @@ export default function OrdersPage() {
 
         {/* PAGINATION BAR */}
         <div className="p-4 bg-[#FAF7EC] border-t-2 border-black flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 font-mono text-xs">
-          <div className="font-bold text-[#1A1A1A]">
-            Showing page <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong> (
-            <strong>{totalOrders}</strong> total orders)
+          <div className="flex items-center gap-2 font-bold text-[#1A1A1A]">
+            <span>
+              Showing page <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong> (
+              <strong>{totalOrders}</strong> total orders)
+            </span>
+            {isRefreshing && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5C5647]">
+                <RotateCcw className="h-3 w-3 animate-spin stroke-[2.5]" />
+                Updating...
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               type="button"
-              disabled={currentPage <= 1 || isLoading}
+              disabled={currentPage <= 1 || isLoading || isRefreshing}
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               aria-label="Previous page"
-              className="h-8 px-3 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFDF58] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed"
+              className="min-h-[44px] min-w-[44px] px-4 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFDF58] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed flex items-center justify-center"
             >
               Previous
             </button>
             <button
               type="button"
-              disabled={currentPage >= totalPages || isLoading}
+              disabled={currentPage >= totalPages || isLoading || isRefreshing}
               onClick={() => setCurrentPage((prev) => prev + 1)}
               aria-label="Next page"
-              className="h-8 px-3 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFDF58] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed"
+              className="min-h-[44px] min-w-[44px] px-4 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[8px] shadow-[2px_2px_0px_0px_#000000] hover:bg-[#FFDF58] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed flex items-center justify-center"
             >
               Next
             </button>

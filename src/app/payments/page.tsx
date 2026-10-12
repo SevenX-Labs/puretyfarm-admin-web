@@ -1,5 +1,7 @@
 "use client";
 
+import { clampPageAfterSuccess } from "@/lib/pagination";
+
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
@@ -225,6 +227,9 @@ export default function PaymentsPage() {
               setCashCollections(fresh.data);
               setCashTotalPages(fresh.pagination?.totalPages || 1);
               setCashTotalCount(fresh.pagination?.total || fresh.data.length);
+              if (fresh.pagination?.totalPages) {
+                setCashPage((cur) => clampPageAfterSuccess(cur, fresh.pagination.totalPages));
+              }
               setIsCashLoading(false);
             }
           },
@@ -234,6 +239,9 @@ export default function PaymentsPage() {
           setCashCollections(response.data);
           setCashTotalPages(response.pagination?.totalPages || 1);
           setCashTotalCount(response.pagination?.total || response.data.length);
+          if (response.pagination?.totalPages) {
+            setCashPage((cur) => clampPageAfterSuccess(cur, response.pagination.totalPages));
+          }
 
           // Update metrics from pending response if currently on PENDING tab
           if (cashStatusFilter === "PENDING" && !debouncedCashSearch && !cashStartDate && !cashEndDate) {
@@ -289,6 +297,9 @@ export default function PaymentsPage() {
               setPayments(fresh.data);
               setPaymentTotalPages(fresh.pagination?.totalPages || 1);
               setPaymentTotalCount(fresh.pagination?.total || fresh.data.length);
+              if (fresh.pagination?.totalPages) {
+                setPaymentPage((cur) => clampPageAfterSuccess(cur, fresh.pagination.totalPages));
+              }
               setIsPaymentsLoading(false);
             }
           },
@@ -298,6 +309,9 @@ export default function PaymentsPage() {
           setPayments(response.data);
           setPaymentTotalPages(response.pagination?.totalPages || 1);
           setPaymentTotalCount(response.pagination?.total || response.data.length);
+          if (response.pagination?.totalPages) {
+            setPaymentPage((cur) => clampPageAfterSuccess(cur, response.pagination.totalPages));
+          }
         }
       } catch (err: unknown) {
         console.error("Failed to load payments:", err);
@@ -355,7 +369,7 @@ export default function PaymentsPage() {
         loadPayments(paymentPageRef.current, true);
       }
     }
-  }, { intervalMs: 12000 });
+  }, { intervalMs: 30000 });
 
   // Reset Cash Filters
   const handleResetCashFilters = () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { clampPageAfterSuccess } from "@/lib/pagination";
 import {
   CustomerSubscriptionItem,
   CustomerSubscriptionsApiResponse,
@@ -117,6 +118,9 @@ export default function PlansAndDeliveryPage() {
                 setSubscriptions(fresh.data);
                 setSubTotalPages(fresh.pagination?.totalPages || 1);
                 setTotalSubscriptions(fresh.pagination?.total || fresh.data.length);
+                if (fresh.pagination?.totalPages) {
+                  setSubPage((cur) => clampPageAfterSuccess(cur, fresh.pagination.totalPages));
+                }
                 setSubscriptionsLoading(false);
               }
             },
@@ -127,6 +131,9 @@ export default function PlansAndDeliveryPage() {
           setSubscriptions(res.data);
           setSubTotalPages(res.pagination?.totalPages || 1);
           setTotalSubscriptions(res.pagination?.total || res.data.length);
+          if (res.pagination?.totalPages) {
+            setSubPage((cur) => clampPageAfterSuccess(cur, res.pagination.totalPages));
+          }
         }
       } catch (err: unknown) {
         console.error("Failed to fetch subscriptions:", err);
@@ -238,6 +245,9 @@ export default function PlansAndDeliveryPage() {
                 setRequests(fresh.data);
                 setTotalPages(fresh.pagination?.totalPages || 1);
                 setTotalRequests(fresh.pagination?.total || fresh.data.length);
+                if (fresh.pagination?.totalPages) {
+                  setCurrentPage((cur) => clampPageAfterSuccess(cur, fresh.pagination.totalPages));
+                }
                 setRequestsLoading(false);
               }
             },
@@ -248,6 +258,9 @@ export default function PlansAndDeliveryPage() {
           setRequests(response.data);
           setTotalPages(response.pagination?.totalPages || 1);
           setTotalRequests(response.pagination?.total || response.data.length);
+          if (response.pagination?.totalPages) {
+            setCurrentPage((cur) => clampPageAfterSuccess(cur, response.pagination.totalPages));
+          }
         }
       } catch (err: unknown) {
         console.error("Error fetching change requests:", err);
@@ -325,7 +338,7 @@ export default function PlansAndDeliveryPage() {
     } else if (activeTab === "PLANS") {
       if (!plansLoading) fetchPlansData(true);
     }
-  }, { intervalMs: 15000 });
+  }, { intervalMs: 30000 });
 
   // ==========================================
   // ACTIONS: APPROVE / REJECT / TOGGLE PLAN
@@ -1111,7 +1124,7 @@ export default function PlansAndDeliveryPage() {
                   disabled={subPage <= 1 || subscriptionsLoading}
                   onClick={() => setSubPage((p) => Math.max(1, p - 1))}
                   aria-label="Previous page"
-                  className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
+                  className="min-h-[44px] min-w-[44px] rounded-[8px] border-2 border-black bg-white px-4 py-2 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center justify-center"
                 >
                   Prev
                 </button>
@@ -1123,7 +1136,7 @@ export default function PlansAndDeliveryPage() {
                   disabled={subPage >= subTotalPages || subscriptionsLoading}
                   onClick={() => setSubPage((p) => p + 1)}
                   aria-label="Next page"
-                  className="rounded-[8px] border-2 border-black bg-white px-3 py-1 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer"
+                  className="min-h-[44px] min-w-[44px] rounded-[8px] border-2 border-black bg-white px-4 py-2 text-xs font-black disabled:opacity-40 hover:bg-[#FFDF58] shadow-[1.5px_1.5px_0px_0px_#000000] cursor-pointer flex items-center justify-center"
                 >
                   Next
                 </button>

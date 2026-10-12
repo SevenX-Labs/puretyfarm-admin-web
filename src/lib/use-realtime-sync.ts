@@ -1,23 +1,35 @@
+"use client";
+
 import { useEffect, useRef } from "react";
+import { ApiError } from "@/lib/api-client";
 
 export interface RealtimeSyncOptions {
-  intervalMs?: number; // default: 12000 (12 seconds)
+  intervalMs?: number; // minimum 30000 (30 seconds) per Issue B request budget
   enabled?: boolean;
   onFocus?: boolean;
 }
 
 /**
- * Automatically syncs fresh data in the background:
- * 1. Periodic background polling every `intervalMs` (only when browser tab is active/visible).
- * 2. Window focus and visibility change revalidation (when user switches back to tab).
- * Keeps admin dashboard and operational screens live in real-time without continuous manual page refreshes.
+ * Background auto-refresh sync adhering to Issue B request budget:
+ * 1. Default interval of at least 30 seconds.
+ * 2. Paused while the tab is hidden.
+ * 3. Skipped if a request is already in-flight.
+ * 4. Cleared on unmount.
+ * 5. Stopped immediately on 401 or 429.
+ * 6. Rate-limited focus revalidation (avoids duplicate bursts on rapid tab switching).
  */
 export function useRealtimeSync(
   refreshFn: () => void | Promise<void>,
   options: RealtimeSyncOptions = {}
 ) {
-  const { intervalMs = 12000, enabled = true, onFocus = true } = options;
+  const { intervalMs = 30000, enabled = true, onFocus = false } = options;
+  // Ensure polling interval is at least 30s per hard constraint
+  const effectiveIntervalMs = Math.max(30000, intervalMs);
+
   const fnRef = useRef(refreshFn);
+  const inFlightRef = useRef(false);
+  const isStoppedRef = useRef(false);
+  const lastSyncTimeRef = useRef(0);
 
   useEffect(() => {
     fnRef.current = refreshFn;
@@ -25,46 +37,63 @@ export function useRealtimeSync(
 
   useEffect(() => {
     if (!enabled) return;
+    isStoppedRef.current = false;
 
-    // 1. Periodic background timer
-    const intervalId = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        try {
-          const res = fnRef.current();
-          if (res && typeof (res as Promise<void>).catch === "function") {
-            (res as Promise<void>).catch(() => {});
-          }
-        } catch {
-          // Swallow background sync error
-        }
-      }
-    }, intervalMs);
+    const executeSync = async () => {
+      if (isStoppedRef.current) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (inFlightRef.current) return; // Skip if a request is already in-flight
 
-    // 2. Revalidate on window focus & tab visibility change
-    const handleRevalidate = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        try {
-          const res = fnRef.current();
-          if (res && typeof (res as Promise<void>).catch === "function") {
-            (res as Promise<void>).catch(() => {});
-          }
-        } catch {
-          // Swallow background sync error
+      inFlightRef.current = true;
+      try {
+        const res = fnRef.current();
+        if (res && typeof (res as Promise<void>).then === "function") {
+          await res;
         }
+        lastSyncTimeRef.current = Date.now();
+      } catch (err: unknown) {
+        if (err instanceof ApiError && (err.statusCode === 401 || err.statusCode === 429)) {
+          console.warn("[realtime-sync] Stopping auto-sync due to auth or rate-limit status:", err.statusCode);
+          isStoppedRef.current = true;
+        }
+      } finally {
+        inFlightRef.current = false;
       }
     };
 
-    if (onFocus && typeof window !== "undefined") {
-      window.addEventListener("focus", handleRevalidate);
-      document.addEventListener("visibilitychange", handleRevalidate);
+    // 1. Periodic background timer
+    const intervalId = setInterval(executeSync, effectiveIntervalMs);
+
+    // 2. Focus & visibility change handler with cooldown
+    const handleRevalidate = () => {
+      const now = Date.now();
+      // Require at least 20 seconds between revalidations on focus
+      if (now - lastSyncTimeRef.current >= 20000) {
+        executeSync();
+      }
+    };
+
+    const handleUnauthorizedEvent = () => {
+      isStoppedRef.current = true;
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("pf:unauthorized", handleUnauthorizedEvent);
+      if (onFocus) {
+        window.addEventListener("focus", handleRevalidate);
+        document.addEventListener("visibilitychange", handleRevalidate);
+      }
     }
 
     return () => {
       clearInterval(intervalId);
-      if (onFocus && typeof window !== "undefined") {
-        window.removeEventListener("focus", handleRevalidate);
-        document.removeEventListener("visibilitychange", handleRevalidate);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pf:unauthorized", handleUnauthorizedEvent);
+        if (onFocus) {
+          window.removeEventListener("focus", handleRevalidate);
+          document.removeEventListener("visibilitychange", handleRevalidate);
+        }
       }
     };
-  }, [enabled, intervalMs, onFocus]);
+  }, [enabled, effectiveIntervalMs, onFocus]);
 }

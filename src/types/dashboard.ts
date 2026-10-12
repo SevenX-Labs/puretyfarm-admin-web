@@ -85,6 +85,9 @@ export interface DashboardComparison {
   salesChangePercent: number;
   revenueChangePercent: number;
   grossProfitChangePercent: number;
+    prevOrdersTotal?: number;
+    prevCustomersNew?: number;
+    prevRevenueCollectedPaise?: number;
 }
 
 export interface DashboardTrendDay {

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types test/pagination-and-comparison.test.mjs"
   },
   "dependencies": {
     "@tanstack/react-table": "^9.2.5",

@@ -72,10 +72,12 @@ export interface RequestOptions extends RequestInit {
   skipAuth?: boolean;
   skipAuthRedirect?: boolean;
   _retry?: boolean;
+  _retryCount?: number;
 }
 
 // In-flight refresh token promise so concurrent requests share a single refresh call
 let refreshPromise: Promise<string | null> | null = null;
+const IN_FLIGHT_REQUESTS = new Map<string, Promise<unknown>>();
 
 async function refreshAccessToken(): Promise<string | null> {
   const isBrowser = typeof window !== "undefined";
@@ -163,6 +165,7 @@ export async function apiClient<T = unknown>(
   }
 
   const method = (rest.method || "GET").toUpperCase();
+
   const startedAt = Date.now();
 
   debugLog(`-> ${method} ${url}`, {
@@ -177,11 +180,59 @@ export async function apiClient<T = unknown>(
     retry: _retry,
   });
 
+  const canDedupe = method === "GET" && !rest.body && !_retry;
+  if (canDedupe && IN_FLIGHT_REQUESTS.has(url)) {
+    return IN_FLIGHT_REQUESTS.get(url) as Promise<T>;
+  }
+
+  const doFetch = async (): Promise<T> => {
   try {
     const response = await fetch(url, {
       ...rest,
       headers: requestHeaders,
     });
+
+    // Handle 429 Rate Limiting with Retry-After header and bounded retry
+    if (response.status === 429) {
+      const retryAfterHeader = response.headers.get("retry-after");
+      let retryAfterSeconds = 5;
+      if (retryAfterHeader) {
+        const parsedSec = parseInt(retryAfterHeader, 10);
+        if (!isNaN(parsedSec) && parsedSec > 0) {
+          retryAfterSeconds = Math.min(parsedSec, 10);
+        }
+      }
+
+      const retryCount = options._retryCount || 0;
+      if (!_retry && retryCount === 0) {
+        console.warn(`[api] 429 Too Many Requests on ${normalizedEndpoint}. Retrying in ${retryAfterSeconds}s...`);
+        await new Promise((resolve) => setTimeout(resolve, retryAfterSeconds * 1000));
+        return apiClient<T>(endpoint, {
+          ...options,
+          _retry: true,
+          _retryCount: 1,
+        });
+      }
+
+      throw new ApiError(
+        `Too many requests. Please wait ${retryAfterSeconds}s before retrying.`,
+        429,
+        { retryAfter: retryAfterSeconds }
+      );
+    }
+
+    // Bounded backoff for 5xx server errors on idempotent GET requests (max 2 retries)
+    if (response.status >= 500 && method === "GET") {
+      const retryCount = options._retryCount || 0;
+      if (retryCount < 2) {
+        const backoffMs = (retryCount + 1) * 750;
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        return apiClient<T>(endpoint, {
+          ...options,
+          _retryCount: retryCount + 1,
+        });
+      }
+    }
 
     // Check for 401 Unauthorized or 403 Forbidden with auth-expired symptoms
     if (response.status === 401 || (response.status === 403 && !skipAuth)) {
@@ -308,10 +359,6 @@ export async function apiClient<T = unknown>(
     if (err instanceof ApiError) {
       throw err;
     }
-    // Reaching here means fetch itself rejected — DNS, TLS, offline, or a CORS
-    // preflight the browser refused. Status 0 distinguishes it from any real
-    // HTTP response, and the original message is useless to an operator, so
-    // callers get something they can act on.
     debugLog(`!! ${method} ${url} (${Date.now() - startedAt}ms)`, {
       error: err instanceof Error ? err.message : String(err),
     });
@@ -320,7 +367,16 @@ export async function apiClient<T = unknown>(
       0,
       { cause: err instanceof Error ? err.message : String(err) }
     );
+  } finally {
+    IN_FLIGHT_REQUESTS.delete(url);
   }
+  };
+
+  const p = doFetch();
+  if (canDedupe) {
+    IN_FLIGHT_REQUESTS.set(url, p);
+  }
+  return p;
 }
 
 // Convenience REST methods

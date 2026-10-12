@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { CustomerListItem, CustomerPaginationMeta, CustomerProfile, CustomersApiResponse } from "@/types/customer";
 import { fetchCustomers } from "@/services/customer-service";
+import { clampPageAfterSuccess } from "@/lib/pagination";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { getCachedData, invalidateCache } from "@/lib/cache";
 import { useRealtimeSync } from "@/lib/use-realtime-sync";
@@ -89,6 +90,7 @@ export default function CustomersPage() {
   const [limit, setLimit] = useState(20);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Detail drawer state
@@ -128,8 +130,9 @@ export default function CustomersPage() {
       setError(null);
 
       if (isForce) {
-        invalidateCache("customers");
-        invalidateCache("customer:");
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
       }
 
       // Instant 0ms cache read
@@ -152,8 +155,6 @@ export default function CustomersPage() {
           }
         );
         setIsLoading(false);
-      } else {
-        setIsLoading(true);
       }
 
       // Fetch fresh data in the background and update UI silently
@@ -167,15 +168,13 @@ export default function CustomersPage() {
           {
             forceRefresh: isForce,
             onFreshData: (fresh) => {
-              setCustomers(fresh.data || []);
-              setPagination(
-                fresh.pagination || {
-                  page: targetPage,
-                  limit,
-                  total: fresh.data?.length || 0,
-                  totalPages: Math.max(1, Math.ceil((fresh.data?.length || 0) / limit)),
+              if (fresh && fresh.data) {
+                setCustomers(fresh.data);
+                if (fresh.pagination) {
+                  setPagination(fresh.pagination);
+                  setPage((cur) => clampPageAfterSuccess(cur, fresh.pagination.totalPages));
                 }
-              );
+              }
               setIsLoading(false);
             },
           }
@@ -183,14 +182,10 @@ export default function CustomersPage() {
 
         if (response && response.data) {
           setCustomers(response.data);
-          setPagination(
-            response.pagination || {
-              page: targetPage,
-              limit,
-              total: response.data.length,
-              totalPages: Math.max(1, Math.ceil(response.data.length / limit)),
-            }
-          );
+          if (response.pagination) {
+            setPagination(response.pagination);
+            setPage((cur) => clampPageAfterSuccess(cur, response.pagination.totalPages));
+          }
         }
       } catch (err: unknown) {
         if (!cached) {
@@ -200,6 +195,7 @@ export default function CustomersPage() {
         }
       } finally {
         setIsLoading(false);
+        setIsRefreshing(false);
       }
     },
     [page, limit, debouncedSearch]
@@ -636,26 +632,34 @@ export default function CustomersPage() {
 
         {/* Pagination Footer */}
         <div className="p-4 bg-[#FAF7EC] border-t-2 border-[#1A1A1A] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="font-mono text-xs font-bold text-[#1A1A1A]">
-            Showing Page <strong>{page}</strong> of <strong>{pagination.totalPages || 1}</strong> (<strong>{pagination.total}</strong> total customers)
+          <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#1A1A1A]">
+            <span>
+              Showing Page <strong>{page}</strong> of <strong>{pagination.totalPages || 1}</strong> (<strong>{pagination.total}</strong> total customers)
+            </span>
+            {isRefreshing && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5C5647]">
+                <RotateCcw className="h-3 w-3 animate-spin stroke-[2.5]" />
+                Updating...
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               type="button"
-              disabled={page <= 1 || isLoading}
+              disabled={page <= 1 || isLoading || isRefreshing}
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               aria-label="Previous page"
-              className="h-8 px-3 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] hover:bg-[#FFD84D] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed"
+              className="min-h-[44px] min-w-[44px] px-4 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] hover:bg-[#FFD84D] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed flex items-center justify-center"
             >
               Previous
             </button>
             <button
               type="button"
-              disabled={page >= pagination.totalPages || isLoading}
+              disabled={page >= pagination.totalPages || isLoading || isRefreshing}
               onClick={() => setPage((prev) => prev + 1)}
               aria-label="Next page"
-              className="h-8 px-3 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] hover:bg-[#FFD84D] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed"
+              className="min-h-[44px] min-w-[44px] px-4 bg-white text-[#1A1A1A] font-black uppercase text-xs border-2 border-[#1A1A1A] rounded-[8px] shadow-[2px_2px_0px_0px_#1A1A1A] hover:bg-[#FFD84D] disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all disabled:cursor-not-allowed flex items-center justify-center"
             >
               Next
             </button>

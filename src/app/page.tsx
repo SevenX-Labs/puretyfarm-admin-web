@@ -46,15 +46,13 @@ import { StatCardSkeleton } from "@/components/ui/stat-card-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/utils";
+import { formatComparisonCaption, formatIndianNumber } from "@/lib/format-comparison";
 import { useRealtimeSync } from "@/lib/use-realtime-sync";
 
 type DatePreset = "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "THIS_MONTH" | "CUSTOM";
 
 const formatDateISO = (d: Date): string => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
 };
 
 export default function DashboardOverviewPage() {
@@ -263,31 +261,44 @@ export default function DashboardOverviewPage() {
 
               <div className="mt-4">
                 <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
-                  ₹{Math.round((revenue?.collectedPaise || 0) / 100).toLocaleString("en-IN")}
+                  ₹{formatIndianNumber(Math.round((revenue?.collectedPaise || 0) / 100))}
                 </div>
-                <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
-                  {comparison?.revenueChangePercent !== undefined && comparison.revenueChangePercent !== 0 && (
-                    <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-black ${
-                        comparison.revenueChangePercent >= 0
-                          ? "bg-[#B8E8B8] text-[#14532D]"
-                          : "bg-[#FFD9D0] text-[#7F1D1D]"
-                      }`}
-                    >
-                      {comparison.revenueChangePercent >= 0 ? "+" : ""}
-                      {comparison.revenueChangePercent.toFixed(1)}%
-                    </span>
-                  )}
-                  <span>vs prev period</span>
+                {(() => {
+                  const currentRev = Math.round((revenue?.collectedPaise || 0) / 100);
+                  const prevRev = comparison?.prevRevenueCollectedPaise != null
+                    ? Math.round(comparison.prevRevenueCollectedPaise / 100)
+                    : null;
+                  const comp = formatComparisonCaption(currentRev, prevRev, activePreset === "TODAY" ? "yesterday" : "prev period");
+                  return (
+                    <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
+                      {comp.badgeText && (
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-black ${
+                            comp.type === "positive"
+                              ? "bg-[#B8E8B8] text-[#14532D]"
+                              : comp.type === "negative"
+                              ? "bg-[#FFD9D0] text-[#7F1D1D]"
+                              : "bg-[#FAF7EC] text-[#1A1A1A]"
+                          }`}
+                        >
+                          {comp.badgeText}
+                        </span>
+                      )}
+                      <span>{comp.caption}</span>
+                    </div>
+                  );
+                })()}
+                <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
+                  Collected for selected period
                 </div>
               </div>
             </div>
 
-            {/* Card 2: Milk Volume (Litres) */}
+            {/* Card 2: Orders Placed (Replaces confusing "Volume Delivered") */}
             <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
-                  Volume Delivered
+                  Orders Placed
                 </span>
                 <div className="w-8 h-8 rounded-[8px] bg-[#FFDF58] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
                   <Package className="h-4 w-4 stroke-[2.5]" />
@@ -296,22 +307,37 @@ export default function DashboardOverviewPage() {
 
               <div className="mt-4">
                 <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
-                  {orders?.total || 0} <span className="text-lg font-black text-[#5C5647]">Orders</span>
+                  {formatIndianNumber(orders?.total || 0)} <span className="text-lg font-black text-[#5C5647]">Orders</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
-                  {comparison?.ordersChangePercent !== undefined && comparison.ordersChangePercent !== 0 && (
-                    <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-black ${
-                        comparison.ordersChangePercent >= 0
-                          ? "bg-[#B8E8B8] text-[#14532D]"
-                          : "bg-[#FFD9D0] text-[#7F1D1D]"
-                      }`}
-                    >
-                      {comparison.ordersChangePercent >= 0 ? "+" : ""}
-                      {comparison.ordersChangePercent.toFixed(1)}%
-                    </span>
-                  )}
-                  <span>vs prev period</span>
+                {(() => {
+                  const currentOrders = orders?.total || 0;
+                  const prevOrders = comparison?.prevOrdersTotal ?? (
+                    comparison?.ordersChangePercent != null && comparison.ordersChangePercent !== 0
+                      ? Math.max(0, Math.round(currentOrders / (1 + comparison.ordersChangePercent / 100)))
+                      : null
+                  );
+                  const comp = formatComparisonCaption(currentOrders, prevOrders, activePreset === "TODAY" ? "yesterday" : "prev period");
+                  return (
+                    <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
+                      {comp.badgeText && (
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-black ${
+                            comp.type === "positive"
+                              ? "bg-[#B8E8B8] text-[#14532D]"
+                              : comp.type === "negative"
+                              ? "bg-[#FFD9D0] text-[#7F1D1D]"
+                              : "bg-[#FAF7EC] text-[#1A1A1A]"
+                          }`}
+                        >
+                          {comp.badgeText}
+                        </span>
+                      )}
+                      <span>{comp.caption}</span>
+                    </div>
+                  );
+                })()}
+                <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
+                  Total orders scheduled or placed
                 </div>
               </div>
             </div>
@@ -328,12 +354,24 @@ export default function DashboardOverviewPage() {
               </div>
 
               <div className="mt-4">
-                <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
-                  {deliveries?.delivered || 0} <span className="text-sm font-bold text-[#5C5647]">/ {((deliveries?.scheduled || 0) + (deliveries?.delivered || 0) + (deliveries?.skipped || 0)) || 0}</span>
-                </div>
-                <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
-                  {(deliveries?.completionPercent || 0).toFixed(0)}% Completion Rate
-                </div>
+                {(() => {
+                  const deliveredCount = deliveries?.delivered || 0;
+                  const totalDeliv = (deliveries?.scheduled || 0) + (deliveries?.delivered || 0) + (deliveries?.skipped || 0);
+                  const rate = deliveries?.completionPercent || (totalDeliv > 0 ? (deliveredCount / totalDeliv) * 100 : 0);
+                  return (
+                    <>
+                      <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
+                        {formatIndianNumber(deliveredCount)} <span className="text-sm font-bold text-[#5C5647]">/ {formatIndianNumber(totalDeliv)} Scheduled</span>
+                      </div>
+                      <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
+                        {totalDeliv > 0 ? `${rate.toFixed(0)}% Completion Rate` : "No deliveries scheduled"}
+                      </div>
+                      <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
+                        Recurring plan deliveries for period
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
@@ -341,7 +379,7 @@ export default function DashboardOverviewPage() {
             <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
-                  Active Customers
+                  Customers
                 </span>
                 <div className="w-8 h-8 rounded-[8px] bg-[#FAF7EC] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
                   <Users className="h-4 w-4 stroke-[2.5]" />
@@ -350,10 +388,13 @@ export default function DashboardOverviewPage() {
 
               <div className="mt-4">
                 <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
-                  {customers?.active || 0}
+                  {formatIndianNumber(customers?.active || 0)} <span className="text-sm font-bold text-[#5C5647]">Active</span>
                 </div>
                 <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
-                  {customers?.new ? `+${customers.new} new accounts` : "Across Raipur zones"}
+                  {customers?.new ? `+${customers.new} new this period` : "Active accounts in Raipur"}
+                </div>
+                <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
+                  {formatIndianNumber(customers?.total || 0)} total registered
                 </div>
               </div>
             </div>
@@ -391,8 +432,14 @@ export default function DashboardOverviewPage() {
               <div className="h-full w-full flex items-center justify-center bg-[#FAF7EC]/50 border-2 border-dashed border-black/20 rounded-[10px] animate-pulse">
                 <span className="font-mono text-xs font-bold text-[#5C5647]">Loading trajectory metrics...</span>
               </div>
-            ) : trends.length === 0 ? (
-              <EmptyState title="No trend metrics" description="No dispatch history recorded for selected range." />
+            ) : trends.length === 0 || trends.every((t) => t.deliveries === 0 && t.revenueRupees === 0 && t.salesRupees === 0) ? (
+              <div className="h-full w-full flex flex-col items-center justify-center bg-[#FAF7EC]/50 border-2 border-dashed border-black/20 rounded-[10px] p-6 text-center">
+                <Truck className="h-8 w-8 text-[#5C5647]/50 mb-2 stroke-[2]" />
+                <p className="text-xs font-black uppercase text-[#1A1A1A]">No trajectory activity</p>
+                <p className="text-[11px] font-bold text-[#5C5647] mt-1 max-w-xs">
+                  No milk deliveries or revenue transactions recorded for {activePreset === "TODAY" ? "today" : "this period"}.
+                </p>
+              </div>
             ) : isMounted ? (
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -411,6 +458,7 @@ export default function DashboardOverviewPage() {
                   />
                   <YAxis
                     yAxisId="left"
+                    allowDecimals={false}
                     tick={{ fontSize: 11, fontFamily: "monospace", fill: "#5C5647" }}
                   />
                   <YAxis
