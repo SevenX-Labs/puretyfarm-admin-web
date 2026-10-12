@@ -23,7 +23,7 @@ import {
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
+  IndianRupee,
   Truck,
   Users,
   AlertTriangle,
@@ -31,6 +31,7 @@ import {
   Calendar,
   Clock,
   ArrowRight,
+  ArrowUpRight,
   ShieldAlert,
   Wallet,
   Package,
@@ -41,6 +42,8 @@ import {
   AlertCircle,
   Sparkles,
   RotateCcw,
+  Activity,
+  Milk,
 } from "lucide-react";
 import { StatCardSkeleton } from "@/components/ui/stat-card-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
@@ -171,25 +174,28 @@ export default function DashboardOverviewPage() {
       {/* ========================================================= */}
       {/* 1. TOP HEADER & DATE RANGE FILTER BAR                     */}
       {/* ========================================================= */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border-2 border-black p-4 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000]">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 bg-white border-2 border-black p-4 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000]">
         <div className="min-w-0">
-          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-            <h1 className="text-xl sm:text-3xl font-black uppercase tracking-tight text-[#1A1A1A]">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black uppercase tracking-tight text-[#1A1A1A]">
               Operations Command
             </h1>
-            <span className="bg-[#B8E8B8] border-2 border-black font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] shadow-[1px_1px_0px_0px_#000000]">
-              Raipur Hub
-            </span>
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-[6px] border-2 border-black bg-[#B8E8B8] shadow-[1.5px_1.5px_0px_0px_#000000]">
+              <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
+              <span className="font-mono text-[10px] font-black uppercase text-[#14532D]">
+                Raipur Hub Live
+              </span>
+            </div>
           </div>
           <p className="text-xs font-bold text-[#5C5647] mt-1">
             Real-time fulfillment, morning dispatch routes, and customer subscriptions.
           </p>
         </div>
 
-        {/* Date Filter Controls */}
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          {/* Preset Buttons */}
-          <div className="grid min-w-0 flex-1 grid-cols-5 rounded-[10px] border-2 border-black p-0.5 bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#000000] sm:inline-flex sm:flex-none">
+        {/* Date Filter Controls & Sync */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Segmented Preset Controller */}
+          <div className="inline-flex flex-wrap sm:flex-nowrap rounded-[10px] border-2 border-black p-1 bg-[#FAF7EC] shadow-[2px_2px_0px_0px_#000000] gap-1">
             {(["ALL", "TODAY", "YESTERDAY", "LAST_7_DAYS", "THIS_MONTH"] as DatePreset[]).map((p) => {
               const label =
                 p === "ALL"
@@ -209,10 +215,10 @@ export default function DashboardOverviewPage() {
                   key={p}
                   type="button"
                   onClick={() => handleSelectPreset(p)}
-                  className={`whitespace-nowrap px-1 py-1 text-[9px] font-black uppercase tracking-tight rounded-[6px] transition-all cursor-pointer sm:px-3 sm:text-xs sm:tracking-wider ${
+                  className={`h-7 sm:h-8 px-2.5 sm:px-3 text-[11px] sm:text-xs font-black uppercase tracking-tight rounded-[6px] transition-all cursor-pointer flex items-center justify-center ${
                     isActive
-                      ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1px_1px_0px_0px_#000000]"
-                      : "text-[#5C5647] hover:text-[#1A1A1A] hover:bg-white"
+                      ? "bg-[#FFDF58] text-[#1A1A1A] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]"
+                      : "text-[#5C5647] hover:text-[#1A1A1A] hover:bg-white border-2 border-transparent"
                   }`}
                 >
                   {label}
@@ -221,23 +227,23 @@ export default function DashboardOverviewPage() {
             })}
           </div>
 
-          {/* Refresh Button */}
+          {/* Sync Button */}
           <button
             type="button"
             onClick={() => loadDashboardData(fromDate, toDate, true)}
             disabled={isRefreshing || isLoading}
             aria-label="Refresh dashboard data"
-            className="h-9 w-9 shrink-0 justify-center px-0 bg-white hover:bg-[#FAF7EC] text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[10px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 sm:w-auto sm:px-3"
+            className="h-9 px-3.5 bg-white hover:bg-[#FAF7EC] text-[#1A1A1A] font-black uppercase text-xs border-2 border-black rounded-[10px] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <RotateCcw
-              className={`h-3.5 w-3.5 stroke-[2.5] ${isRefreshing ? "animate-spin" : ""}`}
+              className={`h-3.5 w-3.5 stroke-[2.5] ${isRefreshing ? "animate-spin text-amber-600" : ""}`}
             />
-            <span className="hidden sm:inline">Sync</span>
+            <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync Live"}</span>
           </button>
         </div>
       </div>
 
-      {/* Error / Session Expired State */}
+      {/* Error State */}
       {error && (
         <ErrorState
           error={error}
@@ -248,34 +254,44 @@ export default function DashboardOverviewPage() {
       {/* ========================================================= */}
       {/* 2. ROW 1: CORE METRIC KPI STAT CARDS                      */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" aria-busy={isLoading}>
-        {isLoading || !data ? (
-          <StatCardSkeleton count={4} className="min-w-0 p-3 sm:p-5" />
-        ) : (
-          <>
-            {/* Card 1: Revenue */}
-            <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
-                  Total Revenue
-                </span>
-                <div className="w-8 h-8 rounded-[8px] bg-[#B8E8B8] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
-                  <DollarSign className="h-4 w-4 stroke-[2.5]" />
-                </div>
+      {isLoading && !data ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Total Revenue */}
+          <div className="min-w-0 bg-white border-2 border-black p-4 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#000000] transition-all duration-200 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                Total Revenue
+              </span>
+              <div className="w-8 h-8 rounded-[8px] bg-[#B8E8B8] border-2 border-black flex items-center justify-center text-[#14532D] shadow-[2px_2px_0px_0px_#000000]">
+                <IndianRupee className="h-4 w-4 stroke-[2.5]" />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
+                ₹{formatIndianNumber(Math.round((revenue?.collectedPaise || 0) / 100))}
               </div>
 
-              <div className="mt-4">
-                <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
-                  ₹{formatIndianNumber(Math.round((revenue?.collectedPaise || 0) / 100))}
-                </div>
-                {(() => {
+              <div className="mt-2 min-h-[20px] flex items-center gap-1.5 text-xs font-mono font-bold text-[#5C5647]">
+                {activePreset === "ALL" ? (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-mono font-black bg-[#FAF7EC] text-[#5C5647]">
+                    Overall Collected
+                  </span>
+                ) : (() => {
                   const currentRev = Math.round((revenue?.collectedPaise || 0) / 100);
                   const prevRev = comparison?.prevRevenueCollectedPaise != null
                     ? Math.round(comparison.prevRevenueCollectedPaise / 100)
                     : null;
-                  const comp = formatComparisonCaption(currentRev, activePreset === "ALL" ? null : prevRev, activePreset === "TODAY" ? "yesterday" : "prev period");
-                  return (
-                    <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
+                  const comp = formatComparisonCaption(currentRev, prevRev, activePreset === "TODAY" ? "yesterday" : "prev period");
+                  return comp.caption ? (
+                    <>
                       {comp.badgeText && (
                         <span
                           className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-black ${
@@ -290,40 +306,49 @@ export default function DashboardOverviewPage() {
                         </span>
                       )}
                       <span>{comp.caption}</span>
-                    </div>
-                  );
+                    </>
+                  ) : null;
                 })()}
-                <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
-                  {activePreset === "ALL" ? "All-time collected revenue" : "Collected for selected period"}
-                </div>
+              </div>
+
+              <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
+                {activePreset === "ALL" ? "All-time collected revenue" : "Collected for selected period"}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Orders Placed */}
+          <div className="min-w-0 bg-white border-2 border-black p-4 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#000000] transition-all duration-200 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                Orders Placed
+              </span>
+              <div className="w-8 h-8 rounded-[8px] bg-[#FFDF58] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                <Package className="h-4 w-4 stroke-[2.5]" />
               </div>
             </div>
 
-            {/* Card 2: Orders Placed (Replaces confusing "Volume Delivered") */}
-            <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
-                  Orders Placed
-                </span>
-                <div className="w-8 h-8 rounded-[8px] bg-[#FFDF58] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
-                  <Package className="h-4 w-4 stroke-[2.5]" />
-                </div>
+            <div className="mt-4">
+              <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
+                {formatIndianNumber(orders?.total || 0)}{" "}
+                <span className="text-base sm:text-lg font-black text-[#5C5647]">Orders</span>
               </div>
 
-              <div className="mt-4">
-                <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
-                  {formatIndianNumber(orders?.total || 0)} <span className="text-lg font-black text-[#5C5647]">Orders</span>
-                </div>
-                {(() => {
+              <div className="mt-2 min-h-[20px] flex items-center gap-1.5 text-xs font-mono font-bold text-[#5C5647]">
+                {activePreset === "ALL" ? (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-mono font-black bg-[#FAF7EC] text-[#5C5647]">
+                    Total Registered
+                  </span>
+                ) : (() => {
                   const currentOrders = orders?.total || 0;
                   const prevOrders = comparison?.prevOrdersTotal ?? (
                     comparison?.ordersChangePercent != null && comparison.ordersChangePercent !== 0
                       ? Math.max(0, Math.round(currentOrders / (1 + comparison.ordersChangePercent / 100)))
                       : null
                   );
-                  const comp = formatComparisonCaption(currentOrders, activePreset === "ALL" ? null : prevOrders, activePreset === "TODAY" ? "yesterday" : "prev period");
-                  return (
-                    <div className="flex items-center gap-1.5 text-xs font-mono font-bold mt-1 text-[#5C5647]">
+                  const comp = formatComparisonCaption(currentOrders, prevOrders, activePreset === "TODAY" ? "yesterday" : "prev period");
+                  return comp.caption ? (
+                    <>
                       {comp.badgeText && (
                         <span
                           className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-black ${
@@ -338,96 +363,122 @@ export default function DashboardOverviewPage() {
                         </span>
                       )}
                       <span>{comp.caption}</span>
-                    </div>
-                  );
-                })()}
-                <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
-                  {activePreset === "ALL" ? "All-time orders placed" : "Total orders scheduled or placed"}
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Deliveries */}
-            <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
-                  Deliveries
-                </span>
-                <div className="w-8 h-8 rounded-[8px] bg-[#D8CEF6] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
-                  <Truck className="h-4 w-4 stroke-[2.5]" />
-                </div>
-              </div>
-
-              <div className="mt-4">
-                {(() => {
-                  const deliveredCount = deliveries?.delivered || 0;
-                  const totalDeliv = (deliveries?.scheduled || 0) + (deliveries?.delivered || 0) + (deliveries?.skipped || 0);
-                  const rate = deliveries?.completionPercent || (totalDeliv > 0 ? (deliveredCount / totalDeliv) * 100 : 0);
-                  return (
-                    <>
-                      <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
-                        {formatIndianNumber(deliveredCount)} <span className="text-sm font-bold text-[#5C5647]">/ {formatIndianNumber(totalDeliv)} Scheduled</span>
-                      </div>
-                      <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
-                        {totalDeliv > 0 ? `${rate.toFixed(0)}% Completion Rate` : "No deliveries scheduled"}
-                      </div>
-                      <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
-                        {activePreset === "ALL" ? "All-time plan deliveries" : "Recurring plan deliveries for period"}
-                      </div>
                     </>
-                  );
+                  ) : null;
                 })()}
               </div>
+
+              <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
+                {activePreset === "ALL" ? "All-time orders scheduled or placed" : "Total orders scheduled or placed"}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Deliveries */}
+          <div className="min-w-0 bg-white border-2 border-black p-4 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#000000] transition-all duration-200 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                Deliveries
+              </span>
+              <div className="w-8 h-8 rounded-[8px] bg-[#D8CEF6] border-2 border-black flex items-center justify-center text-[#4C1D95] shadow-[2px_2px_0px_0px_#000000]">
+                <Truck className="h-4 w-4 stroke-[2.5]" />
+              </div>
             </div>
 
-            {/* Card 4: Active Customers */}
-            <div className="min-w-0 bg-white border-2 border-black p-3 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between h-full">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
-                  Customers
+            <div className="mt-4">
+              {(() => {
+                const deliveredCount = deliveries?.delivered || 0;
+                const totalDeliv = (deliveries?.scheduled || 0) + (deliveries?.delivered || 0) + (deliveries?.skipped || 0);
+                const rate = deliveries?.completionPercent || (totalDeliv > 0 ? (deliveredCount / totalDeliv) * 100 : 0);
+                return (
+                  <>
+                    <div className="flex items-baseline gap-1.5 font-mono">
+                      <span className="text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
+                        {formatIndianNumber(deliveredCount)}
+                      </span>
+                      <span className="text-sm font-bold text-[#5C5647]">
+                        / {formatIndianNumber(totalDeliv)} scheduled
+                      </span>
+                    </div>
+
+                    <div className="mt-2 min-h-[20px] flex items-center gap-1.5 text-xs font-mono font-bold text-[#5C5647]">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-mono font-black bg-[#FAF7EC] text-[#1A1A1A]">
+                        {totalDeliv > 0 ? `${rate.toFixed(0)}% Completion` : "No Scheduled Runs"}
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
+                      {activePreset === "ALL" ? "All-time recurring deliveries" : "Recurring plan deliveries for period"}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Card 4: Customers */}
+          <div className="min-w-0 bg-white border-2 border-black p-4 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#000000] transition-all duration-200 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-[#5C5647] tracking-wider">
+                Customers
+              </span>
+              <div className="w-8 h-8 rounded-[8px] bg-[#FAF7EC] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
+                <Users className="h-4 w-4 stroke-[2.5]" />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
+                {formatIndianNumber(customers?.active || 0)}{" "}
+                <span className="text-base sm:text-lg font-black text-[#5C5647]">Active</span>
+              </div>
+
+              <div className="mt-2 min-h-[20px] flex items-center gap-1.5 text-xs font-mono font-bold text-[#5C5647]">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] border border-black text-[10px] font-mono font-black bg-[#B8E8B8] text-[#14532D]">
+                  {formatIndianNumber(customers?.total || 0)} Total Registered
                 </span>
-                <div className="w-8 h-8 rounded-[8px] bg-[#FAF7EC] border-2 border-black flex items-center justify-center text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000]">
-                  <Users className="h-4 w-4 stroke-[2.5]" />
-                </div>
+                {activePreset !== "ALL" && customers?.new ? (
+                  <span className="text-[11px] font-bold text-[#5C5647]">
+                    (+{customers.new} new)
+                  </span>
+                ) : null}
               </div>
 
-              <div className="mt-4">
-                <div className="font-mono text-2xl sm:text-3xl font-black text-[#1A1A1A] tracking-tight">
-                  {formatIndianNumber(customers?.active || 0)} <span className="text-sm font-bold text-[#5C5647]">Active</span>
-                </div>
-                <div className="text-xs font-mono font-bold text-[#5C5647] mt-1">
-                  {customers?.new ? `+${customers.new} new this period` : "Active accounts in Raipur"}
-                </div>
-                <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
-                  {formatIndianNumber(customers?.total || 0)} total registered
-                </div>
+              <div className="text-[10px] font-bold text-[#5C5647]/70 mt-1">
+                Active customer accounts in Raipur
               </div>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================= */}
-      {/* 3. ROW 2: 7-DAY DELIVERY & REVENUE TREND CHART + CUTOFF   */}
+      {/* 3. ROW 2: FULFILLMENT TRAJECTORY & ENGINE LOCK STATUS      */}
       {/* ========================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-        {/* Left: Trend Chart (8 Cols) */}
-        <div className="min-w-0 lg:col-span-8 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-4 sm:p-6 rounded-[14px] flex flex-col justify-between">
-          <div className="flex flex-col items-start gap-3 border-b-2 border-black/10 pb-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Left: Interactive Volume & Revenue Trajectory (8 Cols) */}
+        <div className="lg:col-span-8 bg-white border-2 border-black p-4 sm:p-5 rounded-[14px] shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b-2 border-black/10 pb-3 mb-4">
             <div>
-              <h2 className="text-sm sm:text-base font-black uppercase tracking-tight text-[#1A1A1A]">
-                Fulfillment & Volume Trajectory
-              </h2>
-              <p className="text-xs font-bold text-[#5C5647]">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-[#1A1A1A] stroke-[2.5]" />
+                <h2 className="text-sm sm:text-base font-black uppercase tracking-tight text-[#1A1A1A]">
+                  Fulfillment & Volume Trajectory
+                </h2>
+              </div>
+              <p className="text-xs font-bold text-[#5C5647] mt-0.5">
                 Daily milk litres dispatched vs total daily revenue in Raipur.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs font-mono font-bold">
-              <span className="inline-flex items-center gap-1.5 bg-[#FFDF58] px-2 py-0.5 rounded border border-black">
-                <span className="w-2 h-2 rounded-full bg-[#1A1A1A]" /> Litres (L)
+            {/* Chart Legend Badges */}
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded border border-black bg-[#FFDF58] text-[#1A1A1A] shadow-[1px_1px_0px_0px_#000000]">
+                <span className="w-2 h-2 rounded-full bg-[#1A1A1A]" />
+                Litres (L)
               </span>
-              <span className="inline-flex items-center gap-1.5 bg-[#B8E8B8] px-2 py-0.5 rounded border border-black">
-                <span className="w-2 h-2 rounded-full bg-[#14532D]" /> Rev (₹)
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded border border-black bg-[#B8E8B8] text-[#14532D] shadow-[1px_1px_0px_0px_#000000]">
+                <span className="w-2 h-2 rounded-full bg-[#14532D]" />
+                Rev (₹)
               </span>
             </div>
           </div>
@@ -438,12 +489,25 @@ export default function DashboardOverviewPage() {
                 <span className="font-mono text-xs font-bold text-[#5C5647]">Loading trajectory metrics...</span>
               </div>
             ) : trends.length === 0 || trends.every((t) => t.deliveries === 0 && t.revenueRupees === 0 && t.salesRupees === 0) ? (
-              <div className="h-full w-full flex flex-col items-center justify-center bg-[#FAF7EC]/50 border-2 border-dashed border-black/20 rounded-[10px] p-6 text-center">
-                <Truck className="h-8 w-8 text-[#5C5647]/50 mb-2 stroke-[2]" />
-                <p className="text-xs font-black uppercase text-[#1A1A1A]">No trajectory activity</p>
-                <p className="text-[11px] font-bold text-[#5C5647] mt-1 max-w-xs">
-                  No milk deliveries or revenue transactions recorded for {activePreset === "ALL" ? "recent activity" : activePreset === "TODAY" ? "today" : "this period"}.
+              <div className="h-full w-full flex flex-col items-center justify-center bg-[#FAF7EC]/40 border-2 border-dashed border-black/20 rounded-[10px] p-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-white border-2 border-black flex items-center justify-center mb-3 shadow-[2px_2px_0px_0px_#000000]">
+                  <Truck className="h-6 w-6 text-[#1A1A1A] stroke-[2]" />
+                </div>
+                <p className="text-xs font-black uppercase text-[#1A1A1A] tracking-wider">No Trajectory Activity Recorded</p>
+                <p className="text-[11px] font-bold text-[#5C5647] mt-1 max-w-sm">
+                  {activePreset === "ALL"
+                    ? "No milk batches or revenue transactions have been finalized yet. They will plot here automatically."
+                    : `No dispatch batches recorded for ${activePreset === "TODAY" ? "today" : "this period"}.`}
                 </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <Link
+                    href="/deliveries"
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-white hover:bg-[#FFDF58] text-[11px] font-black uppercase rounded-[6px] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000] transition-all cursor-pointer"
+                  >
+                    <span>Manage Deliveries</span>
+                    <ArrowRight className="h-3 w-3 stroke-[2.5]" />
+                  </Link>
+                </div>
               </div>
             ) : isMounted ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -528,28 +592,28 @@ export default function DashboardOverviewPage() {
               <strong className="text-[#1A1A1A]">10:00 PM</strong> every evening for Raipur route packing.
             </p>
 
-            <div className="p-3 bg-white border-2 border-black rounded-[8px] flex flex-col items-start gap-2 text-xs font-mono font-bold sm:flex-row sm:items-center sm:justify-between">
-              <span>Next Morning Delivery Window:</span>
-              <span className="bg-[#FFDF58] px-2 py-0.5 rounded border border-black text-[#1A1A1A]">
+            <div className="p-3 bg-white border-2 border-black rounded-[8px] flex flex-col items-start gap-2 text-xs font-mono font-bold sm:flex-row sm:items-center sm:justify-between shadow-[1.5px_1.5px_0px_0px_#000000]">
+              <span className="text-[#5C5647]">Next Morning Window:</span>
+              <span className="bg-[#FFDF58] px-2 py-0.5 rounded border border-black text-[#1A1A1A] font-black">
                 06:00 AM – 09:00 AM
               </span>
             </div>
           </div>
 
-          {/* Morning Dispatch Status */}
+          {/* Morning Dispatch Status Breakdown */}
           <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000000] p-4 sm:p-5 rounded-[14px] flex-1 flex flex-col justify-between">
             <div className="flex items-center justify-between border-b-2 border-black/10 pb-2">
-              <span className="text-xs font-black uppercase text-[#1A1A1A]">
+              <span className="text-xs font-black uppercase text-[#1A1A1A] tracking-tight">
                 Order Breakdown by Status
               </span>
-              <span className="font-mono text-xs font-black text-[#1A1A1A]">
+              <span className="font-mono text-xs font-black text-[#1A1A1A] bg-[#FAF7EC] px-2 py-0.5 rounded border border-black">
                 {orders?.total || 0} Total
               </span>
             </div>
 
-            <div className="space-y-2 mt-2">
-              {/* Visual Progress Bar */}
-              <div className="h-4 w-full rounded-full border-2 border-black overflow-hidden flex bg-stone-100">
+            <div className="space-y-2 mt-3">
+              {/* Visual Progress Bar (Including PENDING orders) */}
+              <div className="h-4 w-full rounded-full border-2 border-black overflow-hidden flex bg-stone-100 shadow-[1px_1px_0px_0px_#000000]">
                 {orders?.total && orders.total > 0 ? (
                   <>
                     <div
@@ -576,6 +640,11 @@ export default function DashboardOverviewPage() {
                       style={{ width: `${((orders.processing || 0) / orders.total) * 100}%` }}
                       className="bg-[#FFDF58] h-full"
                       title={`Processing: ${orders.processing || 0}`}
+                    />
+                    <div
+                      style={{ width: `${((orders.pending || 0) / orders.total) * 100}%` }}
+                      className="bg-[#D8CEF6] h-full"
+                      title={`Pending: ${orders.pending || 0}`}
                     />
                     <div
                       style={{ width: `${(((orders.failed || 0) + (orders.cancelled || 0)) / orders.total) * 100}%` }}
@@ -607,8 +676,8 @@ export default function DashboardOverviewPage() {
                   <span>Done: {orders?.delivered || 0}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#5FB266] border border-black shrink-0" />
-                  <span>Compl: {orders?.completed || 0}</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#D8CEF6] border border-black shrink-0" />
+                  <span>Pend: {orders?.pending || 0}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#FF8E72] border border-black shrink-0" />
@@ -636,8 +705,8 @@ export default function DashboardOverviewPage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            <div className="rounded-[10px] border-2 border-black bg-[#B8E8B8] p-3 shadow-[2px_2px_0px_0px_#000000]">
-              <span className="text-[10px] font-black uppercase text-[#1A1A1A] block">
+            <div className="rounded-[10px] border-2 border-black bg-[#B8E8B8] p-3 shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 transition-all">
+              <span className="text-[10px] font-black uppercase text-[#14532D] block">
                 Monthly Recurring
               </span>
               <span className="font-mono text-2xl font-black text-[#1A1A1A] mt-1 block">
@@ -645,8 +714,8 @@ export default function DashboardOverviewPage() {
               </span>
             </div>
 
-            <div className="rounded-[10px] border-2 border-black bg-[#D8CEF6] p-3 shadow-[2px_2px_0px_0px_#000000]">
-              <span className="text-[10px] font-black uppercase text-[#1A1A1A] block">
+            <div className="rounded-[10px] border-2 border-black bg-[#D8CEF6] p-3 shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 transition-all">
+              <span className="text-[10px] font-black uppercase text-[#4C1D95] block">
                 7-Day Trials
               </span>
               <span className="font-mono text-2xl font-black text-[#1A1A1A] mt-1 block">
@@ -654,7 +723,7 @@ export default function DashboardOverviewPage() {
               </span>
             </div>
 
-            <div className="rounded-[10px] border-2 border-black bg-[#FFDF58] p-3 shadow-[2px_2px_0px_0px_#000000]">
+            <div className="rounded-[10px] border-2 border-black bg-[#FFDF58] p-3 shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 transition-all">
               <span className="text-[10px] font-black uppercase text-[#1A1A1A] block">
                 Buy Once Users
               </span>
@@ -663,8 +732,8 @@ export default function DashboardOverviewPage() {
               </span>
             </div>
 
-            <div className="rounded-[10px] border-2 border-black bg-[#FAF7EC] p-3 shadow-[2px_2px_0px_0px_#000000]">
-              <span className="text-[10px] font-black uppercase text-[#1A1A1A] block">
+            <div className="rounded-[10px] border-2 border-black bg-[#FAF7EC] p-3 shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 transition-all">
+              <span className="text-[10px] font-black uppercase text-[#5C5647] block">
                 New Selections
               </span>
               <span className="font-mono text-2xl font-black text-[#1A1A1A] mt-1 block">
@@ -688,50 +757,68 @@ export default function DashboardOverviewPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             <Link
               href="/orders"
-              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer"
+              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer group"
             >
-              <Package className="h-4 w-4 stroke-[2.5]" />
+              <div className="flex items-center justify-between">
+                <Package className="h-4 w-4 stroke-[2.5]" />
+                <ArrowUpRight className="h-3.5 w-3.5 text-[#5C5647] group-hover:text-black transition-colors" />
+              </div>
               <span className="mt-2">Orders Hub</span>
             </Link>
 
             <Link
-              href="/plans"
-              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer"
+              href="/deliveries"
+              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer group"
             >
-              <Layers className="h-4 w-4 stroke-[2.5]" />
-              <span className="mt-2">Plans & Delivery</span>
+              <div className="flex items-center justify-between">
+                <Truck className="h-4 w-4 stroke-[2.5]" />
+                <ArrowUpRight className="h-3.5 w-3.5 text-[#5C5647] group-hover:text-black transition-colors" />
+              </div>
+              <span className="mt-2">Deliveries</span>
             </Link>
 
             <Link
               href="/customers"
-              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer"
+              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer group"
             >
-              <Users className="h-4 w-4 stroke-[2.5]" />
+              <div className="flex items-center justify-between">
+                <Users className="h-4 w-4 stroke-[2.5]" />
+                <ArrowUpRight className="h-3.5 w-3.5 text-[#5C5647] group-hover:text-black transition-colors" />
+              </div>
               <span className="mt-2">Customers</span>
             </Link>
 
             <Link
-              href="/wallet"
-              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer"
+              href="/plans"
+              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer group"
             >
-              <Wallet className="h-4 w-4 stroke-[2.5]" />
+              <div className="flex items-center justify-between">
+                <Layers className="h-4 w-4 stroke-[2.5]" />
+                <ArrowUpRight className="h-3.5 w-3.5 text-[#5C5647] group-hover:text-black transition-colors" />
+              </div>
+              <span className="mt-2">Plans & Subs</span>
+            </Link>
+
+            <Link
+              href="/wallet"
+              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <Wallet className="h-4 w-4 stroke-[2.5]" />
+                <ArrowUpRight className="h-3.5 w-3.5 text-[#5C5647] group-hover:text-black transition-colors" />
+              </div>
               <span className="mt-2">Wallets & Float</span>
             </Link>
 
             <Link
               href="/payments"
-              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer"
+              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer group"
             >
-              <CreditCard className="h-4 w-4 stroke-[2.5]" />
+              <div className="flex items-center justify-between">
+                <CreditCard className="h-4 w-4 stroke-[2.5]" />
+                <ArrowUpRight className="h-3.5 w-3.5 text-[#5C5647] group-hover:text-black transition-colors" />
+              </div>
               <span className="mt-2">Payments Gateway</span>
-            </Link>
-
-            <Link
-              href="/serviceability"
-              className="rounded-[10px] border-2 border-black bg-[#FAF7EC] hover:bg-[#FFD84D] p-3 text-xs font-black uppercase text-[#1A1A1A] shadow-[2px_2px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex flex-col justify-between cursor-pointer"
-            >
-              <MapPin className="h-4 w-4 stroke-[2.5]" />
-              <span className="mt-2">Service Zones</span>
             </Link>
           </div>
         </div>

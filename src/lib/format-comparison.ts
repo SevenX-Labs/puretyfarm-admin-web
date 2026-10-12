@@ -25,7 +25,7 @@ export function formatComparisonCaption(
 
   if (safePrevious === null || safePrevious === undefined) {
     return {
-      caption: `vs ${periodLabel}`,
+      caption: "",
       type: "neutral",
     };
   }
