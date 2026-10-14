@@ -357,6 +357,7 @@ export async function approveChangeRequest(
       }
     );
     invalidateCache("change-requests");
+    invalidateCache("admin-subscriptions:");
     return res;
   } catch (err: unknown) {
     if (err instanceof ApiError && err.statusCode === 409) {
@@ -390,6 +391,7 @@ export async function rejectChangeRequest(
       }
     );
     invalidateCache("change-requests");
+    invalidateCache("admin-subscriptions:");
     return res;
   } catch (err: unknown) {
     if (err instanceof ApiError && err.statusCode === 409) {

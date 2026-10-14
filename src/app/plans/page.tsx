@@ -388,6 +388,7 @@ export default function PlansAndDeliveryPage() {
     );
     // Deliveries and plan state changed server-side; re-read rather than guess.
     fetchSubscriptionsData(subPage, true);
+    fetchRequestsData(currentPage, true);
   };
 
   const handleOpenRejectModal = (request: ChangeRequestItem) => {
