@@ -325,7 +325,9 @@ export function ApprovePlanModal({
                   {subscription.planType}
                 </span>
                 <span className="text-[11px] font-mono text-[#5C5647] block mt-0.5 font-bold">
-                  {subscription.quantity ?? 1}L • {subscription.frequency || "DAILY"}
+                  {subscription.quantityMode === "ALTERNATING" || subscription.quantityMode === "CUSTOM" || (subscription.quantityA != null && subscription.quantityB != null)
+                    ? `Day 1: ${subscription.quantityA ?? 1}L, Day 2: ${subscription.quantityB ?? 2}L • ${subscription.frequency || "ALTERNATE_DAYS"}`
+                    : `${subscription.quantity ?? 1}L • ${subscription.frequency || "DAILY"}`}
                 </span>
               </div>
             </div>

@@ -126,6 +126,8 @@ export interface CustomerSubscriptionItem {
   frequency: string | null;
   quantityMode: string | null;
   quantity: number | null;
+  quantityA?: number | null;
+  quantityB?: number | null;
   startDate: string | null;
   endDate: string | null;
   paymentMethod: string | null;
