@@ -109,3 +109,29 @@ export function formatPaise(paise: number | null | undefined): string {
   if (paise === null || paise === undefined || isNaN(paise)) return "—";
   return formatCurrency(paise / 100);
 }
+
+/**
+ * Renders quantity and cadence mode for milk subscription plans.
+ * Correctly displays ALTERNATING mode (Day 1: 1L, Day 2: 2L) and FIXED mode (1 Litre / 2 Litres).
+ */
+export function formatPlanDailyVolume(plan: {
+  quantityMode?: string | null;
+  quantity?: number | null;
+  quantityA?: number | null;
+  quantityB?: number | null;
+}): string {
+  const isAlternating =
+    plan.quantityMode === "ALTERNATING" ||
+    plan.quantityMode === "CUSTOM" ||
+    (plan.quantityA != null && plan.quantityB != null);
+
+  if (isAlternating) {
+    const qA = plan.quantityA ?? 1;
+    const qB = plan.quantityB ?? 2;
+    return `Day 1: ${qA}L, Day 2: ${qB}L (${plan.quantityMode || "ALTERNATING"})`;
+  }
+
+  const qty = plan.quantity ?? 1;
+  const unit = Number(qty) > 1 ? "Litres" : "Litre";
+  return `${qty} ${unit} (${plan.quantityMode || "FIXED"})`;
+}

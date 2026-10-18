@@ -49,7 +49,7 @@ export interface CustomerPlan {
   planType: string;
   status: string;
   frequency: string;
-  quantity: number;
+  quantity: number | null;
   quantityMode: string;
   quantityA?: number | null;
   quantityB?: number | null;

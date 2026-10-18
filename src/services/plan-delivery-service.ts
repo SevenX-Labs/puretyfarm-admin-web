@@ -18,6 +18,7 @@ import {
   setCachedData,
   invalidateCache,
 } from "@/lib/cache";
+import { triggerGlobalLiveSync } from "@/lib/use-realtime-sync";
 
 /**
  * Shape placeholders for the three fixed plan types.
@@ -358,6 +359,8 @@ export async function approveChangeRequest(
     );
     invalidateCache("change-requests");
     invalidateCache("admin-subscriptions:");
+    invalidateCache("customer");
+    triggerGlobalLiveSync("change-request-approved");
     return res;
   } catch (err: unknown) {
     if (err instanceof ApiError && err.statusCode === 409) {
@@ -392,6 +395,8 @@ export async function rejectChangeRequest(
     );
     invalidateCache("change-requests");
     invalidateCache("admin-subscriptions:");
+    invalidateCache("customer");
+    triggerGlobalLiveSync("change-request-rejected");
     return res;
   } catch (err: unknown) {
     if (err instanceof ApiError && err.statusCode === 409) {
@@ -559,5 +564,7 @@ export async function approveSubscription(
 
   invalidateCache("admin-subscriptions:");
   invalidateCache("plans:");
+  invalidateCache("customer");
+  triggerGlobalLiveSync("subscription-approved");
   return res;
 }

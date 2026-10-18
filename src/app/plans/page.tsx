@@ -62,7 +62,10 @@ import {
   formatCurrency,
   formatDate,
   formatDeliveryWindowOrLabel,
+  formatPlanDailyVolume,
 } from "@/lib/utils";
+import { triggerGlobalLiveSync } from "@/lib/use-realtime-sync";
+import { invalidateCache } from "@/lib/cache";
 import { ApiError } from "@/lib/api-client";
 
 type TabMode = "SUBSCRIPTIONS" | "REQUESTS" | "PLANS";
@@ -338,7 +341,7 @@ export default function PlansAndDeliveryPage() {
     } else if (activeTab === "PLANS") {
       if (!plansLoading) fetchPlansData(true);
     }
-  }, { intervalMs: 30000, events: ["admin.plans.updated", "admin.deliveries.updated"] });
+  }, { intervalMs: 30000, events: ["admin.plans.updated", "admin.deliveries.updated", "admin.customers.updated"] });
 
   // ==========================================
   // ACTIONS: APPROVE / REJECT / TOGGLE PLAN
@@ -356,6 +359,8 @@ export default function PlansAndDeliveryPage() {
           : s
       )
     );
+    invalidateCache("customer");
+    triggerGlobalLiveSync("subscription-approved");
     showNotice("Plan approved and delivery schedule generated successfully!");
     fetchSubscriptionsData(subPage, true);
   };
@@ -468,22 +473,46 @@ export default function PlansAndDeliveryPage() {
     }
 
     if (type === "CHANGE_QUANTITY") {
-      const qty = config.quantity ?? config.liters ?? config.qty;
+      const isAlt =
+        config.quantityMode === "ALTERNATING" ||
+        (config.quantityA != null && config.quantityB != null);
+      const qty = isAlt
+        ? `Day 1: ${config.quantityA ?? 1}L, Day 2: ${config.quantityB ?? 2}L`
+        : config.quantity ?? config.liters ?? config.qty;
       const effective = config.effectiveDate || config.startDate;
       // A single-delivery request names the order and its scheduled date.
       const target = config.deliveryDate
         ? `${config.orderNumber ? `Order ${config.orderNumber} · ` : ""}${config.deliveryDate}`
         : undefined;
       return {
-        main: qty ? `${qty} Litre${Number(qty) > 1 ? "s" : ""}` : "Adjust Volume",
+        main: isAlt
+          ? String(qty)
+          : qty
+          ? `${qty} Litre${Number(qty) > 1 ? "s" : ""}`
+          : "Adjust Volume",
         meta: target ?? (effective ? `Effective: ${effective}` : undefined),
       };
     }
 
     if (type === "CHANGE_PLAN") {
       const planType = config.planType || config.plan;
+      const mode = config.quantityMode;
+      const isAlt =
+        mode === "ALTERNATING" ||
+        (config.quantityA != null && config.quantityB != null);
+      const qtyStr = isAlt
+        ? `Day 1: ${config.quantityA ?? 1}L, Day 2: ${config.quantityB ?? 2}L`
+        : config.quantity != null
+        ? `${config.quantity}L`
+        : undefined;
+      const metaParts = [
+        config.frequency ? String(config.frequency).replace(/_/g, " ") : undefined,
+        mode ? String(mode).replace(/_/g, " ") : undefined,
+        qtyStr,
+      ].filter(Boolean);
       return {
         main: planType ? String(planType).replace(/_/g, " ") : "Plan Change",
+        meta: metaParts.length > 0 ? metaParts.join(" • ") : undefined,
       };
     }
 
@@ -864,7 +893,7 @@ export default function PlansAndDeliveryPage() {
 
                           <td className="py-3.5 px-4 border-r-2 border-black font-mono">
                             <div className="font-black text-xs text-[#1A1A1A]">
-                              {sub.quantity ?? 1} Litre{Number(sub.quantity ?? 1) > 1 ? "s" : ""} ({sub.quantityMode || "FIXED"})
+                              {formatPlanDailyVolume(sub)}
                             </div>
                             <div className="text-[11px] text-[#5C5647]">
                               Freq: <span className="font-bold">{sub.frequency || "DAILY"}</span>
@@ -1073,9 +1102,7 @@ export default function PlansAndDeliveryPage() {
                             Quantity & Cadence
                           </div>
                           <div className="mt-1 break-words font-mono text-[11px] font-bold text-[#1A1A1A]">
-                            {sub.quantity ?? 1} Litre
-                            {Number(sub.quantity ?? 1) > 1 ? "s" : ""} (
-                            {sub.quantityMode || "FIXED"})
+                            {formatPlanDailyVolume(sub)}
                           </div>
                           <div className="mt-0.5 font-mono text-[10px] text-[#5C5647]">
                             {sub.frequency || "DAILY"}

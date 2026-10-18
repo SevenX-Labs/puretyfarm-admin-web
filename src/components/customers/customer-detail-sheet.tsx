@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { CustomerDetail } from "@/types/customer";
 import { fetchCustomerById } from "@/services/customer-service";
+import { formatPlanDailyVolume } from "@/lib/utils";
+import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import { getCachedData, invalidateCache } from "@/lib/cache";
 import {
   Sheet,
@@ -25,6 +27,7 @@ import {
   CheckCircle2,
   XCircle,
   User,
+  RotateCcw,
 } from "lucide-react";
 
 function WhatsAppIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -57,6 +60,7 @@ export function CustomerDetailSheet({
 }: CustomerDetailSheetProps) {
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
 
@@ -66,64 +70,81 @@ export function CustomerDetailSheet({
 
   const activeId = customerId || customerProp?.id || null;
 
+  const loadCustomer = useCallback(
+    async (force = false) => {
+      if (!activeId) return;
+
+      if (force) {
+        setIsRefreshing(true);
+      } else {
+        const cached = getCachedData<CustomerDetail>(`customer:${activeId}`);
+        if (cached) {
+          setCustomer(cached);
+          setIsLoading(false);
+        } else {
+          setIsLoading(true);
+        }
+      }
+      setError(null);
+
+      try {
+        const fresh = await fetchCustomerById(activeId, {
+          forceRefresh: true,
+          onFreshData: (freshData) => {
+            if (freshData) {
+              setCustomer(freshData);
+              setIsLoading(false);
+              setIsRefreshing(false);
+            }
+          },
+        });
+        if (fresh) {
+          setCustomer(fresh);
+        }
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Failed to load customer details.";
+        if (msg.includes("404") || msg.toLowerCase().includes("not found")) {
+          invalidateCache(`customer:${activeId}`);
+          setCustomer(null);
+          setError(msg);
+        } else if (!customer) {
+          setError(msg);
+        }
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [activeId, customer]
+  );
+
   useEffect(() => {
     if (isOpen && activeId) {
-      let isMounted = true;
-      setError(null);
-      setImgError(false);
-
-      // Check cache first for 0ms instant drawer open
-      const cached = getCachedData<CustomerDetail>(`customer:${activeId}`);
-      if (cached) {
-        setCustomer(cached);
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
-      }
-
-      fetchCustomerById(activeId, {
-        onFreshData: (fresh) => {
-          if (isMounted) {
-            setCustomer(fresh);
-            setIsLoading(false);
-          }
-        },
-      })
-        .then((data) => {
-          if (isMounted) {
-            setCustomer(data);
-            setIsLoading(false);
-          }
-        })
-        .catch((err: unknown) => {
-          if (isMounted) {
-            const msg =
-              err instanceof Error
-                ? err.message
-                : "Failed to load customer details.";
-            if (msg.includes("404") || msg.toLowerCase().includes("not found")) {
-              invalidateCache(`customer:${activeId}`);
-              setCustomer(null);
-              setError(msg);
-            } else if (!cached) {
-              setError(msg);
-            }
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setIsLoading(false);
-          }
-        });
-
-      return () => {
-        isMounted = false;
-      };
+      loadCustomer(false);
     } else if (!isOpen) {
       setCustomer(null);
       setError(null);
     }
-  }, [isOpen, activeId]);
+  }, [isOpen, activeId, loadCustomer]);
+
+  useRealtimeSync(
+    () => {
+      if (isOpen && activeId) {
+        loadCustomer(true);
+      }
+    },
+    {
+      enabled: isOpen && Boolean(activeId),
+      events: [
+        "admin.customers.updated",
+        "admin.plans.updated",
+        "admin.deliveries.updated",
+      ],
+    }
+  );
 
   const initials = customer?.profile
     ? `${customer.profile.firstName?.[0] || ""}${customer.profile.lastName?.[0] || ""}`.toUpperCase() || "PF"
@@ -157,6 +178,17 @@ export function CustomerDetailSheet({
                 </span>
               </div>
             )}
+            <button
+              type="button"
+              onClick={() => loadCustomer(true)}
+              disabled={isLoading || isRefreshing}
+              title="Sync fresh customer and plan data"
+              aria-label="Sync customer data"
+              className="cursor-pointer rounded-[6px] border-2 border-[#1A1A1A] bg-white hover:bg-[#FAF7EC] px-2 py-0.5 font-mono text-[10px] font-black uppercase text-[#1A1A1A] shadow-[1px_1px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1 disabled:opacity-50"
+            >
+              <RotateCcw className={`h-3 w-3 stroke-[2.5] ${isRefreshing ? "animate-spin" : ""}`} />
+              <span>{isRefreshing ? "Syncing..." : "Sync"}</span>
+            </button>
           </div>
 
           <SheetTitle className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] mt-2">
@@ -476,7 +508,7 @@ export function CustomerDetailSheet({
                             Daily Volume
                           </span>
                           <span className="font-mono font-black text-[#1A1A1A]">
-                            {plan.quantity} Liters ({plan.quantityMode})
+                            {formatPlanDailyVolume(plan)}
                           </span>
                         </div>
                       </div>

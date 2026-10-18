@@ -106,9 +106,12 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         } else if (ev === "admin.deliveries.updated") {
           invalidateCache("deliver");
           invalidateCache("change-request");
+          invalidateCache("admin-subscription");
+          invalidateCache("customer");
         } else if (ev === "admin.plans.updated") {
           invalidateCache("plan");
           invalidateCache("admin-subscription");
+          invalidateCache("customer");
         } else if (ev === "admin.customers.updated") {
           invalidateCache("customer");
         } else if (ev === "admin.dashboard.updated") {
