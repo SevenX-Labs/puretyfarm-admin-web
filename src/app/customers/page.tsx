@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { CustomerListItem, CustomerPaginationMeta, CustomerProfile, CustomersApiResponse } from "@/types/customer";
+import { CustomerListItem, CustomerPaginationMeta, CustomerProfile, CustomersApiResponse, MembershipType } from "@/types/customer";
 import { fetchCustomers } from "@/services/customer-service";
 import { clampPageAfterSuccess } from "@/lib/pagination";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
+import { VipMembershipModal } from "@/components/customers/vip-membership-modal";
 import { getCachedData, invalidateCache } from "@/lib/cache";
 import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -22,6 +23,9 @@ import {
   MapPin,
   Calendar,
   Filter,
+  Crown,
+  ShieldMinus,
+  X,
 } from "lucide-react";
 
 function WhatsAppIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -34,6 +38,17 @@ function WhatsAppIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
     >
       <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.969.54 1.861.855 2.796.855 3.18 0 5.767-2.587 5.768-5.766 0-3.18-2.587-5.742-5.768-5.742zm3.376 8.163c-.144.405-.837.774-1.17.824-.312.045-.698.072-2.112-.513-1.636-.677-2.695-2.338-2.776-2.446-.081-.108-.667-.887-.667-1.691 0-.804.423-1.201.573-1.364.15-.163.327-.204.437-.204.11 0 .219.002.315.006.101.005.236-.039.37.283.136.327.464 1.134.505 1.216.041.082.068.177.014.285-.054.108-.082.176-.163.271-.082.096-.172.213-.246.287-.082.082-.167.172-.072.335.095.163.424.7 1.037 1.246.788.7 1.453.916 1.658 1.018.204.102.327.089.449-.054.123-.143.523-.61.663-.82.14-.209.28-.175.469-.105.19.07 1.202.567 1.408.67.206.103.344.153.395.239.051.086.051.499-.093.904z" />
     </svg>
+  );
+}
+
+function VipBadge({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 bg-[#FFD84D] border-2 border-[#1A1A1A] text-[#1A1A1A] font-mono text-[9px] font-black uppercase px-1.5 py-0.5 rounded-[5px] shadow-[1px_1px_0px_0px_#1A1A1A] ${className}`}
+    >
+      <Crown className="h-2.5 w-2.5" />
+      VIP
+    </span>
   );
 }
 
@@ -86,6 +101,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [membershipFilter, setMembershipFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
@@ -96,6 +112,30 @@ export default function CustomersPage() {
   // Detail drawer state
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // VIP modal state
+  const [vipModal, setVipModal] = useState<{
+    isOpen: boolean;
+    targetType: MembershipType;
+    customerIds: string[];
+    customerNames: string[];
+  }>({ isOpen: false, targetType: "VIP", customerIds: [], customerNames: [] });
+
+  // Toast state
+  const [toastMessage, setToastMessage] = useState<{
+    text: string;
+    type: "success" | "warning" | "error";
+  } | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   // Client-side filter matching
   const filteredCustomers = useMemo(() => {
@@ -123,6 +163,11 @@ export default function CustomersPage() {
     return () => clearTimeout(handler);
   }, [search]);
 
+  // Clear selections when page/filters change
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, debouncedSearch, filterStatus, membershipFilter]);
+
   const loadCustomers = useCallback(
     async (pageOrForce?: number | boolean, forceRefresh = false) => {
       const targetPage = typeof pageOrForce === "number" ? pageOrForce : page;
@@ -140,6 +185,7 @@ export default function CustomersPage() {
       if (targetPage) query.set("page", targetPage.toString());
       if (limit) query.set("limit", limit.toString());
       if (debouncedSearch?.trim()) query.set("search", debouncedSearch.trim());
+      if (membershipFilter !== "ALL") query.set("membershipType", membershipFilter);
 
       const cacheKey = `customers:${query.toString()}`;
       const cached = getCachedData<CustomersApiResponse>(cacheKey);
@@ -164,6 +210,7 @@ export default function CustomersPage() {
             page: targetPage,
             limit,
             search: debouncedSearch,
+            membershipType: membershipFilter !== "ALL" ? (membershipFilter as MembershipType) : undefined,
           },
           {
             forceRefresh: isForce,
@@ -198,7 +245,7 @@ export default function CustomersPage() {
         setIsRefreshing(false);
       }
     },
-    [page, limit, debouncedSearch]
+    [page, limit, debouncedSearch, membershipFilter]
   );
 
   useEffect(() => {
@@ -226,10 +273,66 @@ export default function CustomersPage() {
     setSearch("");
     setDebouncedSearch("");
     setFilterStatus("ALL");
+    setMembershipFilter("ALL");
     setPage(1);
   };
 
-  const hasActiveFilter = Boolean(debouncedSearch || filterStatus !== "ALL");
+  const hasActiveFilter = Boolean(debouncedSearch || filterStatus !== "ALL" || membershipFilter !== "ALL");
+
+  // Selection handlers
+  const isAllSelected = filteredCustomers.length > 0 && filteredCustomers.every((c) => selectedIds.has(c.id));
+  const isSomeSelected = filteredCustomers.some((c) => selectedIds.has(c.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredCustomers.map((c) => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectedCustomers = filteredCustomers.filter((c) => selectedIds.has(c.id));
+
+  const openBulkVipModal = (targetType: MembershipType) => {
+    const ids = selectedCustomers.map((c) => c.id);
+    const names = selectedCustomers.map((c) =>
+      c.profile
+        ? `${c.profile.firstName || ""} ${c.profile.lastName || ""}`.trim() || c.mobile
+        : c.mobile
+    );
+    setVipModal({ isOpen: true, targetType, customerIds: ids, customerNames: names });
+  };
+
+  const handleVipSuccess = (result: { updatedCount: number; failedIds: string[] }) => {
+    const targetLabel = vipModal.targetType === "VIP" ? "VIP" : "Normal";
+
+    if (result.failedIds.length > 0) {
+      setToastMessage({
+        text: `${result.updatedCount} customer${result.updatedCount === 1 ? "" : "s"} updated to ${targetLabel}. ${result.failedIds.length} could not be updated.`,
+        type: "warning",
+      });
+    } else {
+      setToastMessage({
+        text: `${result.updatedCount} customer${result.updatedCount === 1 ? "" : "s"} updated to ${targetLabel}.`,
+        type: "success",
+      });
+    }
+
+    setSelectedIds(new Set());
+    loadCustomers(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -270,7 +373,7 @@ export default function CustomersPage() {
             )}
           </div>
 
-          {/* Filter Dropdown */}
+          {/* Profile Filter Dropdown */}
           <div className="flex h-11 w-full min-w-0 items-center gap-1.5 border-2 border-[#1A1A1A] bg-white px-3 rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] sm:w-auto">
             <Filter className="h-4 w-4 text-[#1A1A1A] stroke-[2.5] shrink-0" />
             <select
@@ -285,6 +388,24 @@ export default function CustomersPage() {
               <option value="HAS_PLANS">With Active Plans</option>
               <option value="HAS_ADDRESS">With Saved Addresses</option>
               <option value="VERIFIED">Verified Email</option>
+            </select>
+          </div>
+
+          {/* Membership Filter Dropdown */}
+          <div className="flex h-11 w-full min-w-0 items-center gap-1.5 border-2 border-[#1A1A1A] bg-white px-3 rounded-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] sm:w-auto">
+            <Crown className="h-4 w-4 text-[#1A1A1A] stroke-[2.5] shrink-0" />
+            <select
+              value={membershipFilter}
+              onChange={(e) => {
+                setMembershipFilter(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by membership type"
+              className="min-w-0 flex-1 bg-transparent font-mono font-bold text-xs text-[#1A1A1A] outline-none cursor-pointer pr-1 sm:flex-none"
+            >
+              <option value="ALL">All Members</option>
+              <option value="VIP">VIP Only</option>
+              <option value="NORMAL">Normal Only</option>
             </select>
           </div>
 
@@ -332,6 +453,23 @@ export default function CustomersPage() {
               </button>
             </span>
           )}
+          {membershipFilter !== "ALL" && (
+            <span className="bg-[#FFD84D] border-2 border-[#1A1A1A] rounded-[6px] px-2 py-0.5 inline-flex items-center gap-1.5 shadow-[1.5px_1.5px_0px_0px_#1A1A1A]">
+              <Crown className="h-3 w-3" />
+              {membershipFilter}
+              <button
+                type="button"
+                onClick={() => {
+                  setMembershipFilter("ALL");
+                  setPage(1);
+                }}
+                aria-label="Clear membership filter tag"
+                className="hover:font-black text-[#1A1A1A] ml-1 text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            </span>
+          )}
         </div>
       )}
 
@@ -349,6 +487,19 @@ export default function CustomersPage() {
           <table className="w-full text-left text-sm border-collapse" aria-busy={isLoading}>
             <thead className="bg-[#FAF7EC] text-[#1A1A1A] uppercase font-mono text-[11px] font-black tracking-wider border-b-2 border-[#1A1A1A]">
               <tr>
+                <th className="py-3.5 px-3 border-r-2 border-[#1A1A1A] w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomeSelected && !isAllSelected;
+                    }}
+                    onChange={toggleSelectAll}
+                    disabled={isLoading || filteredCustomers.length === 0}
+                    aria-label="Select all customers on this page"
+                    className="h-4 w-4 rounded border-2 border-[#1A1A1A] accent-[#FFD84D] cursor-pointer"
+                  />
+                </th>
                 <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Customer</th>
                 <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Contact</th>
                 <th className="py-3.5 px-4 border-r-2 border-[#1A1A1A]">Profile</th>
@@ -360,10 +511,10 @@ export default function CustomersPage() {
             </thead>
             <tbody className="divide-y-2 divide-[#1A1A1A] bg-white">
               {isLoading ? (
-                <TableSkeleton columns={7} rows={6} />
+                <TableSkeleton columns={8} rows={6} />
               ) : filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-0">
+                  <td colSpan={8} className="p-0">
                     <EmptyState
                       icon={<Users className="h-6 w-6 stroke-[2.5]" />}
                       title="No customers found"
@@ -391,12 +542,32 @@ export default function CustomersPage() {
                       })
                     : "—";
 
+                  const isVip = customer.profile?.membershipType === "VIP";
+                  const isSelected = selectedIds.has(customer.id);
+
                   return (
                     <tr
                       key={customer.id}
                       onClick={() => handleOpenDetail(customer.id)}
-                      className="hover:bg-[#FAF7EC]/80 transition-colors cursor-pointer group"
+                      className={`hover:bg-[#FAF7EC]/80 transition-colors cursor-pointer group ${
+                        isSelected ? "bg-[#FFD84D]/10" : ""
+                      }`}
                     >
+                      {/* Checkbox */}
+                      <td className="py-3 px-3 border-r-2 border-[#1A1A1A]">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleSelect(customer.id);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select ${fullName}`}
+                          className="h-4 w-4 rounded border-2 border-[#1A1A1A] accent-[#FFD84D] cursor-pointer"
+                        />
+                      </td>
+
                       {/* Customer Identity */}
                       <td className="py-3 px-4 border-r-2 border-[#1A1A1A]">
                         <div className="flex items-center gap-3">
@@ -405,8 +576,11 @@ export default function CustomersPage() {
                             mobile={customer.mobile}
                           />
                           <div className="min-w-0">
-                            <div className="font-extrabold text-[#1A1A1A] text-xs uppercase truncate group-hover:text-black">
-                              {fullName}
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-extrabold text-[#1A1A1A] text-xs uppercase truncate group-hover:text-black">
+                                {fullName}
+                              </span>
+                              {isVip && <VipBadge />}
                             </div>
                             <div className="font-mono text-[10px] text-[#5C5647] truncate">
                               ID: {customer.id.slice(0, 8)}...
@@ -541,28 +715,45 @@ export default function CustomersPage() {
                     year: "numeric",
                   })
                 : "—";
+              const isVip = customer.profile?.membershipType === "VIP";
+              const isSelected = selectedIds.has(customer.id);
 
               return (
-                <button
+                <div
                   key={customer.id}
-                  type="button"
-                  onClick={() => handleOpenDetail(customer.id)}
-                  aria-label={`View full record for ${fullName}`}
-                  className="w-full space-y-3 rounded-[12px] border-2 border-[#1A1A1A] bg-white p-3 text-left shadow-[2.5px_2.5px_0px_0px_#1A1A1A] transition-colors hover:bg-[#FAF7EC] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                  className={`w-full space-y-3 rounded-[12px] border-2 border-[#1A1A1A] bg-white p-3 text-left shadow-[2.5px_2.5px_0px_0px_#1A1A1A] transition-colors ${
+                    isSelected ? "ring-2 ring-[#FFD84D]" : ""
+                  }`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <CustomerAvatarItem
-                      profile={customer.profile}
-                      mobile={customer.mobile}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(customer.id)}
+                      aria-label={`Select ${fullName}`}
+                      className="h-4 w-4 shrink-0 rounded border-2 border-[#1A1A1A] accent-[#FFD84D] cursor-pointer"
                     />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-xs font-extrabold uppercase text-[#1A1A1A]">
-                        {fullName}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDetail(customer.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3"
+                    >
+                      <CustomerAvatarItem
+                        profile={customer.profile}
+                        mobile={customer.mobile}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-xs font-extrabold uppercase text-[#1A1A1A]">
+                            {fullName}
+                          </span>
+                          {isVip && <VipBadge />}
+                        </div>
+                        <div className="truncate font-mono text-[10px] text-[#5C5647]">
+                          ID: {customer.id.slice(0, 8)}...
+                        </div>
                       </div>
-                      <div className="truncate font-mono text-[10px] text-[#5C5647]">
-                        ID: {customer.id.slice(0, 8)}...
-                      </div>
-                    </div>
+                    </button>
                     {customer.profile ? (
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-[6px] border-2 border-[#1A1A1A] bg-[#B9E8B4] px-1.5 py-0.5 font-mono text-[9px] font-black uppercase text-[#1A1A1A]">
                         <CheckCircle2 className="h-3 w-3" />
@@ -575,56 +766,62 @@ export default function CustomersPage() {
                     )}
                   </div>
 
-                  <div className="space-y-1 border-t border-[#1A1A1A]/15 pt-2 font-mono text-xs">
-                    <div className="flex min-w-0 items-center gap-1.5 font-bold text-[#1A1A1A]">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-[#5C5647]" />
-                      <span>{customer.mobile}</span>
-                    </div>
-                    {customer.profile?.whatsappNumber && (
-                      <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-[#128C7E]">
-                        <WhatsAppIcon className="h-3.5 w-3.5 shrink-0 text-[#25D366]" />
-                        <span>{customer.profile.whatsappNumber}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDetail(customer.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="space-y-1 border-t border-[#1A1A1A]/15 pt-2 font-mono text-xs">
+                      <div className="flex min-w-0 items-center gap-1.5 font-bold text-[#1A1A1A]">
+                        <Phone className="h-3.5 w-3.5 shrink-0 text-[#5C5647]" />
+                        <span>{customer.mobile}</span>
                       </div>
-                    )}
-                    <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-[#5C5647]">
-                      <Mail className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">
-                        {customer.email || "No email linked"}
+                      {customer.profile?.whatsappNumber && (
+                        <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-[#128C7E]">
+                          <WhatsAppIcon className="h-3.5 w-3.5 shrink-0 text-[#25D366]" />
+                          <span>{customer.profile.whatsappNumber}</span>
+                        </div>
+                      )}
+                      <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-[#5C5647]">
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">
+                          {customer.email || "No email linked"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div className="rounded-[8px] border border-[#1A1A1A]/20 bg-[#FAF7EC] px-2.5 py-2">
+                        <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                          Addresses
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-1.5 font-mono text-xs font-bold text-[#1A1A1A]">
+                          <MapPin className="h-3.5 w-3.5 shrink-0 text-[#5C5647]" />
+                          {customer.counts?.addresses || 0} saved
+                        </div>
+                      </div>
+                      <div className="rounded-[8px] border border-[#1A1A1A]/20 bg-[#FAF7EC] px-2.5 py-2">
+                        <div className="text-[9px] font-black uppercase text-[#5C5647]">
+                          Active Plans
+                        </div>
+                        <div className="mt-0.5 font-mono text-xs font-bold text-[#1A1A1A]">
+                          {customer.counts?.planSelections ?? 0} active
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 border-t border-[#1A1A1A]/15 pt-2 mt-2">
+                      <span className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[#5C5647]">
+                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">Joined {registeredDate}</span>
+                      </span>
+                      <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-black uppercase text-[#1A1A1A]">
+                        View Record
+                        <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
                       </span>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-[8px] border border-[#1A1A1A]/20 bg-[#FAF7EC] px-2.5 py-2">
-                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
-                        Addresses
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-1.5 font-mono text-xs font-bold text-[#1A1A1A]">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[#5C5647]" />
-                        {customer.counts?.addresses || 0} saved
-                      </div>
-                    </div>
-                    <div className="rounded-[8px] border border-[#1A1A1A]/20 bg-[#FAF7EC] px-2.5 py-2">
-                      <div className="text-[9px] font-black uppercase text-[#5C5647]">
-                        Active Plans
-                      </div>
-                      <div className="mt-0.5 font-mono text-xs font-bold text-[#1A1A1A]">
-                        {customer.counts?.planSelections ?? 0} active
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 border-t border-[#1A1A1A]/15 pt-2">
-                    <span className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[#5C5647]">
-                      <Calendar className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">Joined {registeredDate}</span>
-                    </span>
-                    <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-black uppercase text-[#1A1A1A]">
-                      View Record
-                      <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
-                    </span>
-                  </div>
-                </button>
+                  </button>
+                </div>
               );
             })
           )}
@@ -667,6 +864,87 @@ export default function CustomersPage() {
         </div>
       </div>
 
+      {/* Bulk Action Bar - Fixed at bottom when items selected */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t-3 border-[#1A1A1A] bg-white px-4 py-3 shadow-[0px_-4px_12px_rgba(0,0,0,0.15)]">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="bg-[#FFD84D] border-2 border-[#1A1A1A] font-mono text-[11px] font-black uppercase px-2.5 py-1 rounded-[6px] shadow-[1.5px_1.5px_0px_0px_#1A1A1A] inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {selectedIds.size} Selected
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs font-bold text-[#5C5647] hover:text-[#1A1A1A] cursor-pointer inline-flex items-center gap-1"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openBulkVipModal("VIP")}
+                className="h-9 px-4 rounded-[8px] border-2 border-[#1A1A1A] bg-[#FFD84D] hover:bg-[#E6C23D] text-[#1A1A1A] font-black uppercase text-xs shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <Crown className="h-3.5 w-3.5" />
+                Make VIP
+              </button>
+              <button
+                type="button"
+                onClick={() => openBulkVipModal("NORMAL")}
+                className="h-9 px-4 rounded-[8px] border-2 border-[#1A1A1A] bg-[#E4DFD0] hover:bg-[#D5D0C3] text-[#1A1A1A] font-black uppercase text-xs shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <ShieldMinus className="h-3.5 w-3.5" />
+                Remove VIP
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIP Membership Modal */}
+      <VipMembershipModal
+        isOpen={vipModal.isOpen}
+        onClose={() => setVipModal((prev) => ({ ...prev, isOpen: false }))}
+        targetType={vipModal.targetType}
+        customerIds={vipModal.customerIds}
+        customerNames={vipModal.customerNames}
+        onSuccess={handleVipSuccess}
+      />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div
+            className={`flex items-center gap-2 rounded-[10px] border-2 border-[#1A1A1A] px-4 py-2.5 font-mono text-xs font-bold shadow-[3px_3px_0px_0px_#1A1A1A] ${
+              toastMessage.type === "success"
+                ? "bg-[#B9E8B4] text-[#1A1A1A]"
+                : toastMessage.type === "warning"
+                ? "bg-[#FFD84D] text-[#1A1A1A]"
+                : "bg-[#FFD9D0] text-[#1A1A1A]"
+            }`}
+          >
+            {toastMessage.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 stroke-[2.5]" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5]" />
+            )}
+            <span>{toastMessage.text}</span>
+            <button
+              type="button"
+              onClick={() => setToastMessage(null)}
+              className="ml-2 cursor-pointer hover:opacity-70"
+              aria-label="Dismiss toast"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Customer Detail Sheet Drawer */}
       <CustomerDetailSheet
         customerId={selectedCustomerId}
@@ -675,6 +953,7 @@ export default function CustomersPage() {
           setIsDetailOpen(false);
           setSelectedCustomerId(null);
         }}
+        onMembershipChanged={() => loadCustomers(true)}
       />
     </div>
   );

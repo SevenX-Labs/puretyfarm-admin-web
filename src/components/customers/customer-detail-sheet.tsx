@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { CustomerDetail } from "@/types/customer";
+import { CustomerDetail, MembershipType } from "@/types/customer";
 import { fetchCustomerById } from "@/services/customer-service";
+import { VipMembershipModal } from "@/components/customers/vip-membership-modal";
 import { formatPlanDailyVolume } from "@/lib/utils";
 import { useRealtimeSync } from "@/lib/use-realtime-sync";
 import { getCachedData, invalidateCache } from "@/lib/cache";
@@ -28,6 +29,9 @@ import {
   XCircle,
   User,
   RotateCcw,
+  Crown,
+  ShieldMinus,
+  X,
 } from "lucide-react";
 
 function WhatsAppIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -50,6 +54,7 @@ interface CustomerDetailSheetProps {
   onClose: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onUpdateCustomer?: (updated: any) => void;
+  onMembershipChanged?: () => void;
 }
 
 export function CustomerDetailSheet({
@@ -57,12 +62,32 @@ export function CustomerDetailSheet({
   customer: customerProp,
   isOpen,
   onClose,
+  onMembershipChanged,
 }: CustomerDetailSheetProps) {
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
+
+  // VIP modal state
+  const [vipModal, setVipModal] = useState<{
+    isOpen: boolean;
+    targetType: MembershipType;
+  }>({ isOpen: false, targetType: "VIP" });
+
+  // Toast state
+  const [toastMessage, setToastMessage] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   useEffect(() => {
     setImgError(false);
@@ -157,6 +182,18 @@ export function CustomerDetailSheet({
   const rawWhatsapp = customer?.profile?.whatsappNumber?.trim();
   const cleanWhatsappDigits = rawWhatsapp ? rawWhatsapp.replace(/\D/g, "") : "";
 
+  const isVip = customer?.profile?.membershipType === "VIP";
+
+  const handleVipSuccess = () => {
+    const newType = vipModal.targetType;
+    setToastMessage({
+      text: `Customer updated to ${newType}.`,
+      type: "success",
+    });
+    loadCustomer(true);
+    onMembershipChanged?.();
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
@@ -192,7 +229,15 @@ export function CustomerDetailSheet({
           </div>
 
           <SheetTitle className="text-xl font-black uppercase tracking-tight text-[#1A1A1A] mt-2">
-            {isLoading ? "Loading Profile..." : fullName || "Profile Incomplete"}
+            <span className="flex items-center gap-2 flex-wrap">
+              {isLoading ? "Loading Profile..." : fullName || "Profile Incomplete"}
+              {!isLoading && isVip && (
+                <span className="inline-flex items-center gap-1 bg-[#FFD84D] border-2 border-[#1A1A1A] text-[#1A1A1A] font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] shadow-[1.5px_1.5px_0px_0px_#1A1A1A]">
+                  <Crown className="h-3 w-3" />
+                  VIP
+                </span>
+              )}
+            </span>
           </SheetTitle>
           <SheetDescription className="text-xs font-mono font-bold text-[#5C5647] flex items-center gap-1.5">
             <Phone className="h-3.5 w-3.5 stroke-[2.5] text-[#1A1A1A]" />
@@ -265,6 +310,12 @@ export function CustomerDetailSheet({
                   <h3 className="text-base font-black uppercase text-[#1A1A1A] truncate">
                     {fullName || "Profile Incomplete"}
                   </h3>
+                  {isVip && (
+                    <span className="inline-flex items-center gap-1 bg-[#FFD84D] border-2 border-[#1A1A1A] text-[#1A1A1A] font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded-[6px] shadow-[1px_1px_0px_0px_#1A1A1A]">
+                      <Crown className="h-3 w-3" />
+                      VIP
+                    </span>
+                  )}
                   {!customer.profile && (
                     <span className="bg-[#FFD9D0] text-[#1A1A1A] text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-[6px] border-2 border-[#1A1A1A]">
                       Incomplete
@@ -307,6 +358,42 @@ export function CustomerDetailSheet({
                     <Mail className="h-3 w-3 stroke-[2.5]" />
                     <span className="truncate">{customer.email}</span>
                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* VIP Membership Action */}
+            <div className="bg-white border-2 border-[#1A1A1A] rounded-[14px] p-4 shadow-[4px_4px_0px_0px_#1A1A1A]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Crown className="h-4 w-4 stroke-[2.5] text-[#1A1A1A]" />
+                  <div>
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-[#1A1A1A]">
+                      Membership
+                    </h4>
+                    <p className="text-[10px] font-mono font-bold text-[#5C5647] mt-0.5">
+                      {isVip ? "This customer has VIP membership" : "Standard membership"}
+                    </p>
+                  </div>
+                </div>
+                {isVip ? (
+                  <button
+                    type="button"
+                    onClick={() => setVipModal({ isOpen: true, targetType: "NORMAL" })}
+                    className="h-8 px-3 rounded-[8px] border-2 border-[#1A1A1A] bg-[#E4DFD0] hover:bg-[#D5D0C3] text-[#1A1A1A] font-black uppercase text-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <ShieldMinus className="h-3.5 w-3.5" />
+                    Remove VIP
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setVipModal({ isOpen: true, targetType: "VIP" })}
+                    className="h-8 px-3 rounded-[8px] border-2 border-[#1A1A1A] bg-[#FFD84D] hover:bg-[#E6C23D] text-[#1A1A1A] font-black uppercase text-[10px] shadow-[2px_2px_0px_0px_#1A1A1A] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Crown className="h-3.5 w-3.5" />
+                    Make VIP
+                  </button>
                 )}
               </div>
             </div>
@@ -539,6 +626,46 @@ export function CustomerDetailSheet({
             Close Profile Drawer
           </Button>
         </SheetFooter>
+
+        {/* VIP Modal */}
+        {customer && (
+          <VipMembershipModal
+            isOpen={vipModal.isOpen}
+            onClose={() => setVipModal((prev) => ({ ...prev, isOpen: false }))}
+            targetType={vipModal.targetType}
+            customerIds={[customer.id]}
+            customerNames={[fullName || customer.mobile]}
+            onSuccess={handleVipSuccess}
+          />
+        )}
+
+        {/* Toast inside sheet */}
+        {toastMessage && (
+          <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div
+              className={`flex items-center gap-2 rounded-[10px] border-2 border-[#1A1A1A] px-4 py-2.5 font-mono text-xs font-bold shadow-[3px_3px_0px_0px_#1A1A1A] ${
+                toastMessage.type === "success"
+                  ? "bg-[#B9E8B4] text-[#1A1A1A]"
+                  : "bg-[#FFD9D0] text-[#1A1A1A]"
+              }`}
+            >
+              {toastMessage.type === "success" ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 stroke-[2.5]" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0 stroke-[2.5]" />
+              )}
+              <span>{toastMessage.text}</span>
+              <button
+                type="button"
+                onClick={() => setToastMessage(null)}
+                className="ml-2 cursor-pointer hover:opacity-70"
+                aria-label="Dismiss toast"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );

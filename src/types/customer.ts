@@ -1,3 +1,5 @@
+export type MembershipType = "NORMAL" | "VIP";
+
 export interface CustomerProfile {
   id: string;
   firstName: string;
@@ -6,8 +8,19 @@ export interface CustomerProfile {
   dateOfBirth: string;
   profileImageUrl?: string | null;
   whatsappNumber?: string | null;
+  membershipType?: MembershipType;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface MembershipUpdateResponse {
+  id: string;
+  membershipType: MembershipType;
+}
+
+export interface BulkMembershipUpdateResponse {
+  updatedCount: number;
+  failedIds: string[];
 }
 
 export interface CustomerCounts {

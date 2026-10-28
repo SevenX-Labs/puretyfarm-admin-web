@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api-client";
-import { CustomersApiResponse, CustomerDetail, CustomerListItem } from "@/types/customer";
+import { CustomersApiResponse, CustomerDetail, CustomerListItem, MembershipType, MembershipUpdateResponse, BulkMembershipUpdateResponse } from "@/types/customer";
 import { swrFetch, SwrOptions, getCachedData, setCachedData } from "@/lib/cache";
 
 function getEmptyCustomersResponse(page = 1, limit = 20): CustomersApiResponse {
@@ -60,6 +60,7 @@ export async function fetchCustomers(
     page?: number;
     limit?: number;
     search?: string;
+    membershipType?: MembershipType;
   },
   options?: SwrOptions<CustomersApiResponse>
 ): Promise<CustomersApiResponse> {
@@ -70,6 +71,7 @@ export async function fetchCustomers(
   if (params.page) query.set("page", params.page.toString());
   if (params.limit) query.set("limit", params.limit.toString());
   if (params.search?.trim()) query.set("search", params.search.trim());
+  if (params.membershipType) query.set("membershipType", params.membershipType);
 
   const cacheKey = `customers:${query.toString()}`;
 
@@ -147,4 +149,24 @@ export async function fetchCustomerById(
     if (cached) return cached;
     throw err;
   }
+}
+
+export async function updateCustomerMembership(
+  customerId: string,
+  membershipType: MembershipType
+): Promise<MembershipUpdateResponse> {
+  return apiClient.patch<MembershipUpdateResponse>(
+    `/admin/customers/${customerId}/membership`,
+    { membershipType }
+  );
+}
+
+export async function bulkUpdateMembership(
+  customerIds: string[],
+  membershipType: MembershipType
+): Promise<BulkMembershipUpdateResponse> {
+  return apiClient.patch<BulkMembershipUpdateResponse>(
+    `/admin/customers/bulk/membership`,
+    { customerIds, membershipType }
+  );
 }
